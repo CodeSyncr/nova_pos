@@ -25,14 +25,15 @@ type Purchase = {
 	status: string
 	notes: string | null
 	created_at: string
+	supplier_id: string | null
 	supplier: {
 		id: string
 		name: string
-	} | null
+	}[] | null
 	created_by_profile: {
 		id: string
 		full_name: string | null
-	} | null
+	}[] | null
 }
 
 export default function PurchasesPage() {
@@ -186,7 +187,7 @@ export default function PurchasesPage() {
 							</p>
 							<Button
 								onClick={() => setShowPurchaseForm(true)}
-								variant="outline"
+								variant="ghost"
 								className="border-white/20"
 							>
 								<Plus className="mr-2 h-4 w-4" />
@@ -215,7 +216,6 @@ export default function PurchasesPage() {
 															{purchase.invoice_number || 'Purchase'}
 														</h3>
 														<Badge
-															variant="outline"
 															className={`${
 																purchase.status === 'completed'
 																	? 'border-emerald-400/50 text-emerald-400 bg-emerald-400/10'
@@ -238,11 +238,11 @@ export default function PurchasesPage() {
 																day: 'numeric'
 															})}
 														</div>
-														{purchase.supplier ? (
+														{purchase.supplier?.[0] ? (
 															<div className="flex items-center gap-2">
 																<Building2 className="h-4 w-4" />
 																<span className="text-white/80">
-																	{purchase.supplier.name}
+																	{purchase.supplier[0].name}
 																</span>
 															</div>
 														) : (
@@ -252,7 +252,7 @@ export default function PurchasesPage() {
 														)}
 														<span className="text-white/40">
 															by{' '}
-															{purchase.created_by_profile?.full_name ||
+															{purchase.created_by_profile?.[0]?.full_name ||
 																'System'}
 														</span>
 													</div>

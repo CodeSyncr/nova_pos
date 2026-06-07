@@ -24,6 +24,8 @@ export function GeneralSettingsTab({
 }: GeneralSettingsTabProps) {
 	const settings = tenant.settings || {}
 	const [formData, setFormData] = useState({
+		currency: (settings.currency as string) || 'INR',
+		currencySymbol: (settings.currencySymbol as string) || '₹',
 		locale: (settings.locale as string) || 'en-IN',
 		timezone: (settings.timezone as string) || 'Asia/Kolkata',
 		taxRate: (settings.taxRate as number) || 0

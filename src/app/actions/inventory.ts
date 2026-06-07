@@ -126,14 +126,19 @@ export async function getLowStockItems(tenantId: string) {
     `
 		)
 		.eq('tenant_id', tenantId)
-		.lt('current_stock', supabase.raw('min_stock_level'))
+		.not('min_stock_level', 'is', null)
 		.order('current_stock', { ascending: true })
 
 	if (error) {
 		throw new Error(error.message)
 	}
 
-	return data
+	// Filter client-side: current_stock < min_stock_level
+	return (data ?? []).filter(
+		(item) =>
+			item.min_stock_level !== null &&
+			item.current_stock < item.min_stock_level
+	)
 }
 
 /**

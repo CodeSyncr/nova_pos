@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useState, useTransition, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Check, X, Loader, ArrowRight, Link2, Sparkles } from 'lucide-react'
@@ -10,7 +10,7 @@ import { checkSubdomainAvailability } from '@/app/actions/tenant'
 import { setTenantSubdomain, skipSubdomainSetup } from '@/app/actions/subdomain'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
-export default function SubdomainSetupPage() {
+function SubdomainSetupContent() {
 	const router = useRouter()
 	const searchParams = useSearchParams()
 	const tenantId = searchParams.get('tenantId')
@@ -37,7 +37,6 @@ export default function SubdomainSetupPage() {
 			return
 		}
 
-		// Load tenant name
 		const loadTenant = async () => {
 			try {
 				const supabase = createSupabaseBrowserClient()
@@ -49,7 +48,6 @@ export default function SubdomainSetupPage() {
 
 				if (data) {
 					setTenantName(data.name)
-					// If subdomain already exists, redirect to dashboard
 					if (data.slug) {
 						router.push('/dashboard')
 					}
@@ -154,9 +152,7 @@ export default function SubdomainSetupPage() {
 		startTransition(async () => {
 			try {
 				await skipSubdomainSetup(tenantId)
-				// Refresh the router to ensure server components get fresh data
 				await router.refresh()
-				// Small delay to ensure cache is cleared
 				await new Promise((resolve) => setTimeout(resolve, 100))
 				router.push('/dashboard')
 			} catch (err) {
@@ -324,7 +320,7 @@ export default function SubdomainSetupPage() {
 
 							<div className="rounded-xl border border-blue-400/30 bg-blue-400/10 p-4">
 								<p className="text-xs text-blue-200">
-									💡 <strong>Tip:</strong> Choose a subdomain that's easy to
+									💡 <strong>Tip:</strong> Choose a subdomain that&apos;s easy to
 									remember and represents your brand. You can set it up later in
 									settings if you skip now.
 								</p>
@@ -334,5 +330,19 @@ export default function SubdomainSetupPage() {
 				</motion.div>
 			</div>
 		</div>
+	)
+}
+
+export default function SubdomainSetupPage() {
+	return (
+		<Suspense
+			fallback={
+				<div className="flex min-h-screen items-center justify-center bg-[#03030A]">
+					<Loader className="h-8 w-8 animate-spin text-white/40" />
+				</div>
+			}
+		>
+			<SubdomainSetupContent />
+		</Suspense>
 	)
 }

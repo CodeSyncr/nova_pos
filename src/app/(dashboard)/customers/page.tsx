@@ -23,7 +23,7 @@ type CustomerRow = {
 	tags: string[] | null
 	loyalty_profiles: Array<{
 		points_balance: number
-		loyalty_tiers: { name: string } | null
+		loyalty_tiers: { name: string }[] | null
 	}>
 }
 
@@ -94,7 +94,7 @@ export default async function CustomersPage() {
 					</p>
 				</div>
 				<div className="flex gap-3">
-					<Button variant="outline" className="border-white/20 text-white/80">
+					<Button variant="ghost" className="border-white/20 text-white/80">
 						<Star className="mr-2 h-4 w-4" />
 						View tiers
 					</Button>
@@ -129,7 +129,7 @@ export default async function CustomersPage() {
 							{rows.map((customer) => {
 								const loyalty = customer.loyalty_profiles?.[0] ?? null
 								const points = loyalty?.points_balance ?? 0
-								const tierName = loyalty?.loyalty_tiers?.name ?? '—'
+								const tierName = loyalty?.loyalty_tiers?.[0]?.name ?? '—'
 								return (
 									<tr
 										key={customer.id}

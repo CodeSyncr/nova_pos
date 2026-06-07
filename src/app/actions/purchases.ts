@@ -124,6 +124,7 @@ export async function getPurchases(tenantId: string) {
       status,
       notes,
       created_at,
+      supplier_id,
       supplier:supplier_id (
         id,
         name
