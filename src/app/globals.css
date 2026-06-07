@@ -1,26 +1,77 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+	color-scheme: dark;
+	--background: 240 21% 9%;
+	--foreground: 0 0% 100%;
+	--muted: 234 21% 15%;
+	--muted-foreground: 240 5% 64%;
+	--accent: 264 87% 70%;
+	--accent-foreground: 255 100% 98%;
+	--border: 240 18% 17%;
+	--card: 240 21% 10%;
+	--card-foreground: 0 0% 100%;
+	--radius: 0.95rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+	color-scheme: dark;
+	--background: 240 21% 9%;
+	--foreground: 0 0% 100%;
+	--muted: 234 21% 15%;
+	--muted-foreground: 240 5% 64%;
+	--accent: 264 87% 70%;
+	--accent-foreground: 255 100% 98%;
+	--border: 240 18% 17%;
+	--card: 240 21% 10%;
+	--card-foreground: 0 0% 100%;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.light {
+	color-scheme: light;
+	--background: 250 30% 99%;
+	--foreground: 220 15% 15%;
+	--muted: 210 20% 96%;
+	--muted-foreground: 220 12% 40%;
+	--accent: 252 94% 67%;
+	--accent-foreground: 252 100% 98%;
+	--border: 220 14% 90%;
+	--card: 0 0% 100%;
+	--card-foreground: 220 20% 12%;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+	* {
+		border-color: hsl(var(--border));
+	}
+
+	body {
+		font-family:
+			var(--font-geist-sans),
+			'Inter',
+			system-ui,
+			-apple-system,
+			sans-serif;
+		background-color: hsl(var(--background));
+		color: hsl(var(--foreground));
+		min-height: 100%;
+		overflow-x: hidden;
+	}
+}
+
+.grain {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+	opacity: 0.05;
+	mix-blend-mode: soft-light;
+}
+
+.glow {
+	position: absolute;
+	filter: blur(60px);
+	opacity: 0.5;
 }

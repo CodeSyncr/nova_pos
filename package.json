@@ -1,27 +1,46 @@
 {
-  "name": "pos_global",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "next": "16.0.3",
-    "react": "19.2.0",
-    "react-dom": "19.2.0"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.3",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  },
-  "packageManager": "pnpm@9.7.0+sha512.dc09430156b427f5ecfc79888899e1c39d2d690f004be70e05230b72cb173d96839587545d09429b55ac3c429c801b4dc3c0e002f653830a420fa2dd4e3cf9cf"
+	"name": "pos_global",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"dev": "NODE_OPTIONS='--max-http-header-size=65536' next dev",
+		"build": "next build",
+		"start": "NODE_OPTIONS='--max-http-header-size=65536' next start",
+		"lint": "eslint"
+	},
+	"dependencies": {
+		"@radix-ui/react-alert-dialog": "^1.1.15",
+		"@radix-ui/react-slot": "^1.1.0",
+		"@supabase/auth-ui-react": "^0.4.7",
+		"@supabase/auth-ui-shared": "^0.1.8",
+		"@supabase/ssr": "^0.7.0",
+		"@supabase/supabase-js": "^2.47.2",
+		"class-variance-authority": "^0.7.1",
+		"clsx": "^2.1.1",
+		"firebase": "^12.7.0",
+		"framer-motion": "^12.23.24",
+		"lucide-react": "^0.554.0",
+		"next": "16.0.3",
+		"next-themes": "^0.4.6",
+		"react": "19.2.0",
+		"react-dom": "19.2.0",
+		"tailwind-merge": "^3.4.0"
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.13.0",
+		"@tailwindcss/postcss": "^4.0.0",
+		"@types/node": "^24.10.1",
+		"@types/react": "^19.2.6",
+		"@types/react-dom": "^19.2.3",
+		"eslint": "^9.13.0",
+		"eslint-config-next": "16.0.3",
+		"eslint-plugin-jsx-a11y": "^6.10.2",
+		"eslint-plugin-react": "^7.37.2",
+		"eslint-plugin-react-hooks": "^7.0.1",
+		"prettier": "^3.4.2",
+		"tailwindcss": "^4.0.0",
+		"typescript": "^5.6.3",
+		"typescript-eslint": "^8.13.0"
+	},
+	"packageManager": "pnpm@9.7.0+sha512.dc09430156b427f5ecfc79888899e1c39d2d690f004be70e05230b72cb173d96839587545d09429b55ac3c429c801b4dc3c0e002f653830a420fa2dd4e3cf9cf"
 }
