@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { X, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { CustomSelect } from '@/components/ui/select'
 import {
 	createTenantUser,
 	updateTenantUserRole,
@@ -154,20 +155,21 @@ export function UserForm({
 						<label className="mb-2 block text-sm font-medium text-white/70">
 							Role
 						</label>
-						<select
+						<CustomSelect
 							value={formData.role_id}
-							onChange={(e) =>
-								setFormData({ ...formData, role_id: e.target.value })
+							onChange={(val) =>
+								setFormData({ ...formData, role_id: val })
 							}
-							className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white focus:border-white/20 focus:outline-none"
-						>
-							<option value="">No role</option>
-							{roles.map((role) => (
-								<option key={role.id} value={role.id}>
-									{role.name} ({role.code})
-								</option>
-							))}
-						</select>
+							options={[
+								{ value: '', label: 'No role', description: 'Regular staff access' },
+								...roles.map((role) => ({
+									value: role.id,
+									label: role.name,
+									description: `Role code: ${role.code}`
+								}))
+							]}
+							placeholder="Select role"
+						/>
 					</div>
 
 					<div className="flex gap-3 pt-4">

@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { createOrUpdateSOP } from '@/app/actions/menu'
 
+import { CustomSelect } from '@/components/ui/select'
+
 type SOPStep = {
 	title: string
 	body: string | null
@@ -134,19 +136,16 @@ export function SOPForm({
 						<label className="block text-sm font-medium text-white/70 mb-2">
 							Menu Item *
 						</label>
-						<select
-							required
+						<CustomSelect
 							value={menuItemId}
-							onChange={(e) => setMenuItemId(e.target.value)}
+							onChange={setMenuItemId}
+							options={menuItems.map((item) => ({
+								value: item.id,
+								label: item.name
+							}))}
 							disabled={!!sop}
-							className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white focus:border-white/30 focus:outline-none disabled:opacity-50"
-						>
-							{menuItems.map((item) => (
-								<option key={item.id} value={item.id}>
-									{item.name}
-								</option>
-							))}
-						</select>
+							placeholder="Select menu item"
+						/>
 					</div>
 
 					<section className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-5">

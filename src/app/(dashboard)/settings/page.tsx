@@ -14,13 +14,16 @@ import {
 	Shield,
 	Database,
 	Globe,
-	AlertCircle
+	LayoutGrid,
+	AlertCircle,
+	FileText
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { LoyaltySettingsTab } from '@/components/settings/loyalty-settings-tab'
 import { CouponsTab } from '@/components/settings/coupons-tab'
 import { GeneralSettingsTab } from '@/components/settings/general-settings-tab'
+import { BillDesignerTab } from '@/components/settings/bill-designer-tab'
 import { OrganizationSettingsTab } from '@/components/settings/organization-settings-tab'
 import { ProfileSettingsTab } from '@/components/settings/profile-settings-tab'
 import { RolesPermissionsTab } from '@/components/settings/roles-permissions-tab'
@@ -28,6 +31,7 @@ import { SuppliersTab } from '@/components/settings/suppliers-tab'
 import { FirebaseSyncTab } from '@/components/settings/firebase-sync-tab'
 import { UsersTab } from '@/components/settings/users-tab'
 import { DomainSettingsTab } from '@/components/settings/domain-settings-tab'
+import { TablesSettingsTab } from '@/components/settings/tables-settings-tab'
 
 type Tenant = {
 	id: string
@@ -101,6 +105,20 @@ const tabs = [
 		description: 'Currency, locale & tax settings'
 	},
 	{
+		id: 'bill-design',
+		label: 'Bill Design',
+		icon: FileText,
+		color: 'from-pink-500/20 to-rose-500/20',
+		description: 'Design WhatsApp & thermal bills'
+	},
+	{
+		id: 'tables',
+		label: 'Tables',
+		icon: LayoutGrid,
+		color: 'from-teal-500/20 to-cyan-500/20',
+		description: 'Dining area & seating layout'
+	},
+	{
 		id: 'suppliers',
 		label: 'Suppliers',
 		icon: Building2,
@@ -112,7 +130,7 @@ const tabs = [
 		label: 'Firebase Sync',
 		icon: Database,
 		color: 'from-orange-500/20 to-red-500/20',
-		description: 'Import orders from Firebase'
+		description: 'Import data from Firebase'
 	}
 ]
 
@@ -408,6 +426,14 @@ CREATE INDEX IF NOT EXISTS idx_tenants_custom_domain
 
 						{activeTab === 'general' && (
 							<GeneralSettingsTab tenant={tenant} onRefresh={loadTenant} />
+						)}
+
+						{activeTab === 'bill-design' && (
+							<BillDesignerTab tenant={tenant} onRefresh={loadTenant} />
+						)}
+
+						{activeTab === 'tables' && (
+							<TablesSettingsTab tenant={tenant} onRefresh={loadTenant} />
 						)}
 
 						{activeTab === 'suppliers' && (

@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { X, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { CustomSelect } from '@/components/ui/select'
 import { createPurchase } from '@/app/actions/purchases'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
@@ -318,18 +319,19 @@ export function PurchaseForm({
 						<label className="block text-sm font-medium text-white mb-2">
 							Supplier (optional - leave empty for local purchase)
 						</label>
-						<select
+						<CustomSelect
 							value={selectedSupplierId}
-							onChange={(e) => setSelectedSupplierId(e.target.value)}
-							className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white focus:border-white/30 focus:outline-none"
-						>
-							<option value="">Local Purchase</option>
-							{suppliers.map((supplier) => (
-								<option key={supplier.id} value={supplier.id}>
-									{supplier.name}
-								</option>
-							))}
-						</select>
+							onChange={setSelectedSupplierId}
+							options={[
+								{ value: '', label: 'Local Purchase', description: 'No supplier / local purchase' },
+								...suppliers.map((supplier) => ({
+									value: supplier.id,
+									label: supplier.name,
+									description: 'Supplier'
+								}))
+							]}
+							placeholder="Select supplier"
+						/>
 						<p className="mt-1 text-xs text-white/60">
 							Select a supplier or leave empty for local purchases
 						</p>
@@ -398,21 +400,21 @@ export function PurchaseForm({
 												<label className="block text-xs text-white/60 mb-1">
 													Ingredient *
 												</label>
-												<select
+												<CustomSelect
 													value={item.ingredientId}
-													onChange={(e) =>
-														updateItem(index, 'ingredientId', e.target.value)
+													onChange={(val) =>
+														updateItem(index, 'ingredientId', val)
 													}
-													className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-													required
-												>
-													<option value="">Select ingredient</option>
-													{ingredients.map((ing) => (
-														<option key={ing.id} value={ing.id}>
-															{ing.name}
-														</option>
-													))}
-												</select>
+													options={[
+														{ value: '', label: 'Select ingredient', description: 'Choose raw material' },
+														...ingredients.map((ing) => ({
+															value: ing.id,
+															label: ing.name,
+															description: `Unit: ${ing.unit || 'units'}`
+														}))
+													]}
+													placeholder="Select ingredient"
+												/>
 											</div>
 											<div>
 												<label className="block text-xs text-white/60 mb-1">

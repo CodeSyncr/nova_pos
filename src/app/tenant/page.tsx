@@ -19,6 +19,7 @@ import {
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { CustomSelect } from '@/components/ui/select'
 
 const timezones = [
 	'UTC',
@@ -499,45 +500,36 @@ export default function TenantPage() {
 
 							<div className="space-y-4">
 								<label className="text-sm text-white/70">Timezone</label>
-								<select
+								<CustomSelect
 									value={formState.settings.timezone}
-									onChange={(e) =>
-										handleSettingsChange('timezone', e.target.value)
-									}
-									className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white focus:outline-none"
-								>
-									{timezones.map((zone) => (
-										<option key={zone} value={zone} className="bg-[#05060E]">
-											{zone}
-										</option>
-									))}
-								</select>
+									onChange={(val) => handleSettingsChange('timezone', val)}
+									options={timezones.map((zone) => ({
+										value: zone,
+										label: zone
+									}))}
+									placeholder="Select timezone"
+								/>
 							</div>
 
 							<div className="space-y-4">
 								<label className="text-sm text-white/70">Currency</label>
-								<select
+								<CustomSelect
 									value={formState.settings.currency}
-									onChange={(e) => {
+									onChange={(val) => {
 										const selection = currencies.find(
-											(c) => c.code === e.target.value
+											(c) => c.code === val
 										)!
 										handleSettingsChange('currency', selection.code)
 										handleSettingsChange('currencySymbol', selection.symbol)
 										handleSettingsChange('locale', selection.locale)
 									}}
-									className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white focus:outline-none"
-								>
-									{currencies.map((currency) => (
-										<option
-											key={currency.code}
-											value={currency.code}
-											className="bg-[#05060E]"
-										>
-											{currency.code} · {currency.locale}
-										</option>
-									))}
-								</select>
+									options={currencies.map((currency) => ({
+										value: currency.code,
+										label: currency.code,
+										description: currency.locale
+									}))}
+									placeholder="Select currency"
+								/>
 							</div>
 							<div className="space-y-2">
 								<label className="text-sm text-white/70">Locale</label>

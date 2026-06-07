@@ -1,6 +1,7 @@
 'use server'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import type { BillTemplate } from '@/lib/bill-template'
 
 export async function updateLoyaltySettings(
 	tenantId: string,
@@ -122,13 +123,15 @@ export async function createOrUpdateCoupon(
 export async function updateTenantSettings(
 	tenantId: string,
 	settings: {
-		currency: string
-		currencySymbol: string
-		locale: string
-		timezone: string
-		taxRate: number
+		currency?: string
+		currencySymbol?: string
+		locale?: string
+		timezone?: string
+		taxRate?: number
 		monthStartDay?: number
 		monthEndDay?: number
+		reviewLink?: string
+		tables?: Array<{ id: string; name: string; capacity: number; section: string }>
 		firebaseConfig?: {
 			apiKey: string
 			authDomain: string
@@ -138,6 +141,11 @@ export async function updateTenantSettings(
 			appId?: string
 			ordersCollection: string
 			menuItemsCollection?: string
+			customersCollection?: string
+		}
+		billTemplates?: {
+			whatsapp: BillTemplate
+			thermal: BillTemplate
 		}
 	}
 ) {

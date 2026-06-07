@@ -17,6 +17,7 @@ import {
 	Calendar
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { CustomSelect } from '@/components/ui/select'
 import { useToast } from '@/components/ui/toast'
 import { updateTenantOrganization } from '@/app/actions/settings'
 
@@ -281,24 +282,25 @@ export function OrganizationSettingsTab({
 							<label className="mb-2 block text-sm font-medium text-white">
 								Font Family
 							</label>
-							<select
+							<CustomSelect
 								value={formData.branding.fontFamily}
-								onChange={(e) =>
+								onChange={(val) =>
 									setFormData({
 										...formData,
 										branding: {
 											...formData.branding,
-											fontFamily: e.target.value
+											fontFamily: val
 										}
 									})
 								}
-								className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white focus:border-white/30 focus:outline-none"
-							>
-								<option value="Inter">Inter</option>
-								<option value="Poppins">Poppins</option>
-								<option value="Roboto">Roboto</option>
-								<option value="Open Sans">Open Sans</option>
-							</select>
+								options={[
+									{ value: 'Inter', label: 'Inter', description: 'Clean geometric sans-serif' },
+									{ value: 'Poppins', label: 'Poppins', description: 'Modern friendly sans-serif' },
+									{ value: 'Roboto', label: 'Roboto', description: 'Structured clean sans-serif' },
+									{ value: 'Open Sans', label: 'Open Sans', description: 'Highly readable neutral sans-serif' }
+								]}
+								placeholder="Select font family"
+							/>
 						</div>
 						<div>
 							<label className="mb-2 block text-sm font-medium text-white">

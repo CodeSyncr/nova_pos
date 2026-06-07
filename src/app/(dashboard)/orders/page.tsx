@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import { CustomSelect, SelectOption } from '@/components/ui/select'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -24,7 +25,13 @@ import {
 	Edit,
 	Plus,
 	Minus,
-	Trash2
+	Trash2,
+	ChevronDown,
+	Coins,
+	CreditCard,
+	QrCode,
+	Wallet,
+	MoreHorizontal
 } from 'lucide-react'
 import {
 	updateOrderStatus,
@@ -34,6 +41,8 @@ import {
 } from '@/app/actions/orders'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/ui/toast'
+import { generateAndUploadBill, openWhatsApp } from '@/lib/bill-generator'
+import { DEFAULT_WHATSAPP_TEMPLATE } from '@/lib/bill-template'
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -47,12 +56,76 @@ import {
 } from '@/components/ui/alert-dialog'
 import { ItemCustomizationModal } from '@/components/pos/item-customization-modal'
 
+const orderTypeOptions: SelectOption[] = [
+	{
+		value: 'dine_in',
+		label: 'Dine In',
+		icon: ChefHat,
+		description: 'Customer dining in restaurant',
+		colorClass: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+	},
+	{
+		value: 'takeaway',
+		label: 'Takeaway',
+		icon: Package,
+		description: 'Self-pickup takeaway order',
+		colorClass: 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+	},
+	{
+		value: 'delivery',
+		label: 'Delivery',
+		icon: Clock,
+		description: 'Home delivery courier',
+		colorClass: 'text-sky-400 bg-sky-500/10 border-sky-500/20'
+	}
+]
+
+const paymentOptions: SelectOption[] = [
+	{
+		value: 'cash',
+		label: 'Cash',
+		icon: Coins,
+		description: 'Accept cash in hand',
+		colorClass: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+	},
+	{
+		value: 'card',
+		label: 'Card',
+		icon: CreditCard,
+		description: 'Credit/Debit card reader terminal',
+		colorClass: 'text-sky-400 bg-sky-500/10 border-sky-500/20'
+	},
+	{
+		value: 'upi',
+		label: 'UPI',
+		icon: QrCode,
+		description: 'Direct UPI mobile bank transfer',
+		colorClass: 'text-violet-400 bg-violet-500/10 border-violet-500/20'
+	},
+	{
+		value: 'wallet',
+		label: 'Wallet',
+		icon: Wallet,
+		description: 'Paytm, PhonePe, GPay, etc.',
+		colorClass: 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+	},
+	{
+		value: 'other',
+		label: 'Other',
+		icon: MoreHorizontal,
+		description: 'Alternative payment channel',
+		colorClass: 'text-pink-400 bg-pink-500/10 border-pink-500/20'
+	}
+]
+
+
 type Order = {
 	id: string
 	table_number: string | null
 	status: string
 	order_type: string
 	customer_name: string | null
+	customer_phone: string | null
 	subtotal: number
 	tax: number
 	discount_amount?: number
@@ -221,6 +294,30 @@ export default function OrdersPage() {
 	const [customStartDate, setCustomStartDate] = useState('')
 	const [customEndDate, setCustomEndDate] = useState('')
 
+	// Bill sending states
+	const [sendingBillId, setSendingBillId] = useState<string | null>(null)
+	const [tenantName, setTenantName] = useState('')
+	const [tenantId, setTenantId] = useState('')
+	const [whatsappTemplate, setWhatsappTemplate] = useState<any>(null)
+	const [billReviewLink, setBillReviewLink] = useState('')
+	const [billTagline, setBillTagline] = useState('')
+	const [toppings, setToppings] = useState<any[]>([])
+	const [isPaymentDropdownOpen, setIsPaymentDropdownOpen] = useState(false)
+
+	const tableOptions = useMemo(() => {
+		const opts = tables.map((table) => ({
+			value: table.number,
+			label: `Table ${table.number}`,
+			description: `Dining Table ${table.number}`,
+			icon: User,
+			colorClass: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20'
+		}))
+		return [
+			{ value: '', label: 'Select table', description: 'Clear table assignment', icon: X, colorClass: 'text-rose-400 bg-rose-500/10 border-rose-500/20' },
+			...opts
+		]
+	}, [tables])
+
 	useEffect(() => {
 		loadOrders()
 		const interval = setInterval(loadOrders, 5000) // Refresh every 5 seconds
@@ -241,7 +338,7 @@ export default function OrdersPage() {
 
 		const { data: tenantRow } = await supabase
 			.from('profile_tenants')
-			.select('tenant_id, tenant:tenants(settings)')
+			.select('tenant_id, tenant:tenants(name, settings)')
 			.eq('profile_id', user.id)
 			.single()
 
@@ -259,6 +356,18 @@ export default function OrdersPage() {
 		const tax = (settings.taxRate as number) || 0
 		setCurrencySymbol(currency)
 		setTaxRate(tax)
+		setTenantName(tenant?.name || '')
+		setTenantId(tenantRow.tenant_id)
+		if (settings && typeof settings === 'object') {
+			const templates = (settings as any).billTemplates
+			if (templates?.whatsapp) {
+				setWhatsappTemplate(templates.whatsapp)
+				setBillTagline(templates.whatsapp.taglineText || '')
+			} else {
+				setWhatsappTemplate(null)
+			}
+			setBillReviewLink((settings as any).reviewLink || '')
+		}
 
 		// Load menu items and categories for edit modal
 		const { data: menuItemsData } = await supabase
@@ -288,6 +397,15 @@ export default function OrdersPage() {
 			.eq('tenant_id', tenantRow.tenant_id)
 			.eq('is_active', true)
 
+		const { data: toppingsData } = await supabase
+			.from('toppings')
+			.select('id, name, price, description, category')
+			.eq('tenant_id', tenantRow.tenant_id)
+
+		if (toppingsData) {
+			setToppings(toppingsData)
+		}
+
 		const { data: categoriesData } = await supabase
 			.from('menu_categories')
 			.select('id, name')
@@ -302,15 +420,27 @@ export default function OrdersPage() {
 
 		if (menuItemsData) {
 			// Ensure description field exists for all items and handle null/undefined variants/toppings
-			const itemsWithDescription = menuItemsData.map((item) => ({
-				...item,
-				description:
-					(item as { description?: string | null }).description || null,
-				menu_item_variants:
-					(item as { menu_item_variants?: unknown[] }).menu_item_variants || [],
-				menu_item_toppings:
-					(item as { menu_item_toppings?: unknown[] }).menu_item_toppings || []
-			}))
+			const itemsWithDescription = menuItemsData.map((item) => {
+				let linkedToppings = (item as { menu_item_toppings?: any[] }).menu_item_toppings || []
+				if (linkedToppings.length === 0 && toppingsData) {
+					const matchingToppings = toppingsData.filter((t) => {
+						if (!t.category) return false
+						const ids = t.category.split(',').map((id: string) => id.trim())
+						return ids.includes(item.category_id)
+					})
+					linkedToppings = matchingToppings.map((t) => ({
+						topping: t
+					}))
+				}
+				return {
+					...item,
+					description:
+						(item as { description?: string | null }).description || null,
+					menu_item_variants:
+						(item as { menu_item_variants?: unknown[] }).menu_item_variants || [],
+					menu_item_toppings: linkedToppings
+				}
+			})
 			setMenuItems(itemsWithDescription as typeof menuItems)
 		}
 		if (categoriesData) setCategories(categoriesData)
@@ -325,6 +455,7 @@ export default function OrdersPage() {
         status,
         order_type,
         customer_name,
+        customer_phone,
         subtotal,
         tax,
         discount_amount,
@@ -419,6 +550,56 @@ export default function OrdersPage() {
 			toast.error(
 				error instanceof Error ? error.message : 'Failed to delete order'
 			)
+		}
+	}
+
+	const handleSendBill = async (order: Order) => {
+		if (sendingBillId) return
+		setSendingBillId(order.id)
+
+		try {
+			const supabase = createSupabaseBrowserClient()
+			const finalTemplate = whatsappTemplate || {
+				...DEFAULT_WHATSAPP_TEMPLATE,
+				type: 'whatsapp'
+			}
+
+			const billOrderData = {
+				id: order.id,
+				created_at: order.created_at,
+				order_type: order.order_type,
+				table_number: order.table_number,
+				customer_name: order.customer_name,
+				customer_phone: order.customer_phone,
+				subtotal: order.subtotal,
+				tax: order.tax,
+				discount_amount: order.discount_amount,
+				total: order.total,
+				payment_method: order.payment_method,
+				order_items: order.order_items.map((item) => ({
+					id: item.id,
+					name: item.name,
+					quantity: item.quantity,
+					unit_price: item.unit_price,
+					total_price: item.total_price
+				}))
+			}
+
+			const config = {
+				order: billOrderData,
+				template: finalTemplate,
+				tenantName: tenantName,
+				currencySymbol: currencySymbol
+			}
+
+			const { url } = await generateAndUploadBill(config, supabase, tenantId)
+			openWhatsApp(url, order.customer_phone, tenantName, billTagline, billReviewLink)
+			toast.success('Bill generated & WhatsApp opened successfully!')
+		} catch (err: any) {
+			console.error('Error generating/uploading bill:', err)
+			toast.error(`Error sending bill: ${err.message || err}`)
+		} finally {
+			setSendingBillId(null)
 		}
 	}
 
@@ -1084,6 +1265,28 @@ export default function OrdersPage() {
 												)}
 										</div>
 									</div>
+
+									{/* Send Bill Action */}
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => handleSendBill(order)}
+										disabled={sendingBillId !== null}
+										className="w-full border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 h-9"
+									>
+										{sendingBillId === order.id ? (
+											<div className="flex items-center gap-1.5 justify-center">
+												<div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+												<span>Sending...</span>
+											</div>
+										) : (
+											<>
+												<Receipt className="mr-2 h-4 w-4" />
+												Send Bill to WhatsApp
+											</>
+										)}
+									</Button>
+
 									{/* Edit and Delete Buttons - Fixed at bottom */}
 									<div className="flex items-center gap-2 border-t border-white/10 pt-3">
 											<Button
@@ -1201,45 +1404,27 @@ export default function OrdersPage() {
 									</div>
 									<div className="grid grid-cols-2 gap-3">
 										<div>
-											<label className="mb-1 block text-xs text-white/60">
+											<label className="mb-1.5 block text-xs text-white/60">
 												Order Type
 											</label>
-											<select
+											<CustomSelect
 												value={editOrderType}
-												onChange={(e) =>
-													setEditOrderType(
-														e.target.value as
-															| 'dine_in'
-															| 'takeaway'
-															| 'delivery'
-													)
-												}
-												className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-											>
-												<option value="dine_in">Dine In</option>
-												<option value="takeaway">Takeaway</option>
-												<option value="delivery">Delivery</option>
-											</select>
+												onChange={(val) => setEditOrderType(val as any)}
+												options={orderTypeOptions}
+												placeholder="Select type"
+											/>
 										</div>
 										{editOrderType === 'dine_in' && (
 											<div>
-												<label className="mb-1 block text-xs text-white/60">
+												<label className="mb-1.5 block text-xs text-white/60">
 													Table
 												</label>
-												<select
+												<CustomSelect
 													value={editTableNumber || ''}
-													onChange={(e) =>
-														setEditTableNumber(e.target.value || null)
-													}
-													className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-												>
-													<option value="">Select table</option>
-													{tables.map((table) => (
-														<option key={table.id} value={table.number}>
-															Table {table.number}
-														</option>
-													))}
-												</select>
+													onChange={(val) => setEditTableNumber(val || null)}
+													options={tableOptions}
+													placeholder="Select table"
+												/>
 											</div>
 										)}
 									</div>
@@ -1618,6 +1803,7 @@ export default function OrdersPage() {
 									setDiscountType(null)
 									setDiscountValue('')
 									setPaymentMethod('')
+									setIsPaymentDropdownOpen(false)
 								}}
 							>
 								<X className="h-5 w-5" />
@@ -1743,19 +1929,12 @@ export default function OrdersPage() {
 								<label className="block text-sm font-medium text-white/70">
 									Payment Method <span className="text-red-400">*</span>
 								</label>
-								<select
-									required
+								<CustomSelect
 									value={paymentMethod}
-									onChange={(e) => setPaymentMethod(e.target.value)}
-									className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-								>
-									<option value="">Select payment method</option>
-									<option value="cash">Cash</option>
-									<option value="card">Card</option>
-									<option value="upi">UPI</option>
-									<option value="wallet">Wallet</option>
-									<option value="other">Other</option>
-								</select>
+									onChange={(val) => setPaymentMethod(val)}
+									options={paymentOptions}
+									placeholder="Select payment method"
+								/>
 							</div>
 
 							{/* Actions */}
@@ -1768,6 +1947,7 @@ export default function OrdersPage() {
 										setDiscountType(null)
 										setDiscountValue('')
 										setPaymentMethod('')
+										setIsPaymentDropdownOpen(false)
 									}}
 									className="flex-1"
 								>
@@ -1798,6 +1978,7 @@ export default function OrdersPage() {
 					currencySymbol={currencySymbol}
 				/>
 			)}
+
 		</div>
 	)
 }

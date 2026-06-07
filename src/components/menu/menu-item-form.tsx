@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { X, Save, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { CustomSelect } from '@/components/ui/select'
 import {
 	createMenuItem,
 	updateMenuItem,
@@ -426,18 +427,15 @@ export function MenuItemForm({
 								<label className="block text-sm font-medium text-white/70 mb-2">
 									Category *
 								</label>
-								<select
-									required
+								<CustomSelect
 									value={categoryId}
-									onChange={(e) => setCategoryId(e.target.value)}
-									className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white focus:border-white/30 focus:outline-none"
-								>
-									{categories.map((cat) => (
-										<option key={cat.id} value={cat.id}>
-											{cat.name}
-										</option>
-									))}
-								</select>
+									onChange={setCategoryId}
+									options={categories.map((cat) => ({
+										value: cat.id,
+										label: cat.name
+									}))}
+									placeholder="Select category"
+								/>
 							</div>
 						</div>
 

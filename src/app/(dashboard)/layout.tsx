@@ -23,7 +23,8 @@ import {
 	X,
 	User,
 	LogOut,
-	CreditCard
+	CreditCard,
+	FileBarChart
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -36,6 +37,7 @@ const navItems = [
 	{ href: '/purchases', label: 'Purchases', icon: ShoppingCart },
 	{ href: '/customers', label: 'Customers', icon: Users },
 	{ href: '/analytics', label: 'Analytics', icon: BarChart3 },
+	{ href: '/reports', label: 'Reports', icon: FileBarChart },
 	{ href: '/subscription', label: 'Subscription', icon: CreditCard },
 	{ href: '/settings', label: 'Settings', icon: Settings }
 ]

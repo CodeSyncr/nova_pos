@@ -20,13 +20,14 @@ type FirebaseSyncSelectionModalProps = {
 	isOpen: boolean
 	onClose: () => void
 	items: SyncItem[]
-	type: 'orders' | 'menuItems'
+	type: 'orders' | 'menuItems' | 'customers'
 	onSync: (selectedItems: SyncItem[]) => Promise<{
 		success: boolean
 		message: string
 		ordersSynced?: number
 		itemsSynced?: number
 		categoriesSynced?: number
+		customersSynced?: number
 	}>
 	onSuccess: () => void
 }
@@ -274,6 +275,12 @@ export function FirebaseSyncSelectionModal({
 						}>
 					}>) || []
 			}
+		} else if (type === 'customers') {
+			return {
+				title: (item.name as string) || 'Unknown Customer',
+				subtitle: (item.phone as string) || (item.email as string) || 'No contact info',
+				amount: `${(item.loyaltyPoints as number) || 0} pts`
+			}
 		} else {
 			return {
 				title: (item.name as string) || 'Unknown Item',
@@ -306,10 +313,10 @@ export function FirebaseSyncSelectionModal({
 							Firebase Sync
 						</p>
 						<h2 className="mt-1 text-2xl font-semibold text-white">
-							Select {type === 'orders' ? 'Orders' : 'Menu Items'} to Sync
+							Select {type === 'orders' ? 'Orders' : type === 'customers' ? 'Customers' : 'Menu Items'} to Sync
 						</h2>
 						<p className="mt-2 text-sm text-white/60">
-							{items.length} {type === 'orders' ? 'orders' : 'items'} found
+							{items.length} {type === 'orders' ? 'orders' : type === 'customers' ? 'customers' : 'items'} found
 						</p>
 					</div>
 					<button
@@ -400,7 +407,7 @@ export function FirebaseSyncSelectionModal({
 								<CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-emerald-400" />
 								<p className="text-lg font-medium">All items synced!</p>
 								<p className="text-sm mt-1">
-									All {type === 'orders' ? 'orders' : 'items'} have been
+									All {type === 'orders' ? 'orders' : type === 'customers' ? 'customers' : 'items'} have been
 									successfully synced.
 								</p>
 							</div>
@@ -589,7 +596,7 @@ export function FirebaseSyncSelectionModal({
 								Syncing...
 							</>
 						) : (
-							`Sync ${selectedItems.size} ${type === 'orders' ? 'Orders' : 'Items'}`
+							`Sync ${selectedItems.size} ${type === 'orders' ? 'Orders' : type === 'customers' ? 'Customers' : 'Items'}`
 						)}
 					</Button>
 				</div>

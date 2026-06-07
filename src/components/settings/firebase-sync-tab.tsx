@@ -13,7 +13,9 @@ import { Button } from '@/components/ui/button'
 import {
 	syncOrdersFromFirebaseClient,
 	syncMenuItemsFromFirebaseClient,
-	checkSyncedOrders
+	syncCustomersFromFirebaseClient,
+	checkSyncedOrders,
+	checkSyncedCustomers
 } from '@/app/actions/firebase-sync'
 import { updateTenantSettings } from '@/app/actions/settings'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
@@ -44,6 +46,7 @@ export function FirebaseSyncTab({ tenantId, onRefresh }: FirebaseSyncTabProps) {
 		appId: '',
 		ordersCollection: 'orders', // Default collection name
 		menuItemsCollection: 'menuItems', // Default collection name
+		customersCollection: 'customers', // Default collection name
 		dateFrom: '',
 		dateTo: ''
 	})
@@ -60,12 +63,19 @@ export function FirebaseSyncTab({ tenantId, onRefresh }: FirebaseSyncTabProps) {
 		itemsSynced?: number
 		categoriesSynced?: number
 	} | null>(null)
+	const [customersSyncResult, setCustomersSyncResult] = useState<{
+		success: boolean
+		message: string
+		customersSynced?: number
+	} | null>(null)
 
 	// Selection modal state
 	const [showOrdersModal, setShowOrdersModal] = useState(false)
 	const [showMenuItemsModal, setShowMenuItemsModal] = useState(false)
+	const [showCustomersModal, setShowCustomersModal] = useState(false)
 	const [fetchedOrders, setFetchedOrders] = useState<any[]>([])
 	const [fetchedMenuItems, setFetchedMenuItems] = useState<any[]>([])
+	const [fetchedCustomers, setFetchedCustomers] = useState<any[]>([])
 	const [loadingItems, setLoadingItems] = useState(false)
 
 	const handleSaveConfig = async (e: React.FormEvent) => {
@@ -101,7 +111,8 @@ export function FirebaseSyncTab({ tenantId, onRefresh }: FirebaseSyncTabProps) {
 					messagingSenderId: formData.messagingSenderId,
 					appId: formData.appId,
 					ordersCollection: formData.ordersCollection,
-					menuItemsCollection: formData.menuItemsCollection
+					menuItemsCollection: formData.menuItemsCollection,
+					customersCollection: formData.customersCollection
 				}
 			})
 
@@ -446,6 +457,146 @@ export function FirebaseSyncTab({ tenantId, onRefresh }: FirebaseSyncTabProps) {
 		return result
 	}
 
+	const fetchCustomersFromFirebase = async () => {
+		if (!formData.apiKey || !formData.projectId) {
+			warning('Please configure Firebase connection first')
+			return
+		}
+
+		setLoadingItems(true)
+
+		try {
+			// Initialize Firebase app
+			let app: FirebaseApp
+			const existingApp = getApps().find(
+				(a) => a.options.projectId === formData.projectId
+			)
+
+			if (existingApp) {
+				app = existingApp
+			} else {
+				app = initializeApp({
+					apiKey: formData.apiKey,
+					authDomain: formData.authDomain,
+					projectId: formData.projectId,
+					storageBucket: formData.storageBucket,
+					messagingSenderId: formData.messagingSenderId,
+					appId: formData.appId
+				})
+			}
+
+			const db = getFirestore(app)
+			const customersRef = collection(db, formData.customersCollection)
+
+			// Fetch customers from Firebase
+			const snapshot = await getDocs(customersRef)
+			const firebaseCustomers: any[] = []
+
+			snapshot.forEach((doc) => {
+				firebaseCustomers.push({
+					id: doc.id,
+					...doc.data()
+				})
+			})
+
+			if (firebaseCustomers.length === 0) {
+				info('No customers found in Firebase for the specified collection')
+				setLoadingItems(false)
+				return
+			}
+
+			// Check which customers are already synced
+			const customerIds = firebaseCustomers
+				.map((c) => c.id)
+				.filter((id): id is string => !!id)
+
+			if (customerIds.length === 0) {
+				warning('No valid customer IDs found in Firebase')
+				setLoadingItems(false)
+				return
+			}
+
+			const syncedCustomerIds = await checkSyncedCustomers(tenantId, customerIds)
+
+			// Filter out already synced customers
+			const unsyncedCustomers = firebaseCustomers.filter((customer) => {
+				if (!customer.id) return false
+				return !syncedCustomerIds.has(customer.id)
+			})
+
+			if (unsyncedCustomers.length === 0) {
+				info(
+					`All ${firebaseCustomers.length} customers have already been synced. No new customers to sync.`
+				)
+				setLoadingItems(false)
+				return
+			}
+
+			setFetchedCustomers(unsyncedCustomers)
+			setShowCustomersModal(true)
+		} catch (error) {
+			console.error('Error fetching customers:', error)
+			showError(
+				error instanceof Error
+					? error.message
+					: 'Failed to fetch customers from Firebase'
+			)
+		} finally {
+			setLoadingItems(false)
+		}
+	}
+
+	const handleSyncSelectedCustomers = async (selectedCustomers: any[]) => {
+		// Helper function to recursively convert Firestore Timestamps to plain objects
+		const convertTimestamps = (obj: any): any => {
+			if (obj === null || obj === undefined) {
+				return obj
+			}
+
+			if (typeof obj === 'object' && typeof obj.toDate === 'function') {
+				const date = obj.toDate()
+				return {
+					seconds: Math.floor(date.getTime() / 1000),
+					nanoseconds: (date.getTime() % 1000) * 1000000
+				}
+			}
+
+			if (obj instanceof Date) {
+				return obj.toISOString()
+			}
+
+			if (Array.isArray(obj)) {
+				return obj.map(convertTimestamps)
+			}
+
+			if (typeof obj === 'object' && obj.constructor === Object) {
+				const converted: any = {}
+				for (const key in obj) {
+					if (Object.prototype.hasOwnProperty.call(obj, key)) {
+						converted[key] = convertTimestamps(obj[key])
+					}
+				}
+				return converted
+			}
+
+			return obj
+		}
+
+		const customersToSync = selectedCustomers.map((customer) => {
+			return convertTimestamps(customer)
+		})
+
+		const result = await syncCustomersFromFirebaseClient(tenantId, customersToSync)
+
+		setCustomersSyncResult({
+			success: result.success,
+			message: result.message,
+			customersSynced: result.customersSynced
+		})
+
+		return result
+	}
+
 	// Load saved config on mount
 	useEffect(() => {
 		const loadConfig = async () => {
@@ -483,7 +634,10 @@ export function FirebaseSyncTab({ tenantId, onRefresh }: FirebaseSyncTabProps) {
 						ordersCollection: firebaseConfig.ordersCollection || 'orders',
 						menuItemsCollection:
 							(firebaseConfig as { menuItemsCollection?: string })
-								.menuItemsCollection || 'menuItems'
+								.menuItemsCollection || 'menuItems',
+						customersCollection:
+							(firebaseConfig as { customersCollection?: string })
+								.customersCollection || 'customers'
 					}))
 				} else {
 					// Fallback to localStorage
@@ -631,7 +785,7 @@ export function FirebaseSyncTab({ tenantId, onRefresh }: FirebaseSyncTabProps) {
 							/>
 						</div>
 					</div>
-					<div className="grid gap-4 md:grid-cols-2">
+					<div className="grid gap-4 md:grid-cols-3">
 						<div>
 							<label className="mb-2 block text-sm font-medium text-white">
 								Orders Collection Name
@@ -667,6 +821,26 @@ export function FirebaseSyncTab({ tenantId, onRefresh }: FirebaseSyncTabProps) {
 							/>
 							<p className="mt-1 text-xs text-white/60">
 								Name of the collection in Firebase where menu items are stored
+							</p>
+						</div>
+						<div>
+							<label className="mb-2 block text-sm font-medium text-white">
+								Customers Collection Name
+							</label>
+							<input
+								type="text"
+								value={formData.customersCollection}
+								onChange={(e) =>
+									setFormData({
+										...formData,
+										customersCollection: e.target.value
+									})
+								}
+								className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+								placeholder="customers"
+							/>
+							<p className="mt-1 text-xs text-white/60">
+								Name of the collection in Firebase where customers are stored
 							</p>
 						</div>
 					</div>
@@ -846,6 +1020,74 @@ export function FirebaseSyncTab({ tenantId, onRefresh }: FirebaseSyncTabProps) {
 				</div>
 			</motion.div>
 
+			{/* Sync Customers */}
+			<motion.div
+				initial={{ opacity: 0, y: 10 }}
+				animate={{ opacity: 1, y: 0 }}
+				className="rounded-xl border border-white/10 bg-black/20 p-6"
+			>
+				<div className="mb-4 flex items-center gap-3">
+					<RefreshCw className="h-5 w-5 text-cyan-400" />
+					<h3 className="text-lg font-semibold text-white">Sync Customers</h3>
+				</div>
+				<div className="space-y-4">
+					<p className="text-sm text-white/70">
+						Import customers from Firebase including their names, contact info, and loyalty points
+					</p>
+					<div className="flex items-center gap-4">
+						<Button
+							type="button"
+							onClick={fetchCustomersFromFirebase}
+							disabled={loadingItems || !formData.apiKey || !formData.projectId}
+							size="lg"
+							className="bg-cyan-600 hover:bg-cyan-700"
+						>
+							<RefreshCw
+								className={`mr-2 h-4 w-4 ${loadingItems ? 'animate-spin' : ''}`}
+							/>
+							{loadingItems ? 'Loading...' : 'Sync Customers from Firebase'}
+						</Button>
+					</div>
+					{customersSyncResult && (
+						<motion.div
+							initial={{ opacity: 0, y: 10 }}
+							animate={{ opacity: 1, y: 0 }}
+							className={`mt-4 rounded-xl border p-4 ${
+								customersSyncResult.success
+									? 'border-emerald-500/50 bg-emerald-500/10'
+									: 'border-red-500/50 bg-red-500/10'
+							}`}
+						>
+							<div className="flex items-start gap-3">
+								{customersSyncResult.success ? (
+									<CheckCircle2 className="h-5 w-5 text-emerald-400" />
+								) : (
+									<AlertCircle className="h-5 w-5 text-red-400" />
+								)}
+								<div className="flex-1">
+									<p
+										className={`font-medium ${
+											customersSyncResult.success
+												? 'text-emerald-300'
+												: 'text-red-300'
+										}`}
+									>
+										{customersSyncResult.message}
+									</p>
+									{customersSyncResult.success &&
+										customersSyncResult.customersSynced !== undefined && (
+											<p className="mt-1 text-sm text-white/70">
+												{customersSyncResult.customersSynced} customers synced
+												successfully
+											</p>
+										)}
+								</div>
+							</div>
+						</motion.div>
+					)}
+				</div>
+			</motion.div>
+
 			{/* Instructions */}
 			<motion.div
 				initial={{ opacity: 0, y: 10 }}
@@ -873,7 +1115,8 @@ export function FirebaseSyncTab({ tenantId, onRefresh }: FirebaseSyncTabProps) {
 					Note: Orders will be imported with status "completed" and linked to
 					your current tenant. Duplicate orders (based on timestamp and total)
 					will be skipped. Menu items will create categories, items, variants,
-					toppings, and ingredients as needed.
+					toppings, and ingredients as needed. Customers will be imported with their
+					loyalty points and deduplicated by phone number or Firebase ID.
 				</p>
 			</motion.div>
 
@@ -906,6 +1149,22 @@ export function FirebaseSyncTab({ tenantId, onRefresh }: FirebaseSyncTabProps) {
 						success: true,
 						message: 'Menu items synced successfully',
 						itemsSynced: fetchedMenuItems.length
+					})
+				}}
+			/>
+
+			<FirebaseSyncSelectionModal
+				isOpen={showCustomersModal}
+				onClose={() => setShowCustomersModal(false)}
+				items={fetchedCustomers}
+				type="customers"
+				onSync={handleSyncSelectedCustomers}
+				onSuccess={() => {
+					onRefresh()
+					setCustomersSyncResult({
+						success: true,
+						message: 'Customers synced successfully',
+						customersSynced: fetchedCustomers.length
 					})
 				}}
 			/>

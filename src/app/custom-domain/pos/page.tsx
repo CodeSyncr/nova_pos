@@ -108,6 +108,11 @@ export default async function CustomDomainPOSPage() {
 		.eq('menu_items.is_active', true)
 		.order('position', { ascending: true })
 
+	const { data: toppings } = await supabaseServer
+		.from('toppings')
+		.select('id, name, price, description, category')
+		.eq('tenant_id', tenant.id)
+
 	const currencySymbol =
 		((tenant.settings?.currencySymbol as string) ?? '₹') || '₹'
 	const taxRate = ((tenant.settings?.taxRate as number) ?? 0) || 0
@@ -119,6 +124,7 @@ export default async function CustomDomainPOSPage() {
 			tenant={tenant}
 			currencySymbol={currencySymbol}
 			taxRate={taxRate}
+			toppings={toppings ?? []}
 		/>
 	)
 }

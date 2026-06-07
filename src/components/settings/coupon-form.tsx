@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { CustomSelect } from '@/components/ui/select'
 import { createOrUpdateCoupon } from '@/app/actions/settings'
 
 type Coupon = {
@@ -183,19 +184,20 @@ export function CouponForm({
 							<label className="mb-2 block text-sm font-medium text-white">
 								Discount Type *
 							</label>
-							<select
+							<CustomSelect
 								value={formData.discount_type}
-								onChange={(e) =>
+								onChange={(val) =>
 									setFormData({
 										...formData,
-										discount_type: e.target.value as 'percent' | 'fixed'
+										discount_type: val as 'percent' | 'fixed'
 									})
 								}
-								className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white focus:border-white/30 focus:outline-none"
-							>
-								<option value="percent">Percentage</option>
-								<option value="fixed">Fixed Amount</option>
-							</select>
+								options={[
+									{ value: 'percent', label: 'Percentage', description: 'Apply discount as percentage (e.g. 20%)' },
+									{ value: 'fixed', label: 'Fixed Amount', description: 'Apply discount as static flat amount' }
+								]}
+								placeholder="Select discount type"
+							/>
 						</div>
 
 						<div>

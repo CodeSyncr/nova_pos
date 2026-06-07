@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { deleteSOP } from '@/app/actions/menu'
 import { SOPForm } from './sop-form'
+import { CustomSelect } from '@/components/ui/select'
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -145,23 +146,21 @@ export function SOPTab({ tenantId, sops, menuItems, onRefresh }: SOPTabProps) {
 											)}
 										</div>
 										{ sopsForItem.length > 1 && (
-											<select
+											<CustomSelect
 												value={activeId}
-												onChange={(e) =>
+												onChange={(val) =>
 													setActiveSopByItem((prev) => ({
 														...prev,
-														[menuItem.id]: e.target.value
+														[menuItem.id]: val
 													}))
 												}
-												className="max-w-[220px] rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs text-white/80 focus:border-white/40 focus:outline-none"
-											>
-												{sopsForItem.map((sop, index) => (
-													<option key={sop.id} value={sop.id}>
-														{sop.name?.trim() ||
-															`SOP ${index + 1}`}
-													</option>
-												))}
-											</select>
+												options={sopsForItem.map((sop, index) => ({
+													value: sop.id,
+													label: sop.name?.trim() || `SOP ${index + 1}`
+												}))}
+												placeholder="Select SOP"
+												className="max-w-[220px]"
+											/>
 										)}
 										<div className="flex gap-2">
 											<Button

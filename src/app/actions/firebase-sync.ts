@@ -599,6 +599,257 @@ export async function syncOrdersFromFirebaseClient(
 	}
 }
 
+type FirebaseCustomer = {
+	id?: string
+	[key: string]: unknown
+	name?: string
+	phone?: string
+	email?: string
+	loyaltyPoints?: number
+	totalOrders?: number
+	totalSpent?: number
+	lastOrderDate?: { seconds?: number; nanoseconds?: number } | string | Date
+	loyaltyTierId?: string
+	loyaltyTierName?: string
+	referralCode?: string
+	referredBy?: string
+	createdAt?: { seconds?: number; nanoseconds?: number } | string | Date
+	updatedAt?: { seconds?: number; nanoseconds?: number } | string | Date
+}
+
+export async function syncCustomersFromFirebaseClient(
+	tenantId: string,
+	firebaseCustomers: FirebaseCustomer[]
+): Promise<{ success: boolean; message: string; customersSynced: number }> {
+	// Use regular client for auth check
+	const supabaseAuth = await createSupabaseServerClient()
+	const {
+		data: { user }
+	} = await supabaseAuth.auth.getUser()
+
+	if (!user) {
+		throw new Error('You must be signed in to sync customers.')
+	}
+
+	// Use admin client for database operations to bypass RLS
+	const supabase = createSupabaseAdminClient()
+
+	let syncedCount = 0
+	const errors: string[] = []
+	let skippedCount = 0
+
+	console.log('=== SYNC CUSTOMERS START ===')
+	console.log(`Total customers to sync: ${firebaseCustomers.length}`)
+
+	for (const firebaseCustomer of firebaseCustomers) {
+		try {
+			const customerName = (firebaseCustomer.name as string) || 'Unknown'
+			const customerPhone = (firebaseCustomer.phone as string) || null
+
+			// Check if customer already exists by metadata firebaseId
+			if (firebaseCustomer.id) {
+				try {
+					const { data: existingByMetadata } = await supabase
+						.from('customers')
+						.select('id')
+						.eq('tenant_id', tenantId)
+						.eq('metadata->>firebaseId', firebaseCustomer.id)
+						.single()
+
+					if (existingByMetadata) {
+						skippedCount++
+						continue
+					}
+				} catch {
+					// metadata column might not exist, continue with phone check
+				}
+			}
+
+			// Also check by phone number to avoid duplicates
+			if (customerPhone) {
+				const { data: existingByPhone } = await supabase
+					.from('customers')
+					.select('id')
+					.eq('tenant_id', tenantId)
+					.eq('phone', customerPhone)
+					.single()
+
+				if (existingByPhone) {
+					skippedCount++
+					continue
+				}
+			}
+
+			// Parse dates
+			const parseDate = (
+				dateValue: { seconds?: number; nanoseconds?: number } | string | Date | undefined
+			): string | null => {
+				if (!dateValue) return null
+				if (typeof dateValue === 'string') return new Date(dateValue).toISOString()
+				if (dateValue instanceof Date) return dateValue.toISOString()
+				if (typeof dateValue === 'object' && 'seconds' in dateValue) {
+					return new Date((dateValue.seconds || 0) * 1000).toISOString()
+				}
+				return null
+			}
+
+			const createdAt = parseDate(firebaseCustomer.createdAt) || new Date().toISOString()
+
+			// Insert customer
+			const insertData: Record<string, unknown> = {
+				tenant_id: tenantId,
+				full_name: customerName,
+				phone: customerPhone,
+				email: (firebaseCustomer.email as string) || null,
+				tags: [],
+				notes: null,
+				birthday: null,
+				created_at: createdAt
+			}
+
+			// Try to include metadata if the column exists
+			if (firebaseCustomer.id) {
+				insertData.metadata = { firebaseId: firebaseCustomer.id }
+			}
+
+			let customer: { id: string } | null = null
+
+			const { data: insertedCustomer, error: customerError } = await supabase
+				.from('customers')
+				.insert(insertData)
+				.select('id')
+				.single()
+
+			if (customerError) {
+				// If metadata column doesn't exist, retry without it
+				if (customerError.message.includes('metadata') || customerError.code === '42703') {
+					const { metadata: _, ...insertDataWithoutMetadata } = insertData
+					const { data: retryCustomer, error: retryError } = await supabase
+						.from('customers')
+						.insert(insertDataWithoutMetadata)
+						.select('id')
+						.single()
+
+					if (retryError) {
+						errors.push(`Customer ${customerName}: ${retryError.message}`)
+						continue
+					}
+					customer = retryCustomer
+				} else {
+					errors.push(`Customer ${customerName}: ${customerError.message}`)
+					continue
+				}
+			} else {
+				customer = insertedCustomer
+			}
+
+			if (!customer) {
+				errors.push(`Customer ${customerName}: Insert returned no data`)
+				continue
+			}
+
+			// Create loyalty profile with imported points
+			const loyaltyPoints = (firebaseCustomer.loyaltyPoints as number) || 0
+
+			const { error: loyaltyError } = await supabase
+				.from('loyalty_profiles')
+				.insert({
+					tenant_id: tenantId,
+					customer_id: customer.id,
+					points_balance: loyaltyPoints
+				})
+
+			if (loyaltyError) {
+				console.warn(`Loyalty profile for ${customerName}: ${loyaltyError.message}`)
+			}
+
+			syncedCount++
+			console.log(`✅ Customer "${customerName}" synced (${syncedCount} total)`)
+		} catch (error) {
+			errors.push(
+				`Customer ${firebaseCustomer.id || 'unknown'}: ${
+					error instanceof Error ? error.message : 'Unknown error'
+				}`
+			)
+		}
+	}
+
+	console.log('\n=== SYNC CUSTOMERS COMPLETE ===')
+	console.log(`✅ Synced: ${syncedCount} customers`)
+	console.log(`⏭️  Skipped: ${skippedCount} customers (already exist)`)
+	console.log(`❌ Errors: ${errors.length}`)
+
+	if (errors.length > 0 && syncedCount === 0) {
+		return {
+			success: false,
+			message: `Failed to sync customers. Errors: ${errors.slice(0, 3).join(', ')}`,
+			customersSynced: 0
+		}
+	}
+
+	return {
+		success: true,
+		message:
+			errors.length > 0
+				? `Synced ${syncedCount} customers with ${errors.length} errors. ${skippedCount} skipped (already exist).`
+				: `Successfully synced ${syncedCount} customers${skippedCount > 0 ? `. ${skippedCount} skipped (already exist).` : ''}`,
+		customersSynced: syncedCount
+	}
+}
+
+export async function checkSyncedCustomers(
+	tenantId: string,
+	firebaseCustomerIds: string[]
+): Promise<Set<string>> {
+	const supabaseAuth = await createSupabaseServerClient()
+	const {
+		data: { user }
+	} = await supabaseAuth.auth.getUser()
+
+	if (!user) {
+		throw new Error('You must be signed in to check synced customers.')
+	}
+
+	const supabase = createSupabaseAdminClient()
+
+	if (firebaseCustomerIds.length === 0) {
+		return new Set<string>()
+	}
+
+	const validIds = firebaseCustomerIds.filter((id): id is string => !!id)
+	if (validIds.length === 0) {
+		return new Set<string>()
+	}
+
+	// Try to query with metadata column
+	const { data: allCustomers, error } = await supabase
+		.from('customers')
+		.select('metadata')
+		.eq('tenant_id', tenantId)
+
+	if (error) {
+		// If metadata column doesn't exist, return empty set (no customers tracked yet)
+		console.error('Error checking synced customers:', error)
+		return new Set<string>()
+	}
+
+	const syncedIds = new Set<string>()
+
+	allCustomers?.forEach((customer) => {
+		if (!customer.metadata) return
+		try {
+			const metadata = customer.metadata as { firebaseId?: string } | null
+			if (metadata?.firebaseId && validIds.includes(metadata.firebaseId)) {
+				syncedIds.add(metadata.firebaseId)
+			}
+		} catch (e) {
+			console.warn('Invalid metadata format:', e)
+		}
+	})
+
+	return syncedIds
+}
+
 type FirebaseMenuItem = {
 	id?: string
 	[key: string]: unknown
@@ -659,10 +910,6 @@ export async function checkSyncedOrders(
 	// Use admin client for database operations
 	const supabase = createSupabaseAdminClient()
 
-	if (!user) {
-		throw new Error('You must be signed in to check synced orders.')
-	}
-
 	if (firebaseOrderIds.length === 0) {
 		return new Set<string>()
 	}
@@ -673,35 +920,54 @@ export async function checkSyncedOrders(
 		return new Set<string>()
 	}
 
-	// Query all orders for this tenant that have metadata
-	// We need to fetch all and filter in memory because Supabase's .in() with JSONB might not work as expected
-	const { data: allOrders, error } = await supabase
-		.from('orders')
-		.select('metadata')
-		.eq('tenant_id', tenantId)
-
-	if (error) {
-		console.error('Error checking synced orders:', error)
-		// If metadata column doesn't exist or query fails, return empty set (assume no orders synced yet)
-		return new Set<string>()
-	}
-
 	const syncedIds = new Set<string>()
 
-	// Check each order's metadata for matching Firebase IDs
-	allOrders?.forEach((order) => {
-		if (!order.metadata) return
+	// Query in batches to avoid Supabase's default row limit (1000)
+	// Only fetch orders that have metadata (not null)
+	const PAGE_SIZE = 1000
+	let offset = 0
+	let hasMore = true
 
-		try {
-			const metadata = order.metadata as { firebaseId?: string } | null
-			if (metadata?.firebaseId && validIds.includes(metadata.firebaseId)) {
-				syncedIds.add(metadata.firebaseId)
-			}
-		} catch (e) {
-			// Skip invalid metadata
-			console.warn('Invalid metadata format:', e)
+	while (hasMore) {
+		const { data: orders, error } = await supabase
+			.from('orders')
+			.select('metadata')
+			.eq('tenant_id', tenantId)
+			.not('metadata', 'is', null)
+			.range(offset, offset + PAGE_SIZE - 1)
+
+		if (error) {
+			console.error('Error checking synced orders:', error)
+			// If metadata column doesn't exist or query fails, return what we have so far
+			return syncedIds
 		}
-	})
+
+		if (!orders || orders.length === 0) {
+			hasMore = false
+			break
+		}
+
+		// Check each order's metadata for matching Firebase IDs
+		orders.forEach((order) => {
+			if (!order.metadata) return
+			try {
+				const metadata = order.metadata as { firebaseId?: string } | null
+				if (metadata?.firebaseId && validIds.includes(metadata.firebaseId)) {
+					syncedIds.add(metadata.firebaseId)
+				}
+			} catch (e) {
+				// Skip invalid metadata
+			}
+		})
+
+		// If we found all IDs already, no need to continue
+		if (syncedIds.size === validIds.length) {
+			break
+		}
+
+		offset += PAGE_SIZE
+		hasMore = orders.length === PAGE_SIZE
+	}
 
 	return syncedIds
 }

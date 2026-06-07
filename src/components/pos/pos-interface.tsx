@@ -90,11 +90,20 @@ type Customer = {
 	phone: string | null
 }
 
+type Topping = {
+	id: string
+	name: string
+	price: number
+	description: string | null
+	category: string | null
+}
+
 type POSInterfaceProps = {
 	categories: MenuCategory[]
 	tenant: Tenant
 	currencySymbol: string
 	taxRate: number
+	toppings?: Topping[]
 }
 
 const mockTables: Table[] = [
@@ -136,9 +145,32 @@ export function POSInterface({
 	categories,
 	tenant,
 	currencySymbol,
-	taxRate
+	taxRate,
+	toppings = []
 }: POSInterfaceProps) {
 	const router = useRouter()
+	const categoriesWithDynamicToppings = useMemo(() => {
+		return categories.map((cat) => ({
+			...cat,
+			menu_items: cat.menu_items.map((item) => {
+				let linkedToppings = item.menu_item_toppings || []
+				if (linkedToppings.length === 0) {
+					const matchingToppings = toppings.filter((t) => {
+						if (!t.category) return false
+						const ids = t.category.split(',').map((id: string) => id.trim())
+						return ids.includes(cat.id)
+					})
+					linkedToppings = matchingToppings.map((t) => ({
+						topping: t
+					}))
+				}
+				return {
+					...item,
+					menu_item_toppings: linkedToppings
+				}
+			})
+		}))
+	}, [categories, toppings])
 	const [selectedTable, setSelectedTable] = useState<Table | null>(null)
 	const [orderType, setOrderType] = useState<
 		'dine_in' | 'takeaway' | 'delivery'
@@ -171,9 +203,9 @@ export function POSInterface({
 	}, [tenant.id])
 
 	const filteredCategories = useMemo(() => {
-		if (!selectedCategory) return categories
-		return categories.filter((cat) => cat.id === selectedCategory)
-	}, [categories, selectedCategory])
+		if (!selectedCategory) return categoriesWithDynamicToppings
+		return categoriesWithDynamicToppings.filter((cat) => cat.id === selectedCategory)
+	}, [categoriesWithDynamicToppings, selectedCategory])
 
 	const filteredMenuItems = useMemo(() => {
 		const items = filteredCategories.flatMap((cat) => cat.menu_items)
@@ -375,9 +407,61 @@ export function POSInterface({
 			setIsPlacingOrder(false)
 		}
 	}
+	const [tables, setTables] = useState<Table[]>([])
 
-	const availableTables = mockTables.filter((t) => t.status === 'available')
-	const occupiedTables = mockTables.filter((t) => t.status === 'occupied')
+	useEffect(() => {
+		const loadTablesAndStatus = async () => {
+			const settings = tenant.settings || {}
+			const configuredTables = (settings.tables as Array<{ id: string; name: string; capacity: number; section: string }> | undefined) || []
+			
+			let initialTables: Table[] = configuredTables.map(t => ({
+				id: t.id,
+				number: t.name,
+				status: 'available',
+				guests: 0,
+				orderId: null
+			}))
+
+			if (initialTables.length === 0) {
+				initialTables = mockTables
+			}
+
+			try {
+				const supabase = createSupabaseBrowserClient()
+				const { data: activeOrders } = await supabase
+					.from('orders')
+					.select('id, table_number, status')
+					.eq('tenant_id', tenant.id)
+					.not('status', 'in', '("completed","cancelled")')
+
+				if (activeOrders && activeOrders.length > 0) {
+					initialTables = initialTables.map(t => {
+						const matchingOrder = activeOrders.find(o => o.table_number === t.number)
+						if (matchingOrder) {
+							return {
+								...t,
+								status: 'occupied',
+								orderId: matchingOrder.id,
+								guests: t.guests || 2
+							}
+						}
+						return t
+					})
+				}
+			} catch (err) {
+				console.error('Error loading active orders for tables:', err)
+			}
+
+			setTables(initialTables)
+		}
+
+		loadTablesAndStatus()
+		const interval = setInterval(loadTablesAndStatus, 10000)
+		return () => clearInterval(interval)
+	}, [tenant.id, tenant.settings])
+
+	const availableTables = tables.filter((t) => t.status === 'available')
+	const occupiedTables = tables.filter((t) => t.status === 'occupied')
 	const [showCartDrawer, setShowCartDrawer] = useState(false)
 
 	return (
