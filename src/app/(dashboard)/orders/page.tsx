@@ -464,6 +464,7 @@ export default function OrdersPage() {
         payment_method,
         total,
         created_at,
+        created_by,
         order_items (
           id,
           name,
@@ -476,6 +477,32 @@ export default function OrdersPage() {
 			)
 			.eq('tenant_id', tenantRow.tenant_id)
 			.order('created_at', { ascending: false })
+
+		// Check if user has view_own permission (waiter mode - only see own orders)
+		const { data: ptRole } = await supabase
+			.from('profile_tenants')
+			.select('role_id')
+			.eq('profile_id', user.id)
+			.eq('tenant_id', tenantRow.tenant_id)
+			.single()
+
+		if (ptRole?.role_id) {
+			const { data: roleData } = await supabase
+				.from('roles')
+				.select('permissions')
+				.eq('id', ptRole.role_id)
+				.single()
+
+			const perms = roleData?.permissions as Record<string, string[]> | null
+			if (perms) {
+				const orderPerms = perms.orders || []
+				// If user has view_own but NOT view or all, filter by created_by
+				const hasViewAll = orderPerms.includes('all') || orderPerms.includes('*') || orderPerms.includes('view')
+				if (!hasViewAll && orderPerms.includes('view_own')) {
+					query = query.eq('created_by', user.id)
+				}
+			}
+		}
 
 		if (statusFilter) {
 			query = query.eq('status', statusFilter)

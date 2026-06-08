@@ -36,6 +36,7 @@ type ToppingsTabProps = {
 	categories?: Category[]
 	onRefresh: () => void
 	currencySymbol: string
+	readOnly?: boolean
 }
 
 export function ToppingsTab({
@@ -43,7 +44,8 @@ export function ToppingsTab({
 	toppings,
 	categories = [],
 	onRefresh,
-	currencySymbol
+	currencySymbol,
+	readOnly
 }: ToppingsTabProps) {
 	const [showForm, setShowForm] = useState(false)
 	const [editingTopping, setEditingTopping] = useState<Topping | null>(null)

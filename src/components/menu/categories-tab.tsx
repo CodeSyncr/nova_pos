@@ -30,12 +30,14 @@ type CategoriesTabProps = {
 	tenantId: string
 	categories: Category[]
 	onRefresh: () => void
+	readOnly?: boolean
 }
 
 export function CategoriesTab({
 	tenantId,
 	categories,
-	onRefresh
+	onRefresh,
+	readOnly
 }: CategoriesTabProps) {
 	const [showForm, setShowForm] = useState(false)
 	const [editingCategory, setEditingCategory] = useState<Category | null>(null)
@@ -136,10 +138,12 @@ export function CategoriesTab({
 						Organize your menu items into categories
 					</p>
 				</div>
-				<Button onClick={() => setShowForm(true)}>
-					<Plus className="mr-2 h-4 w-4" />
-					New Category
-				</Button>
+				{!readOnly && (
+					<Button onClick={() => setShowForm(true)}>
+						<Plus className="mr-2 h-4 w-4" />
+						New Category
+					</Button>
+				)}
 			</div>
 
 			{categories.length === 0 ? (
@@ -151,7 +155,7 @@ export function CategoriesTab({
 					<p className="mt-2 text-white/60">
 						Create categories to organize your menu items
 					</p>
-					<Button className="mt-6" onClick={() => setShowForm(true)}>
+					<Button className="mt-6" onClick={() => setShowForm(true)} disabled={readOnly}>
 						<Plus className="mr-2 h-4 w-4" />
 						Add Category
 					</Button>
@@ -192,6 +196,8 @@ export function CategoriesTab({
 											</h3>
 										</div>
 										<div className="flex gap-1 shrink-0">
+											{!readOnly && (
+											<>
 											<Button
 												size="icon"
 												variant="ghost"
@@ -238,6 +244,8 @@ export function CategoriesTab({
 													</AlertDialogFooter>
 												</AlertDialogContent>
 											</AlertDialog>
+											</>
+											)}
 										</div>
 									</div>
 									{category.description && (

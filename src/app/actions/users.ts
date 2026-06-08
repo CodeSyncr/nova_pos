@@ -32,6 +32,7 @@ export type TenantUser = {
 		code: string
 	} | null
 	joined_at: string
+	is_staff: boolean
 }
 
 export async function getTenantUsers(tenantId: string): Promise<TenantUser[]> {
@@ -57,14 +58,17 @@ export async function getTenantUsers(tenantId: string): Promise<TenantUser[]> {
 		throw new Error('Unauthorized: You do not have access to this tenant.')
 	}
 
-	// Get all users for this tenant
-	const { data, error } = await supabase
+	// Get all users for this tenant (use admin client to see all members, not just current user)
+	const adminClient = createSupabaseAdminClient()
+
+	const { data, error } = await adminClient
 		.from('profile_tenants')
 		.select(
 			`
 			profile_id,
 			role_id,
 			joined_at,
+			is_staff,
 			profile:profiles(
 				id,
 				full_name,
@@ -79,9 +83,6 @@ export async function getTenantUsers(tenantId: string): Promise<TenantUser[]> {
 	}
 
 	// Get user emails from auth.users (requires admin client)
-	const adminClient = createSupabaseAdminClient()
-	// const userIds = (data || []).map((pt) => pt.profile_id)
-
 	const users: TenantUser[] = []
 
 	for (const profileTenant of data || []) {
@@ -102,7 +103,7 @@ export async function getTenantUsers(tenantId: string): Promise<TenantUser[]> {
 		// Get role if exists
 		let role = null
 		if (profileTenant.role_id) {
-			const { data: roleData } = await supabase
+			const { data: roleData } = await adminClient
 				.from('roles')
 				.select('id, name, code')
 				.eq('id', profileTenant.role_id)
@@ -120,7 +121,8 @@ export async function getTenantUsers(tenantId: string): Promise<TenantUser[]> {
 			avatar_url: profile.avatar_url,
 			role_id: profileTenant.role_id,
 			role,
-			joined_at: profileTenant.joined_at
+			joined_at: profileTenant.joined_at,
+			is_staff: (profileTenant as any).is_staff || false
 		})
 	}
 
@@ -174,8 +176,8 @@ export async function createTenantUser(
 		throw new Error(createError?.message || 'Failed to create user')
 	}
 
-	// Create profile
-	const { error: profileError } = await supabase.from('profiles').insert({
+	// Create profile (use admin client to bypass RLS - we're inserting for another user)
+	const { error: profileError } = await adminClient.from('profiles').insert({
 		id: newUser.id,
 		full_name: data.full_name || null
 	})
@@ -187,7 +189,7 @@ export async function createTenantUser(
 	}
 
 	// Add user to tenant
-	const { error: tenantError } = await supabase.from('profile_tenants').insert({
+	const { error: tenantError } = await adminClient.from('profile_tenants').insert({
 		tenant_id: tenantId,
 		profile_id: newUser.id,
 		role_id: data.role_id || null
@@ -195,7 +197,7 @@ export async function createTenantUser(
 
 	if (tenantError) {
 		// Clean up on error
-		await supabase.from('profiles').delete().eq('id', newUser.id)
+		await adminClient.from('profiles').delete().eq('id', newUser.id)
 		await adminClient.auth.admin.deleteUser(newUser.id)
 		throw new Error(tenantError.message)
 	}

@@ -36,13 +36,15 @@ type IngredientsTabProps = {
 	ingredients: Ingredient[]
 	menuItems: MenuItem[] // Reserved for future linking feature
 	onRefresh: () => void
+	readOnly?: boolean
 }
 
 export function IngredientsTab({
 	tenantId,
 	ingredients,
 	menuItems: _menuItems, // eslint-disable-line @typescript-eslint/no-unused-vars
-	onRefresh
+	onRefresh,
+	readOnly
 }: IngredientsTabProps) {
 	const [showForm, setShowForm] = useState(false)
 	const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(

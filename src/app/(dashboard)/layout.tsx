@@ -24,9 +24,11 @@ import {
 	User,
 	LogOut,
 	CreditCard,
-	FileBarChart
+	FileBarChart,
+	UserCog
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { canAccessRoute } from '@/lib/permissions'
 
 const navItems = [
 	{ href: '/dashboard', label: 'Home', icon: LayoutDashboard },
@@ -36,6 +38,7 @@ const navItems = [
 	{ href: '/inventory', label: 'Inventory', icon: Package },
 	{ href: '/purchases', label: 'Purchases', icon: ShoppingCart },
 	{ href: '/customers', label: 'Customers', icon: Users },
+	{ href: '/staff', label: 'Staff', icon: UserCog },
 	{ href: '/analytics', label: 'Analytics', icon: BarChart3 },
 	{ href: '/reports', label: 'Reports', icon: FileBarChart },
 	{ href: '/subscription', label: 'Subscription', icon: CreditCard },
@@ -48,7 +51,70 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 	const [collapsed, setCollapsed] = useState(true)
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 	const [showProfileMenu, setShowProfileMenu] = useState(false)
+	const [userPermissions, setUserPermissions] = useState<Record<string, string[]> | null>(null)
+	const [permissionsLoaded, setPermissionsLoaded] = useState(false)
 	const profileMenuRef = useRef<HTMLDivElement>(null)
+
+	// Load user permissions on mount
+	useEffect(() => {
+		const loadPermissions = async () => {
+			try {
+				const supabase = createSupabaseBrowserClient()
+				const { data: { user } } = await supabase.auth.getUser()
+				if (!user) return
+
+				// Get user's profile_tenant to find their role
+				const { data: pt } = await supabase
+					.from('profile_tenants')
+					.select('role_id')
+					.eq('profile_id', user.id)
+					.single()
+
+				if (!pt?.role_id) {
+					// No role = owner/admin = full access
+					setUserPermissions(null)
+					setPermissionsLoaded(true)
+					return
+				}
+
+				// Get the role's permissions
+				const { data: role } = await supabase
+					.from('roles')
+					.select('permissions')
+					.eq('id', pt.role_id)
+					.single()
+
+				if (role?.permissions) {
+					setUserPermissions(role.permissions as Record<string, string[]>)
+				} else {
+					setUserPermissions(null)
+				}
+			} catch (err) {
+				console.error('Error loading permissions:', err)
+				setUserPermissions(null)
+			} finally {
+				setPermissionsLoaded(true)
+			}
+		}
+
+		loadPermissions()
+	}, [])
+
+	// Filter nav items based on permissions
+	const filteredNavItems = navItems.filter((item) => {
+		if (!permissionsLoaded) return true // show all while loading
+		return canAccessRoute(userPermissions, item.href)
+	})
+
+	// Redirect if user doesn't have access to current route
+	useEffect(() => {
+		if (!permissionsLoaded) return
+		if (!canAccessRoute(userPermissions, pathname)) {
+			// Redirect to the first accessible route
+			const firstAccessible = navItems.find((item) => canAccessRoute(userPermissions, item.href))
+			router.push(firstAccessible?.href || '/dashboard')
+		}
+	}, [permissionsLoaded, userPermissions, pathname, router])
 
 	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
@@ -123,7 +189,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 								</button>
 							</div>
 							<nav className="space-y-1 text-sm font-medium text-white/70">
-								{navItems.map((item) => {
+								{filteredNavItems.map((item) => {
 									const Icon = item.icon
 									const isActive = pathname === item.href
 									return (
@@ -188,7 +254,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 						)}
 					</div>
 					<nav className="space-y-1 text-sm font-medium text-white/70">
-						{navItems.map((item) => {
+						{filteredNavItems.map((item) => {
 							const Icon = item.icon
 							const isActive = pathname === item.href
 							return (

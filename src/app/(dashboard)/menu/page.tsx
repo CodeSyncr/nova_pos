@@ -100,6 +100,7 @@ export default function MenuPage() {
 	const [sops, setSops] = useState<SOP[]>([])
 	const [loading, setLoading] = useState(true)
 	const [activeTab, setActiveTab] = useState('categories')
+	const [readOnly, setReadOnly] = useState(false)
 
 	useEffect(() => {
 		loadData()
@@ -146,6 +147,29 @@ export default function MenuPage() {
 		}
 
 		setTenant(tenantData)
+
+		// Check user's menu permissions
+		const { data: ptRole } = await supabase
+			.from('profile_tenants')
+			.select('role_id')
+			.eq('profile_id', user.id)
+			.eq('tenant_id', tenantData.id)
+			.single()
+
+		if (ptRole?.role_id) {
+			const { data: roleData } = await supabase
+				.from('roles')
+				.select('permissions')
+				.eq('id', ptRole.role_id)
+				.single()
+
+			const perms = roleData?.permissions as Record<string, string[]> | null
+			if (perms) {
+				const menuPerms = perms.menu || []
+				const canEdit = menuPerms.includes('all') || menuPerms.includes('*') || menuPerms.includes('write') || menuPerms.includes('delete')
+				setReadOnly(!canEdit)
+			}
+		}
 
 		// Load categories
 		const { data: categoriesData } = await supabase
@@ -268,6 +292,7 @@ export default function MenuPage() {
 						tenantId={tenant.id}
 						categories={categories}
 						onRefresh={loadData}
+						readOnly={readOnly}
 					/>
 				)}
 
@@ -281,6 +306,7 @@ export default function MenuPage() {
 						sops={sops}
 						onRefresh={loadData}
 						currencySymbol={currencySymbol}
+						readOnly={readOnly}
 					/>
 				)}
 
@@ -290,6 +316,7 @@ export default function MenuPage() {
 						ingredients={ingredients}
 						menuItems={menuItems}
 						onRefresh={loadData}
+						readOnly={readOnly}
 					/>
 				)}
 
@@ -300,6 +327,7 @@ export default function MenuPage() {
 						categories={categories}
 						onRefresh={loadData}
 						currencySymbol={currencySymbol}
+						readOnly={readOnly}
 					/>
 				)}
 
@@ -309,6 +337,7 @@ export default function MenuPage() {
 						sops={sops}
 						menuItems={menuItems}
 						onRefresh={loadData}
+						readOnly={readOnly}
 					/>
 				)}
 			</MenuTabs>

@@ -25,12 +25,29 @@ export const metadata: Metadata = {
 		'Premium restaurant POS platform with effortless onboarding and beautiful operations',
 	icons: {
 		icon: '/icon.svg'
+	},
+	manifest: '/manifest.json',
+	themeColor: '#6F6BFF',
+	appleWebApp: {
+		capable: true,
+		statusBarStyle: 'black-translucent',
+		title: 'Nova POS'
+	},
+	viewport: {
+		width: 'device-width',
+		initialScale: 1,
+		maximumScale: 1,
+		userScalable: false
 	}
 }
 
 export default function RootLayout(props: Readonly<{ children: ReactNode }>) {
 	return (
 		<html lang="en" suppressHydrationWarning>
+			<head>
+				<meta name="apple-mobile-web-app-capable" content="yes" />
+				<link rel="apple-touch-icon" href="/icon-192.svg" />
+			</head>
 			<body
 				className={cn(
 					'min-h-screen bg-[hsl(var(--background))] text-[hsl(var(--foreground))] antialiased overflow-y-auto',
@@ -42,6 +59,17 @@ export default function RootLayout(props: Readonly<{ children: ReactNode }>) {
 					<ToastProvider>{props.children}</ToastProvider>
 				</ThemeProvider>
 				<div className="grain" aria-hidden="true" />
+				<script
+					dangerouslySetInnerHTML={{
+						__html: `
+							if ('serviceWorker' in navigator) {
+								window.addEventListener('load', () => {
+									navigator.serviceWorker.register('/sw.js').catch(() => {})
+								})
+							}
+						`
+					}}
+				/>
 			</body>
 		</html>
 	)

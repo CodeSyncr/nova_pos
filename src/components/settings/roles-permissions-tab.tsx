@@ -33,6 +33,11 @@ type RolesPermissionsTabProps = {
 
 const permissionCategories = [
 	{
+		id: 'dashboard',
+		label: 'Dashboard',
+		permissions: ['all', 'view']
+	},
+	{
 		id: 'pos',
 		label: 'POS',
 		permissions: ['all', 'take_orders', 'view_orders', 'manage_orders']
@@ -45,7 +50,17 @@ const permissionCategories = [
 	{
 		id: 'orders',
 		label: 'Orders',
-		permissions: ['all', 'view', 'update', 'cancel']
+		permissions: ['all', 'view', 'view_own', 'update', 'cancel']
+	},
+	{
+		id: 'inventory',
+		label: 'Inventory',
+		permissions: ['all', 'view', 'edit', 'adjust_stock']
+	},
+	{
+		id: 'purchases',
+		label: 'Purchases',
+		permissions: ['all', 'view', 'create', 'delete']
 	},
 	{
 		id: 'customers',
@@ -56,6 +71,16 @@ const permissionCategories = [
 		id: 'analytics',
 		label: 'Analytics',
 		permissions: ['all', 'view', 'export']
+	},
+	{
+		id: 'reports',
+		label: 'Reports',
+		permissions: ['all', 'view', 'export']
+	},
+	{
+		id: 'staff',
+		label: 'Staff Management',
+		permissions: ['all', 'view', 'manage_salary', 'manage_advances', 'manage_attendance', 'view_own']
 	},
 	{
 		id: 'settings',

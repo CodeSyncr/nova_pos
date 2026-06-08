@@ -44,9 +44,10 @@ type SOPTabProps = {
 	sops: SOP[]
 	menuItems: MenuItem[]
 	onRefresh: () => void
+	readOnly?: boolean
 }
 
-export function SOPTab({ tenantId, sops, menuItems, onRefresh }: SOPTabProps) {
+export function SOPTab({ tenantId, sops, menuItems, onRefresh, readOnly }: SOPTabProps) {
 	const [showForm, setShowForm] = useState(false)
 	const [editingSOP, setEditingSOP] = useState<SOP | null>(null)
 	const [selectedMenuItemId, setSelectedMenuItemId] = useState<string | null>(

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Edit2, Trash2, User, Mail, Shield, Loader2 } from 'lucide-react'
+import { Plus, Edit2, Trash2, User, Mail, Shield, Loader2, UserCog } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import {
@@ -12,6 +12,7 @@ import {
 	removeTenantUser,
 	type TenantUser
 } from '@/app/actions/users'
+import { toggleStaffStatus } from '@/app/actions/staff'
 import { useToast } from '@/components/ui/toast'
 import {
 	AlertDialog,
@@ -209,6 +210,24 @@ export function UsersTab({ tenantId, onRefresh }: UsersTabProps) {
 									)}
 								</div>
 								<div className="flex gap-2">
+									<Button
+										size="sm"
+										variant="ghost"
+										onClick={async () => {
+											try {
+												await toggleStaffStatus(tenantId, user.id, !user.is_staff)
+												toast.success(user.is_staff ? 'Removed from staff' : 'Marked as staff')
+												const usersData = await getTenantUsers(tenantId)
+												setUsers(usersData)
+											} catch (err: any) {
+												toast.error(err.message)
+											}
+										}}
+										className={`border text-xs ${user.is_staff ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-white/15 bg-white/5 text-white/70'}`}
+									>
+										<UserCog className="mr-1 h-3.5 w-3.5" />
+										{user.is_staff ? 'Staff' : 'Mark Staff'}
+									</Button>
 									<Button
 										size="sm"
 										variant="ghost"

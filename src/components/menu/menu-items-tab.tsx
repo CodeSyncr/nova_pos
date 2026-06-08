@@ -79,6 +79,7 @@ type MenuItemsTabProps = {
 	sops: SOP[]
 	onRefresh: () => void
 	currencySymbol: string
+	readOnly?: boolean
 }
 
 export function MenuItemsTab({
@@ -89,7 +90,8 @@ export function MenuItemsTab({
 	ingredients,
 	sops = [],
 	onRefresh,
-	currencySymbol
+	currencySymbol,
+	readOnly
 }: MenuItemsTabProps) {
 	const [showForm, setShowForm] = useState(false)
 	const [editingItem, setEditingItem] = useState<MenuItem | null>(null)
@@ -163,10 +165,12 @@ export function MenuItemsTab({
 						Create and manage your menu items with variants and add ons
 					</p>
 				</div>
-				<Button onClick={() => setShowForm(true)}>
-					<Plus className="mr-2 h-4 w-4" />
-					New Menu Item
-				</Button>
+				{!readOnly && (
+					<Button onClick={() => setShowForm(true)}>
+						<Plus className="mr-2 h-4 w-4" />
+						New Menu Item
+					</Button>
+				)}
 			</div>
 
 			{menuItems.length === 0 ? (
@@ -349,6 +353,7 @@ export function MenuItemsTab({
 																		</div>
 																	</div>
 																	{/* Actions */}
+																	{!readOnly && (
 																	<div className="flex-shrink-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
 																		<Button
 																			size="sm"
@@ -397,6 +402,7 @@ export function MenuItemsTab({
 																			</AlertDialogContent>
 																		</AlertDialog>
 																	</div>
+																	)}
 																</div>
 															</div>
 														</div>
