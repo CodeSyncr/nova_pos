@@ -292,27 +292,30 @@ export function POSInterface({
 		quantity: number
 		basePrice: number
 	}) => {
-		// Check if item with same configuration exists
 		setCart((prevCart) => {
-			const existingItem = prevCart.find(
-				(cartItem) =>
-					cartItem.menuItemId === customized.menuItemId &&
-					cartItem.variant?.id === customized.variant?.id &&
-					cartItem.toppings.length === customized.toppings.length &&
-					cartItem.toppings.every(
-						(topping, index) => topping.id === customized.toppings[index]?.id
-					)
-			)
+			// Find existing item with same menu item + variant + toppings (order-independent)
+			const customizedToppingIds = new Set(customized.toppings.map((t) => t.id))
+
+			const existingItem = prevCart.find((cartItem) => {
+				if (cartItem.menuItemId !== customized.menuItemId) return false
+				if ((cartItem.variant?.id || null) !== (customized.variant?.id || null)) return false
+				if (cartItem.toppings.length !== customized.toppings.length) return false
+				// Order-independent topping comparison
+				const cartToppingIds = new Set(cartItem.toppings.map((t) => t.id))
+				if (cartToppingIds.size !== customizedToppingIds.size) return false
+				for (const id of customizedToppingIds) {
+					if (!cartToppingIds.has(id)) return false
+				}
+				return true
+			})
 
 			if (existingItem) {
-				// Increment quantity if same configuration exists
 				return prevCart.map((item) =>
 					item.id === existingItem.id
 						? { ...item, quantity: item.quantity + customized.quantity }
 						: item
 				)
 			} else {
-				// Add new item if different configuration
 				const newCartItem: CartItem = {
 					id: `${customized.menuItemId}-${Date.now()}`,
 					menuItemId: customized.menuItemId,
@@ -322,7 +325,6 @@ export function POSInterface({
 					quantity: customized.quantity,
 					basePrice: customized.basePrice
 				}
-
 				return [...prevCart, newCartItem]
 			}
 		})

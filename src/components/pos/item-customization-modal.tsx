@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Plus, Check } from 'lucide-react'
+import { X, Plus, Check, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -221,63 +221,14 @@ export function ItemCustomizationModal({
 								</div>
 							)}
 
-							{/* Add Ons */}
+							{/* Add Ons - Collapsible */}
 							{availableToppings.length > 0 && (
-								<div>
-									<p className="mb-3 text-sm font-semibold uppercase tracking-[0.3em] text-white/70">
-										Add Ons
-									</p>
-									<div className="grid gap-2 sm:gap-3">
-										{availableToppings.map((topping) => {
-											const isSelected = selectedToppings.some(
-												(t) => t.id === topping.id
-											)
-											return (
-												<motion.button
-													key={topping.id}
-													whileHover={{ scale: 1.02 }}
-													whileTap={{ scale: 0.98 }}
-													onClick={() => toggleTopping(topping)}
-													className={cn(
-														'flex items-center justify-between rounded-xl border p-3 transition sm:rounded-2xl sm:p-4',
-														isSelected
-															? 'border-emerald-400/40 bg-emerald-400/10'
-															: 'border-white/10 bg-white/5 hover:border-white/20'
-													)}
-												>
-													<div className="flex items-center gap-3">
-														<div
-															className={cn(
-																'flex h-5 w-5 items-center justify-center rounded border-2',
-																isSelected
-																	? 'border-emerald-400 bg-emerald-400'
-																	: 'border-white/30'
-															)}
-														>
-															{isSelected && (
-																<Check className="h-3 w-3 text-white" />
-															)}
-														</div>
-														<div className="text-left">
-															<p className="font-semibold text-white">
-																{topping.name}
-															</p>
-															{topping.description && (
-																<p className="text-xs text-white/60">
-																	{topping.description}
-																</p>
-															)}
-														</div>
-													</div>
-													<p className="font-semibold text-white">
-														+{currencySymbol}
-														{topping.price.toFixed(2)}
-													</p>
-												</motion.button>
-											)
-										})}
-									</div>
-								</div>
+								<AddOnsAccordion
+									toppings={availableToppings}
+									selectedToppings={selectedToppings}
+									toggleTopping={toggleTopping}
+									currencySymbol={currencySymbol}
+								/>
 							)}
 
 							{/* Quantity */}
@@ -327,5 +278,95 @@ export function ItemCustomizationModal({
 				</>
 			)}
 		</AnimatePresence>
+	)
+}
+
+function AddOnsAccordion({
+	toppings,
+	selectedToppings,
+	toggleTopping,
+	currencySymbol
+}: {
+	toppings: Topping[]
+	selectedToppings: Array<{ id: string; name: string; price: number }>
+	toggleTopping: (topping: Topping) => void
+	currencySymbol: string
+}) {
+	const [isOpen, setIsOpen] = useState(false)
+	const selectedCount = selectedToppings.length
+
+	return (
+		<div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+			<button
+				type="button"
+				onClick={() => setIsOpen(!isOpen)}
+				className="flex w-full items-center justify-between p-3 sm:p-4 text-left transition hover:bg-white/5"
+			>
+				<div className="flex items-center gap-2">
+					<p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
+						Add Ons
+					</p>
+					{selectedCount > 0 && (
+						<Badge className="border-emerald-400/30 bg-emerald-400/10 text-xs text-emerald-300">
+							{selectedCount} selected
+						</Badge>
+					)}
+				</div>
+				<ChevronDown className={cn('h-4 w-4 text-white/50 transition-transform', isOpen && 'rotate-180')} />
+			</button>
+
+			<AnimatePresence>
+				{isOpen && (
+					<motion.div
+						initial={{ height: 0, opacity: 0 }}
+						animate={{ height: 'auto', opacity: 1 }}
+						exit={{ height: 0, opacity: 0 }}
+						transition={{ duration: 0.2 }}
+						className="overflow-hidden"
+					>
+						<div className="grid gap-2 p-3 pt-0 sm:gap-3 sm:p-4 sm:pt-0">
+							{toppings.map((topping) => {
+								const isSelected = selectedToppings.some((t) => t.id === topping.id)
+								return (
+									<motion.button
+										key={topping.id}
+										whileTap={{ scale: 0.98 }}
+										onClick={() => toggleTopping(topping)}
+										className={cn(
+											'flex items-center justify-between rounded-xl border p-3 transition',
+											isSelected
+												? 'border-emerald-400/40 bg-emerald-400/10'
+												: 'border-white/10 bg-white/5 hover:border-white/20'
+										)}
+									>
+										<div className="flex items-center gap-3">
+											<div
+												className={cn(
+													'flex h-5 w-5 items-center justify-center rounded border-2',
+													isSelected
+														? 'border-emerald-400 bg-emerald-400'
+														: 'border-white/30'
+												)}
+											>
+												{isSelected && <Check className="h-3 w-3 text-white" />}
+											</div>
+											<div className="text-left">
+												<p className="font-semibold text-white">{topping.name}</p>
+												{topping.description && (
+													<p className="text-xs text-white/60">{topping.description}</p>
+												)}
+											</div>
+										</div>
+										<p className="font-semibold text-white">
+											+{currencySymbol}{topping.price.toFixed(2)}
+										</p>
+									</motion.button>
+								)
+							})}
+						</div>
+					</motion.div>
+				)}
+			</AnimatePresence>
+		</div>
 	)
 }

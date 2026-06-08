@@ -100,18 +100,18 @@ export async function createOrder(
 	}
 
 	// Create order items
-	const orderItems = data.items.flatMap((item) => {
+	const orderItems = data.items.map((item) => {
 		const variantPrice = item.variant?.priceModifier || 0
 		const toppingsPrice = item.toppings.reduce((sum, t) => sum + t.price, 0)
 		const unitPrice = item.basePrice + variantPrice + toppingsPrice
 		const totalPrice = unitPrice * item.quantity
 
-		return Array.from({ length: item.quantity }, () => ({
+		return {
 			order_id: order.id,
 			menu_item_id: item.menuItemId,
 			variant_id: item.variant?.id || null,
 			name: item.name,
-			quantity: 1,
+			quantity: item.quantity,
 			unit_price: unitPrice,
 			total_price: totalPrice,
 			notes: item.variant
@@ -119,7 +119,7 @@ export async function createOrder(
 				: item.toppings.length > 0
 					? `Toppings: ${item.toppings.map((t) => t.name).join(', ')}`
 					: null
-		}))
+		}
 	})
 
 	const { error: itemsError } = await supabase

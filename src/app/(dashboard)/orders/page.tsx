@@ -31,7 +31,8 @@ import {
 	CreditCard,
 	QrCode,
 	Wallet,
-	MoreHorizontal
+	MoreHorizontal,
+	Loader2
 } from 'lucide-react'
 import {
 	updateOrderStatus,
@@ -296,6 +297,8 @@ export default function OrdersPage() {
 
 	// Bill sending states
 	const [sendingBillId, setSendingBillId] = useState<string | null>(null)
+	const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null)
+	const [savingEdit, setSavingEdit] = useState(false)
 	const [tenantName, setTenantName] = useState('')
 	const [tenantId, setTenantId] = useState('')
 	const [whatsappTemplate, setWhatsappTemplate] = useState<any>(null)
@@ -515,6 +518,7 @@ export default function OrdersPage() {
 	}
 
 	const handleStatusUpdate = async (orderId: string, newStatus: string) => {
+		setUpdatingOrderId(orderId)
 		try {
 			await updateOrderStatus(
 				orderId,
@@ -532,6 +536,8 @@ export default function OrdersPage() {
 			toast.error(
 				error instanceof Error ? error.message : 'Failed to update order'
 			)
+		} finally {
+			setUpdatingOrderId(null)
 		}
 	}
 
@@ -793,6 +799,7 @@ export default function OrdersPage() {
 
 	const handleSaveOrder = async () => {
 		if (!editingOrder) return
+		setSavingEdit(true)
 
 		const subtotal = editedItems.reduce((sum, item) => sum + item.totalPrice, 0)
 		const tax = subtotal * (taxRate / 100)
@@ -842,6 +849,8 @@ export default function OrdersPage() {
 			toast.error(
 				error instanceof Error ? error.message : 'Failed to update order'
 			)
+		} finally {
+			setSavingEdit(false)
 		}
 	}
 
@@ -1239,9 +1248,10 @@ export default function OrdersPage() {
 													onClick={() =>
 														handleStatusUpdate(order.id, 'confirmed')
 													}
+													disabled={updatingOrderId === order.id}
 													className="h-8 text-xs font-medium"
 												>
-													<CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+													{updatingOrderId === order.id ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />}
 													Confirm
 												</Button>
 											)}
@@ -1251,9 +1261,10 @@ export default function OrdersPage() {
 													onClick={() =>
 														handleStatusUpdate(order.id, 'preparing')
 													}
+													disabled={updatingOrderId === order.id}
 													className="h-8 text-xs font-medium"
 												>
-													<ChefHat className="mr-1.5 h-3.5 w-3.5" />
+													{updatingOrderId === order.id ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <ChefHat className="mr-1.5 h-3.5 w-3.5" />}
 													Start
 												</Button>
 											)}
@@ -1261,9 +1272,10 @@ export default function OrdersPage() {
 												<Button
 													size="sm"
 													onClick={() => handleStatusUpdate(order.id, 'ready')}
+													disabled={updatingOrderId === order.id}
 													className="h-8 text-xs font-medium"
 												>
-													<Package className="mr-1.5 h-3.5 w-3.5" />
+													{updatingOrderId === order.id ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Package className="mr-1.5 h-3.5 w-3.5" />}
 													Ready
 												</Button>
 											)}
@@ -1781,13 +1793,14 @@ export default function OrdersPage() {
 										setEditingOrder(null)
 										setEditedItems([])
 									}}
+									disabled={savingEdit}
 									className="flex-1"
 								>
 									Cancel
 								</Button>
-								<Button onClick={handleSaveOrder} className="flex-1">
-									<CheckCircle2 className="mr-2 h-4 w-4" />
-									Save Changes
+								<Button onClick={handleSaveOrder} disabled={savingEdit} className="flex-1">
+									{savingEdit ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+									{savingEdit ? 'Saving...' : 'Save Changes'}
 								</Button>
 							</div>
 						</div>
