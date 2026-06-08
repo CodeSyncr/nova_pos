@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { X, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -41,6 +42,11 @@ export function UserForm({
 		role_id: user?.role_id || ''
 	})
 	const toast = useToast()
+	const [mounted, setMounted] = useState(false)
+
+	useEffect(() => {
+		setMounted(true)
+	}, [])
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
@@ -81,8 +87,10 @@ export function UserForm({
 		}
 	}
 
-	return (
-		<div className="fixed inset-0 z-50">
+	if (!mounted) return null
+
+	const modalContent = (
+		<div className="fixed inset-0 z-[9999]">
 			<div
 				className="absolute inset-0 bg-black/60 backdrop-blur-sm"
 				onClick={onClose}
@@ -212,5 +220,7 @@ export function UserForm({
 			</motion.div>
 		</div>
 	)
+
+	return createPortal(modalContent, document.body)
 }
 
