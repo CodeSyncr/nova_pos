@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 import { Inter, Space_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
@@ -27,18 +27,19 @@ export const metadata: Metadata = {
 		icon: '/icon.svg'
 	},
 	manifest: '/manifest.json',
-	themeColor: '#6F6BFF',
 	appleWebApp: {
 		capable: true,
 		statusBarStyle: 'black-translucent',
 		title: 'Nova POS'
-	},
-	viewport: {
-		width: 'device-width',
-		initialScale: 1,
-		maximumScale: 1,
-		userScalable: false
 	}
+}
+
+export const viewport = {
+	width: 'device-width',
+	initialScale: 1,
+	maximumScale: 1,
+	userScalable: false,
+	themeColor: '#6F6BFF'
 }
 
 export default function RootLayout(props: Readonly<{ children: ReactNode }>) {

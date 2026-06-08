@@ -76,29 +76,34 @@ export async function getStaffWithSalary(tenantId: string): Promise<StaffMember[
 
 	const admin = createAdminClient()
 
-	// Try to get only staff-marked users. If is_staff column doesn't exist, get all except owner.
-	let pts: any[] | null = null
+	// Get profile_tenants - try with is_staff filter first, fallback to role-based
+	let pts: any[] = []
 
-	const { data: staffPts, error: staffError } = await admin
+	const { data: allPts, error: ptsError } = await admin
 		.from('profile_tenants')
 		.select('profile_id, role_id, is_staff')
 		.eq('tenant_id', tenantId)
-		.eq('is_staff', true)
 
-	if (staffError) {
-		// is_staff column might not exist yet, fall back to all users with a role
-		const { data: allPts } = await admin
-			.from('profile_tenants')
-			.select('profile_id, role_id')
-			.eq('tenant_id', tenantId)
-			.not('role_id', 'is', null)
+	console.log('[Staff] All profile_tenants for tenant:', tenantId, allPts, ptsError)
 
-		pts = allPts
-	} else {
-		pts = staffPts
+	if (ptsError || !allPts) {
+		console.error('[Staff] Error fetching profile_tenants:', ptsError)
+		return []
 	}
 
-	if (!pts || pts.length === 0) return []
+	// Filter: show users marked as staff, OR users with a role (non-owner), excluding current user
+	pts = allPts.filter((pt: any) => {
+		if (pt.is_staff === true) return true
+		// Fallback: if no one is marked as staff, show users with roles (not owner)
+		if (!allPts.some((p: any) => p.is_staff === true)) {
+			return pt.role_id !== null && pt.profile_id !== user.id
+		}
+		return false
+	})
+
+	console.log('[Staff] Filtered staff members:', pts.length)
+
+	if (pts.length === 0) return []
 
 	// Get salary configs
 	const { data: salaries } = await admin
@@ -221,7 +226,12 @@ export async function getStaffAdvances(
 
 	if (profileId) query = query.eq('profile_id', profileId)
 	if (month) {
-		query = query.gte('advance_date', `${month}-01`).lte('advance_date', `${month}-31`)
+		const startDate = `${month}-01`
+		// Calculate last day of month properly
+		const [year, mon] = month.split('-').map(Number)
+		const lastDay = new Date(year!, mon!, 0).getDate()
+		const endDate = `${month}-${String(lastDay).padStart(2, '0')}`
+		query = query.gte('advance_date', startDate).lte('advance_date', endDate)
 	}
 
 	const { data, error } = await query

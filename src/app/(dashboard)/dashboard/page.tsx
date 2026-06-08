@@ -17,7 +17,10 @@ import {
 	Sparkles,
 	TrendingUp,
 	Users,
-	AlertTriangle
+	AlertTriangle,
+	UserCog,
+	Banknote,
+	CalendarCheck
 } from 'lucide-react'
 
 type TenantRecord = {
@@ -62,6 +65,21 @@ export default async function DashboardPage() {
 	const settings = tenant.settings || {}
 	const currencySymbol = (settings.currencySymbol as string) || '₹'
 	const timezone = (settings.timezone as string) || 'Asia/Kolkata'
+
+	// ── Check if user is staff (has role) ──────────────────────────────────────
+	const { data: profileTenant } = await supabase
+		.from('profile_tenants')
+		.select('role_id')
+		.eq('profile_id', user.id)
+		.eq('tenant_id', tenant.id)
+		.single()
+
+	const isStaff = !!profileTenant?.role_id
+
+	// If staff member, show their personal dashboard
+	if (isStaff) {
+		return <StaffDashboard userId={user.id} tenantId={tenant.id} tenantName={tenant.name} currencySymbol={currencySymbol} timezone={timezone} />
+	}
 
 	// ── Fetch today's data ─────────────────────────────────────────────────────
 
@@ -578,4 +596,217 @@ function AIInsightCard({ insights }: { insights: Insight[] }) {
 			))}
 		</>
 	)
+}
+
+// ─── Staff Dashboard (shown to users with roles) ────────────────────────────────
+
+async function StaffDashboard({
+	userId,
+	tenantId,
+	tenantName,
+	currencySymbol,
+	timezone
+}: {
+	userId: string
+	tenantId: string
+	tenantName: string
+	currencySymbol: string
+	timezone: string
+}) {
+	const supabase = await createSupabaseServerComponentClient()
+
+	const now = new Date()
+	const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+	const today = now.toISOString().split('T')[0]!
+	const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+
+	// Get salary
+	const { data: salaryData } = await supabase
+		.from('staff_salaries')
+		.select('monthly_salary')
+		.eq('tenant_id', tenantId)
+		.eq('profile_id', userId)
+		.single()
+
+	const monthlySalary = salaryData?.monthly_salary || 0
+
+	// Get advances this month
+	const { data: advances } = await supabase
+		.from('staff_advances')
+		.select('id, amount, reason, advance_date')
+		.eq('tenant_id', tenantId)
+		.eq('profile_id', userId)
+		.gte('advance_date', `${currentMonth}-01`)
+		.lte('advance_date', `${currentMonth}-${lastDay}`)
+		.order('advance_date', { ascending: false })
+
+	const totalAdvances = (advances || []).reduce((sum, a) => sum + (a.amount || 0), 0)
+	const netSalary = monthlySalary - totalAdvances
+
+	// Get attendance this month
+	const { data: attendanceRecords } = await supabase
+		.from('staff_attendance')
+		.select('date, status, check_in, check_out')
+		.eq('tenant_id', tenantId)
+		.eq('profile_id', userId)
+		.gte('date', `${currentMonth}-01`)
+		.lte('date', `${currentMonth}-${lastDay}`)
+		.order('date', { ascending: false })
+
+	const presentDays = (attendanceRecords || []).filter((r) => r.status === 'present').length
+	const halfDays = (attendanceRecords || []).filter((r) => r.status === 'half_day').length
+	const absentDays = (attendanceRecords || []).filter((r) => r.status === 'absent').length
+	const leaveDays = (attendanceRecords || []).filter((r) => r.status === 'leave').length
+
+	// Today's attendance
+	const todayAttendance = (attendanceRecords || []).find((r) => r.date === today)
+
+	// Get profile name
+	const { data: profile } = await supabase
+		.from('profiles')
+		.select('full_name')
+		.eq('id', userId)
+		.single()
+
+	const fmtCurrency = (n: number) => `${currencySymbol}${n.toLocaleString('en-IN')}`
+	const monthName = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+
+	return (
+		<div className="flex flex-col gap-8 py-6">
+			{/* Header */}
+			<section className="relative overflow-hidden rounded-[40px] border border-white/10 bg-gradient-to-br from-[#121633] via-[#060915] to-[#030308] p-8 text-white shadow-[0_50px_140px_rgba(3,5,18,0.75)]">
+				<div className="pointer-events-none absolute inset-0">
+					<div className="glow -top-32 left-1/2 h-96 w-96 -translate-x-1/2 bg-[#7C74FF]/30" />
+				</div>
+				<div className="relative z-10 space-y-3">
+					<Badge className="border-white/20 bg-white/10 text-white/80">
+						<UserCog className="mr-2 h-3.5 w-3.5" /> My Dashboard
+					</Badge>
+					<h1 className="text-3xl font-semibold md:text-4xl">
+						Hello, {profile?.full_name || 'Team Member'}
+					</h1>
+					<p className="text-white/60">{tenantName} &middot; {monthName}</p>
+				</div>
+			</section>
+
+			{/* Today's Status */}
+			<div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+				<div className="rounded-[24px] border border-white/10 bg-gradient-to-br from-emerald-500/20 to-green-500/20 p-5">
+					<CalendarCheck className="h-5 w-5 text-emerald-400 mb-2" />
+					<p className="text-2xl font-semibold text-white">
+						{todayAttendance ? todayAttendance.status.replace('_', ' ') : 'Not marked'}
+					</p>
+					<p className="text-xs text-white/50 mt-1">Today&apos;s Status</p>
+				</div>
+				<div className="rounded-[24px] border border-white/10 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 p-5">
+					<IndianRupee className="h-5 w-5 text-blue-400 mb-2" />
+					<p className="text-2xl font-semibold text-white">{fmtCurrency(monthlySalary)}</p>
+					<p className="text-xs text-white/50 mt-1">Monthly Salary</p>
+				</div>
+				<div className="rounded-[24px] border border-white/10 bg-gradient-to-br from-amber-500/20 to-orange-500/20 p-5">
+					<Banknote className="h-5 w-5 text-amber-400 mb-2" />
+					<p className="text-2xl font-semibold text-amber-300">{fmtCurrency(totalAdvances)}</p>
+					<p className="text-xs text-white/50 mt-1">Advances This Month</p>
+				</div>
+				<div className="rounded-[24px] border border-white/10 bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-5">
+					<IndianRupee className="h-5 w-5 text-purple-400 mb-2" />
+					<p className="text-2xl font-semibold text-white">{fmtCurrency(Math.max(0, netSalary))}</p>
+					<p className="text-xs text-white/50 mt-1">Net Payable</p>
+				</div>
+			</div>
+
+			{/* Attendance & Advances */}
+			<div className="grid gap-6 md:grid-cols-2">
+				{/* Attendance Summary */}
+				<section className="rounded-[28px] border border-white/10 bg-white/5 p-6 backdrop-blur-2xl">
+					<div className="flex items-center gap-3 mb-5">
+						<CalendarCheck className="h-5 w-5 text-emerald-400" />
+						<h2 className="text-xl font-semibold text-white">Attendance - {monthName}</h2>
+					</div>
+					<div className="grid grid-cols-2 gap-3 mb-5">
+						<div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
+							<p className="text-2xl font-bold text-emerald-300">{presentDays}</p>
+							<p className="text-xs text-white/50">Present</p>
+						</div>
+						<div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-center">
+							<p className="text-2xl font-bold text-amber-300">{halfDays}</p>
+							<p className="text-xs text-white/50">Half Days</p>
+						</div>
+						<div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-center">
+							<p className="text-2xl font-bold text-red-300">{absentDays}</p>
+							<p className="text-xs text-white/50">Absent</p>
+						</div>
+						<div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-3 text-center">
+							<p className="text-2xl font-bold text-blue-300">{leaveDays}</p>
+							<p className="text-xs text-white/50">Leave</p>
+						</div>
+					</div>
+
+					{/* Recent attendance */}
+					<div className="space-y-2">
+						{(attendanceRecords || []).slice(0, 7).map((record) => (
+							<div key={record.date} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-4 py-2">
+								<div className="flex items-center gap-3">
+									<StaffAttendanceDot status={record.status} />
+									<span className="text-sm text-white/70">
+										{new Date(record.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', weekday: 'short' })}
+									</span>
+								</div>
+								<span className="text-xs text-white/50">
+									{record.check_in ? new Date(record.check_in).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: timezone }) : '—'}
+								</span>
+							</div>
+						))}
+					</div>
+				</section>
+
+				{/* Advances */}
+				<section className="rounded-[28px] border border-white/10 bg-white/5 p-6 backdrop-blur-2xl">
+					<div className="flex items-center gap-3 mb-5">
+						<Banknote className="h-5 w-5 text-amber-400" />
+						<h2 className="text-xl font-semibold text-white">Advances - {monthName}</h2>
+					</div>
+
+					{(!advances || advances.length === 0) ? (
+						<div className="text-center py-8">
+							<Banknote className="h-8 w-8 text-white/20 mx-auto mb-2" />
+							<p className="text-sm text-white/50">No advances this month</p>
+						</div>
+					) : (
+						<div className="space-y-3">
+							{advances.map((adv) => (
+								<div key={adv.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+									<div>
+										<p className="text-sm font-medium text-white">{fmtCurrency(adv.amount)}</p>
+										<p className="text-xs text-white/50">{adv.reason || 'No reason'}</p>
+									</div>
+									<span className="text-xs text-white/40">
+										{new Date(adv.advance_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+									</span>
+								</div>
+							))}
+
+							{/* Total */}
+							<div className="rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3 mt-2">
+								<div className="flex justify-between items-center">
+									<span className="text-xs text-amber-300/70">Total Advances</span>
+									<span className="text-lg font-semibold text-amber-300">{fmtCurrency(totalAdvances)}</span>
+								</div>
+							</div>
+						</div>
+					)}
+				</section>
+			</div>
+		</div>
+	)
+}
+
+function StaffAttendanceDot({ status }: { status: string }) {
+	const colors: Record<string, string> = {
+		present: 'bg-emerald-400',
+		half_day: 'bg-amber-400',
+		absent: 'bg-red-400',
+		leave: 'bg-blue-400'
+	}
+	return <span className={`inline-block h-2.5 w-2.5 rounded-full ${colors[status] || colors.absent}`} />
 }

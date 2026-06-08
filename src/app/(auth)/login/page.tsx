@@ -49,9 +49,26 @@ export default function LoginPage() {
 	useEffect(() => {
 		let isMounted = true
 
+		const redirectAfterAuth = async (userId: string) => {
+			// Check if user has a role (staff) or is owner
+			const { data: pt } = await supabaseClient
+				.from('profile_tenants')
+				.select('role_id')
+				.eq('profile_id', userId)
+				.single()
+
+			if (pt?.role_id) {
+				// Staff: go directly to POS
+				router.replace('/pos')
+			} else {
+				// Owner: go to onboarding (which redirects to dashboard if already set up)
+				router.replace('/onboarding')
+			}
+		}
+
 		supabaseClient.auth.getSession().then(({ data }) => {
 			if (data.session && isMounted) {
-				router.replace('/onboarding')
+				redirectAfterAuth(data.session.user.id)
 			}
 		})
 
@@ -59,7 +76,7 @@ export default function LoginPage() {
 			data: { subscription }
 		} = supabaseClient.auth.onAuthStateChange((_event, session) => {
 			if (session) {
-				router.replace('/onboarding')
+				redirectAfterAuth(session.user.id)
 			}
 		})
 
