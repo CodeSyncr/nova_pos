@@ -22,7 +22,10 @@ const spaceMono = Space_Mono({
 export const metadata: Metadata = {
 	title: 'Nova POS',
 	description:
-		'Premium restaurant POS platform with effortless onboarding and beautiful operations'
+		'Premium restaurant POS platform with effortless onboarding and beautiful operations',
+	icons: {
+		icon: '/icon.svg'
+	}
 }
 
 export default function RootLayout(props: Readonly<{ children: ReactNode }>) {
