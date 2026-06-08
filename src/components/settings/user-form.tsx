@@ -82,24 +82,36 @@ export function UserForm({
 	}
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+		<div className="fixed inset-0 z-50">
+			<div
+				className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+				onClick={onClose}
+			/>
 			<motion.div
-				initial={{ opacity: 0, scale: 0.95 }}
-				animate={{ opacity: 1, scale: 1 }}
-				className="relative w-full max-w-md rounded-2xl border border-white/10 bg-black/90 p-6 shadow-2xl"
+				initial={{ opacity: 0, x: 80 }}
+				animate={{ opacity: 1, x: 0 }}
+				exit={{ opacity: 0, x: 80 }}
+				transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+				className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-white/10 bg-gradient-to-br from-[#121633] via-[#060915] to-[#030308] p-8 shadow-[0_40px_120px_rgba(3,5,18,0.85)]"
 			>
-				<button
-					onClick={onClose}
-					className="absolute right-4 top-4 rounded-lg p-2 text-white/60 transition hover:bg-white/10 hover:text-white"
-				>
-					<X className="h-4 w-4" />
-				</button>
+				<div className="flex items-center justify-between mb-6">
+					<div>
+						<p className="text-xs uppercase tracking-[0.3em] text-white/50">
+							{user ? 'Edit' : 'New'}
+						</p>
+						<h2 className="mt-1 text-2xl font-semibold text-white">
+							{user ? 'Edit User' : 'Add New User'}
+						</h2>
+					</div>
+					<button
+						onClick={onClose}
+						className="rounded-full border border-white/10 bg-white/5 p-2 text-white/60 transition hover:bg-white/10 hover:text-white"
+					>
+						<X className="h-5 w-5" />
+					</button>
+				</div>
 
-				<h2 className="mb-6 text-2xl font-semibold text-white">
-					{user ? 'Edit User' : 'Add New User'}
-				</h2>
-
-				<form onSubmit={handleSubmit} className="space-y-4">
+				<form onSubmit={handleSubmit} className="space-y-5">
 					{!user && (
 						<>
 							<div>
@@ -113,7 +125,7 @@ export function UserForm({
 									onChange={(e) =>
 										setFormData({ ...formData, email: e.target.value })
 									}
-									className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/20 focus:outline-none"
+									className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
 									placeholder="user@example.com"
 								/>
 							</div>
@@ -128,7 +140,7 @@ export function UserForm({
 									onChange={(e) =>
 										setFormData({ ...formData, password: e.target.value })
 									}
-									className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/20 focus:outline-none"
+									className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
 									placeholder="••••••••"
 									minLength={6}
 								/>
@@ -146,7 +158,7 @@ export function UserForm({
 							onChange={(e) =>
 								setFormData({ ...formData, full_name: e.target.value })
 							}
-							className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/20 focus:outline-none"
+							className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
 							placeholder="John Doe"
 						/>
 					</div>
@@ -172,7 +184,7 @@ export function UserForm({
 						/>
 					</div>
 
-					<div className="flex gap-3 pt-4">
+					<div className="flex gap-3 pt-6">
 						<Button
 							type="button"
 							variant="ghost"
