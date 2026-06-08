@@ -356,6 +356,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 								<ChevronLeft className="h-4 w-4 text-white/40" />
 							)}
 						</div>
+						{/* Version */}
+						<p className={`text-[10px] text-white/30 ${collapsed ? 'text-center' : ''}`}>
+							{collapsed ? 'v1.2' : 'v1.2.0'}
+						</p>
 					</div>
 				</aside>
 

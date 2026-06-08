@@ -18,6 +18,9 @@ export function PWAUpdatePrompt() {
 
 				setRegistration(reg)
 
+				// Force check for updates immediately
+				reg.update()
+
 				// Check for waiting worker (update ready)
 				if (reg.waiting) {
 					setShowUpdate(true)
@@ -35,19 +38,19 @@ export function PWAUpdatePrompt() {
 						}
 					})
 				})
-
-				// Periodically check for updates (every 60 seconds)
-				const interval = setInterval(() => {
-					reg.update()
-				}, 60000)
-
-				return () => clearInterval(interval)
 			} catch (err) {
 				console.error('SW update check failed:', err)
 			}
 		}
 
 		checkForUpdates()
+
+		// Check for updates periodically (every 30 seconds)
+		const interval = setInterval(() => {
+			navigator.serviceWorker.getRegistration().then((reg) => {
+				if (reg) reg.update()
+			})
+		}, 30000)
 
 		// Also listen for controller change (another tab triggered update)
 		let refreshing = false
@@ -57,6 +60,8 @@ export function PWAUpdatePrompt() {
 				window.location.reload()
 			}
 		})
+
+		return () => clearInterval(interval)
 	}, [])
 
 	const handleUpdate = () => {

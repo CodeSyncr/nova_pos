@@ -1,4 +1,4 @@
-const CACHE_NAME = 'novapos-v1'
+const CACHE_NAME = 'novapos-v1.2.0'
 
 // Listen for skip waiting message from client
 self.addEventListener('message', (event) => {
