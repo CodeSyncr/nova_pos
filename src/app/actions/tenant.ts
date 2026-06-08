@@ -48,7 +48,7 @@ export type TenantCreationPayload = {
 	branding: TenantBranding
 }
 
-const TRIAL_DAYS = 14
+const TRIAL_DAYS = 7
 const SUBSCRIPTION_DAYS = 30
 
 export async function saveOnboardingProfile(payload: OnboardingProfilePayload) {

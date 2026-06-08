@@ -20,6 +20,8 @@ import {
 	updateSubscription,
 	cancelSubscription,
 	reactivateSubscription,
+	createRazorpayOrder,
+	verifyAndActivateSubscription,
 	type Subscription
 } from '@/app/actions/subscription'
 import {
@@ -87,28 +89,69 @@ export default function SubscriptionPage() {
 		if (!tenantId) return
 
 		try {
-			// TODO: Integrate with Razorpay here
-			// For now, just update the subscription plan
-			const now = new Date()
-			const periodEnd = new Date(now)
-			periodEnd.setMonth(periodEnd.getMonth() + 1)
+			// Create Razorpay order
+			const orderResult = await createRazorpayOrder(tenantId, planId)
 
-			await updateSubscription(tenantId, {
-				plan: planId,
-				status: 'active',
-				currentPeriodStart: now.toISOString(),
-				currentPeriodEnd: periodEnd.toISOString(),
-				cancelAtPeriodEnd: false
-			})
+			if (!orderResult.success || !orderResult.orderId) {
+				toast.error(orderResult.error || 'Failed to create payment order')
+				return
+			}
 
-			toast.success('Subscription upgraded successfully')
-			loadSubscription()
-		} catch (error) {
-			toast.error(
-				error instanceof Error
-					? error.message
-					: 'Failed to upgrade subscription'
-			)
+			// Load Razorpay script if not loaded
+			if (!(window as any).Razorpay) {
+				await new Promise<void>((resolve, reject) => {
+					const script = document.createElement('script')
+					script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+					script.onload = () => resolve()
+					script.onerror = () => reject(new Error('Failed to load Razorpay'))
+					document.body.appendChild(script)
+				})
+			}
+
+			const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId)
+
+			// Open Razorpay checkout
+			const options = {
+				key: orderResult.keyId,
+				amount: orderResult.amount,
+				currency: orderResult.currency,
+				name: 'Nova POS',
+				description: `${plan?.name || planId} Plan - Monthly`,
+				order_id: orderResult.orderId,
+				handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+					// Verify payment and activate subscription
+					try {
+						const verifyResult = await verifyAndActivateSubscription(tenantId, planId, {
+							razorpayOrderId: response.razorpay_order_id,
+							razorpayPaymentId: response.razorpay_payment_id,
+							razorpaySignature: response.razorpay_signature
+						})
+
+						if (verifyResult.success) {
+							toast.success('Payment successful! Your plan has been upgraded.')
+							loadSubscription()
+						} else {
+							toast.error(verifyResult.error || 'Payment verification failed')
+						}
+					} catch (err: any) {
+						toast.error(err.message || 'Payment verification failed')
+					}
+				},
+				prefill: {},
+				theme: {
+					color: '#6366F1'
+				},
+				modal: {
+					ondismiss: () => {
+						toast.info('Payment cancelled')
+					}
+				}
+			}
+
+			const razorpay = new (window as any).Razorpay(options)
+			razorpay.open()
+		} catch (error: any) {
+			toast.error(error.message || 'Failed to initiate payment')
 		}
 	}
 
@@ -404,7 +447,7 @@ export default function SubscriptionPage() {
 				</div>
 			</div>
 
-			{/* Payment Method Section - Placeholder for Razorpay */}
+			{/* Payment Info */}
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}
@@ -412,19 +455,23 @@ export default function SubscriptionPage() {
 			>
 				<div className="mb-4 flex items-center justify-between">
 					<div>
-						<h2 className="text-xl font-semibold text-white">Payment Method</h2>
+						<h2 className="text-xl font-semibold text-white">Payment</h2>
 						<p className="mt-1 text-sm text-white/60">
-							Manage your payment methods and billing
+							Payments are securely processed via Razorpay
 						</p>
 					</div>
 					<CreditCard className="h-5 w-5 text-white/40" />
 				</div>
 
-				<div className="rounded-lg border border-white/10 bg-white/5 p-4">
-					<p className="text-sm text-white/60">
-						Payment gateway integration (Razorpay) will be available soon. You
-						can manage your subscription settings above.
+				<div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-2">
+					<p className="text-sm text-white/70">
+						When you upgrade, Razorpay checkout will open for secure payment via UPI, cards, net banking, or wallets.
 					</p>
+					{subscription?.razorpayPaymentId && (
+						<p className="text-xs text-white/50">
+							Last payment: {subscription.razorpayPaymentId}
+						</p>
+					)}
 				</div>
 			</motion.div>
 		</div>
