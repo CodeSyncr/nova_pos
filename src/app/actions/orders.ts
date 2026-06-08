@@ -140,6 +140,28 @@ export async function createOrder(
 	revalidatePath('/orders')
 	revalidatePath('/pos')
 
+	// Send push notification to other team members
+	try {
+		const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+		if (appUrl) {
+			fetch(`${appUrl}/api/push-notify`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					tenantId,
+					excludeUserId: user.id,
+					title: '🆕 New Order!',
+					body: data.customerName
+						? `Order from ${data.customerName} - ${data.orderType?.replace('_', ' ') || 'Dine In'}`
+						: `New ${data.orderType?.replace('_', ' ') || 'Dine In'} order received`,
+					url: '/orders'
+				})
+			}).catch(() => {}) // Fire and forget
+		}
+	} catch {
+		// Non-critical, don't fail order creation
+	}
+
 	return { orderId: order.id, success: true }
 }
 

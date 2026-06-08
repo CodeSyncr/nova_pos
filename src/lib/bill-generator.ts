@@ -393,5 +393,15 @@ export function openWhatsApp(
 	} else {
 		waUrl = `https://wa.me/?text=${message}`
 	}
-	window.open(waUrl, '_blank')
+
+	// Use location.href for PWA standalone mode (window.open is blocked)
+	// Check if running as installed PWA
+	const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+		(window.navigator as any).standalone === true
+
+	if (isStandalone) {
+		window.location.href = waUrl
+	} else {
+		window.open(waUrl, '_blank')
+	}
 }

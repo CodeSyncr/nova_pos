@@ -1,8 +1,9 @@
-import type { Metadata, Viewport } from 'next'
+import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { Inter, Space_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
 import { ToastProvider } from '@/components/ui/toast'
+import { PWAUpdatePrompt } from '@/components/pwa-update-prompt'
 import { cn } from '@/lib/utils'
 import './globals.css'
 
@@ -58,6 +59,7 @@ export default function RootLayout(props: Readonly<{ children: ReactNode }>) {
 			>
 				<ThemeProvider>
 					<ToastProvider>{props.children}</ToastProvider>
+					<PWAUpdatePrompt />
 				</ThemeProvider>
 				<div className="grain" aria-hidden="true" />
 				<script

@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { canAccessRoute } from '@/lib/permissions'
+import { OrderNotifications } from '@/components/order-notifications'
 
 const navItems = [
 	{ href: '/dashboard', label: 'Home', icon: LayoutDashboard },
@@ -364,6 +365,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 						{children}
 					</div>
 				</main>
+				<OrderNotifications />
 			</div>
 		</div>
 	)
