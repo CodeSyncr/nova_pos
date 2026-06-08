@@ -410,10 +410,6 @@ export default function MarketingPage() {
 				<div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-6 px-6 text-center text-white/70 md:flex-row md:justify-between md:text-left">
 					<div>
 						<Logo className="justify-center md:justify-start" />
-						<p className="mt-2 text-sm text-white/60">
-							Beautifully crafted in Next.js 14 · Supabase · Tailwind ·
-							shadcn/ui
-						</p>
 					</div>
 					<div className="flex items-center gap-4">
 						<Button asChild size="sm" variant="ghost">
