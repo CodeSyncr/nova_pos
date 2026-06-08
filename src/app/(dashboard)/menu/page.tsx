@@ -148,7 +148,7 @@ export default function MenuPage() {
 
 		setTenant(tenantData)
 
-		// Check user's menu permissions
+		// Check user's menu permissions — only restrict if user has a role with limited perms
 		const { data: ptRole } = await supabase
 			.from('profile_tenants')
 			.select('role_id')
@@ -156,20 +156,37 @@ export default function MenuPage() {
 			.eq('tenant_id', tenantData.id)
 			.single()
 
-		if (ptRole?.role_id) {
+		console.log('[Menu] User role check:', { userId: user.id, roleId: ptRole?.role_id })
+
+		if (ptRole && ptRole.role_id) {
 			const { data: roleData } = await supabase
 				.from('roles')
 				.select('permissions')
 				.eq('id', ptRole.role_id)
 				.single()
 
-			const perms = roleData?.permissions as Record<string, string[]> | null
-			if (perms) {
-				const menuPerms = perms.menu || []
-				const canEdit = menuPerms.includes('all') || menuPerms.includes('*') || menuPerms.includes('write') || menuPerms.includes('delete')
-				setReadOnly(!canEdit)
+			console.log('[Menu] Role permissions:', roleData?.permissions)
+
+			if (roleData?.permissions) {
+				const perms = roleData.permissions
+				// If permissions is ["*"] or includes "*" — full access (owner role)
+				if (Array.isArray(perms)) {
+					if (!perms.includes('*') && !perms.includes('all')) {
+						setReadOnly(true)
+					}
+				} else if (typeof perms === 'object' && perms !== null) {
+					const menuPerms = (perms as Record<string, string[]>).menu || []
+					if (menuPerms.length === 0) {
+						setReadOnly(true)
+					} else {
+						const canEdit = menuPerms.includes('all') || menuPerms.includes('*') || menuPerms.includes('write') || menuPerms.includes('delete')
+						setReadOnly(!canEdit)
+					}
+				}
 			}
 		}
+		// If no role_id (owner) → readOnly stays false (full access)
+		console.log('[Menu] Final readOnly:', readOnly)
 
 		// Load categories
 		const { data: categoriesData } = await supabase

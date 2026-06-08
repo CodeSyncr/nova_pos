@@ -56,6 +56,7 @@ type AnalyticsData = {
 }
 
 type Period =
+	| 'today'
 	| 'weekly'
 	| 'monthly'
 	| 'quarterly'
@@ -68,7 +69,7 @@ export default function AnalyticsPage() {
 	const [tenantId, setTenantId] = useState<string | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
-	const [period, setPeriod] = useState<Period>('monthly')
+	const [period, setPeriod] = useState<Period>('today')
 	const [customStartDate, setCustomStartDate] = useState('')
 	const [customEndDate, setCustomEndDate] = useState('')
 	const [monthStartDay, setMonthStartDay] = useState(1)
@@ -119,15 +120,11 @@ export default function AnalyticsPage() {
 				setMonthEndDay(endDay)
 				setCurrencySymbol(currency)
 
-				// Calculate initial date range
-				const range = calculateDateRange(
-					'monthly',
-					undefined,
-					undefined,
-					startDay,
-					endDay
-				)
-				setDateRange(range)
+				// Calculate initial date range (today by default)
+				const now = new Date()
+				const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+				const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+				setDateRange({ startDate: todayStart.toISOString(), endDate: todayEnd.toISOString() })
 			} catch (error) {
 				console.error('Error loading tenant:', error)
 			} finally {
@@ -157,7 +154,13 @@ export default function AnalyticsPage() {
 					let previousStartDate: Date
 					let previousEndDate: Date
 
-					if (period === 'weekly') {
+					if (period === 'today') {
+						// Previous day: yesterday
+						previousStartDate = new Date(currentStartDate)
+						previousStartDate.setDate(previousStartDate.getDate() - 1)
+						previousEndDate = new Date(previousStartDate)
+						previousEndDate.setHours(23, 59, 59, 999)
+					} else if (period === 'weekly') {
 						// Previous week: go back 7 days from current week start
 						previousStartDate = new Date(currentStartDate)
 						previousStartDate.setDate(previousStartDate.getDate() - 7)
@@ -264,6 +267,13 @@ export default function AnalyticsPage() {
 		setPeriod(newPeriod)
 		if (newPeriod === 'custom') {
 			// Don't update date range yet, wait for user to select dates
+			return
+		}
+		if (newPeriod === 'today') {
+			const now = new Date()
+			const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+			const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+			setDateRange({ startDate: start.toISOString(), endDate: end.toISOString() })
 			return
 		}
 		const range = calculateDateRange(
@@ -389,6 +399,7 @@ export default function AnalyticsPage() {
 						<div className="flex flex-wrap gap-2">
 							{(
 								[
+									'today',
 									'weekly',
 									'monthly',
 									'quarterly',

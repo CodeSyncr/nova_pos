@@ -100,16 +100,18 @@ export function MenuItemsTab({
 	)
 	const toast = useToast()
 
-	// Expand first category by default
+	// Expand first category by default (only on initial mount)
+	const [initialized, setInitialized] = useState(false)
 	useEffect(() => {
-		if (categories.length > 0 && expandedCategories.size === 0) {
+		if (categories.length > 0 && !initialized) {
 			const sortedCategories = [...categories].sort(
 				(a, b) => a.position - b.position
 			)
 			const firstCategoryId = sortedCategories[0].id
 			setExpandedCategories(new Set([firstCategoryId]))
+			setInitialized(true)
 		}
-	}, [categories, expandedCategories.size])
+	}, [categories, initialized])
 
 	const toggleCategory = (categoryId: string) => {
 		setExpandedCategories((prev) => {
@@ -354,7 +356,7 @@ export function MenuItemsTab({
 																	</div>
 																	{/* Actions */}
 																	{!readOnly && (
-																	<div className="flex-shrink-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+																	<div className="flex-shrink-0 flex items-center gap-2">
 																		<Button
 																			size="sm"
 																			variant="ghost"
