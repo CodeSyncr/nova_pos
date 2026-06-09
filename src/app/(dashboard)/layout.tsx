@@ -45,7 +45,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 	const router = useRouter()
 	const [collapsed, setCollapsed] = useState(true)
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-	const [userPermissions, setUserPermissions] = useState<Record<string, string[]> | null>(null)
+	const [userPermissions, setUserPermissions] = useState<Record<string, string[]> | string[] | null>(null)
 	const [permissionsLoaded, setPermissionsLoaded] = useState(false)
 
 	// Load user permissions on mount
@@ -63,28 +63,49 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 					.eq('profile_id', user.id)
 					.single()
 
-				if (!pt?.role_id) {
-					// No role = owner/admin = full access
-					setUserPermissions(null)
+				if (!pt) {
+					setUserPermissions({})
 					setPermissionsLoaded(true)
 					return
 				}
 
-				// Get the role's permissions
-				const { data: role } = await supabase
-					.from('roles')
-					.select('permissions')
-					.eq('id', pt.role_id)
-					.single()
+				let isFullAccess = !pt.role_id
+				let permissions: Record<string, string[]> | string[] | null = null
 
-				if (role?.permissions) {
-					setUserPermissions(role.permissions as Record<string, string[]>)
-				} else {
+				if (pt.role_id) {
+					// Get the role's permissions and code
+					const { data: role } = await supabase
+						.from('roles')
+						.select('code, permissions')
+						.eq('id', pt.role_id)
+						.single()
+
+					if (role) {
+						const perms = role.permissions
+						isFullAccess =
+							role.code === 'OWNER' ||
+							perms == null ||
+							(Array.isArray(perms) &&
+								(perms.includes('*') || perms.includes('all')))
+
+						if (!isFullAccess) {
+							permissions = perms as Record<string, string[]> | string[]
+						}
+					} else {
+						// Role was assigned but not found. Fail-closed.
+						isFullAccess = false
+						permissions = {}
+					}
+				}
+
+				if (isFullAccess) {
 					setUserPermissions(null)
+				} else {
+					setUserPermissions(permissions || {})
 				}
 			} catch (err) {
 				console.error('Error loading permissions:', err)
-				setUserPermissions(null)
+				setUserPermissions({})
 			} finally {
 				setPermissionsLoaded(true)
 			}
@@ -95,7 +116,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
 	// Filter nav items based on permissions
 	const filteredNavItems = navItems.filter((item) => {
-		if (!permissionsLoaded) return true // show all while loading
+		if (!permissionsLoaded) return false // hide all while loading
 		return canAccessRoute(userPermissions, item.href)
 	})
 
@@ -105,7 +126,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 		if (!canAccessRoute(userPermissions, pathname)) {
 			// Redirect to the first accessible route
 			const firstAccessible = navItems.find((item) => canAccessRoute(userPermissions, item.href))
-			router.push(firstAccessible?.href || '/dashboard')
+			const target = firstAccessible?.href || '/dashboard'
+			if (pathname !== target) {
+				router.push(target)
+			}
 		}
 	}, [permissionsLoaded, userPermissions, pathname, router])
 

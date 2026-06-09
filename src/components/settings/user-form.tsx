@@ -9,6 +9,7 @@ import { CustomSelect } from '@/components/ui/select'
 import {
 	createTenantUser,
 	updateTenantUserRole,
+	updateTenantUserPassword,
 	type TenantUser
 } from '@/app/actions/users'
 import { useToast } from '@/components/ui/toast'
@@ -60,6 +61,10 @@ export function UserForm({
 					user.id,
 					formData.role_id || null
 				)
+				// Update password if a new one was entered
+				if (formData.password.trim()) {
+					await updateTenantUserPassword(tenantId, user.id, formData.password.trim())
+				}
 			} else {
 				// Create new user
 				if (!formData.email || !formData.password) {
@@ -170,6 +175,25 @@ export function UserForm({
 							placeholder="John Doe"
 						/>
 					</div>
+
+					{user && (
+						<div>
+							<label className="mb-2 block text-sm font-medium text-white/70">
+								Change Password
+							</label>
+							<input
+								type="password"
+								value={formData.password}
+								onChange={(e) =>
+									setFormData({ ...formData, password: e.target.value })
+								}
+								className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+								placeholder="Leave blank to keep current password"
+								minLength={6}
+							/>
+							<p className="mt-1 text-xs text-white/40">Enter a new password (min 6 chars) to reset this user&apos;s password</p>
+						</div>
+					)}
 
 					<div>
 						<label className="mb-2 block text-sm font-medium text-white/70">

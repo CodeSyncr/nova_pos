@@ -247,6 +247,56 @@ export async function updateTenantUserRole(
 	revalidatePath('/settings')
 }
 
+export async function updateTenantUserPassword(
+	tenantId: string,
+	userId: string,
+	newPassword: string
+) {
+	const supabase = await createSupabaseServerClient()
+	const { data: { user } } = await supabase.auth.getUser()
+	if (!user) throw new Error('Unauthorized')
+
+	// Verify caller has access to this tenant
+	const { data: profileTenant } = await supabase
+		.from('profile_tenants')
+		.select('tenant_id')
+		.eq('profile_id', user.id)
+		.eq('tenant_id', tenantId)
+		.single()
+
+	if (!profileTenant) {
+		throw new Error('Unauthorized: You do not have access to this tenant.')
+	}
+
+	if (newPassword.length < 6) {
+		throw new Error('Password must be at least 6 characters.')
+	}
+
+	const admin = createSupabaseAdminClient()
+
+	// Verify the target user belongs to this tenant
+	const { data: targetMember } = await admin
+		.from('profile_tenants')
+		.select('profile_id')
+		.eq('tenant_id', tenantId)
+		.eq('profile_id', userId)
+		.single()
+
+	if (!targetMember) {
+		throw new Error('User does not belong to this tenant.')
+	}
+
+	const { error } = await admin.auth.admin.updateUserById(userId, {
+		password: newPassword
+	})
+
+	if (error) {
+		throw new Error(error.message)
+	}
+
+	return { success: true }
+}
+
 export async function removeTenantUser(tenantId: string, userId: string) {
 	const supabase = await createSupabaseServerClient()
 
