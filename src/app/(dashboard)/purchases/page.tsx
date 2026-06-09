@@ -25,14 +25,8 @@ type Purchase = {
 	notes: string | null
 	created_at: string
 	supplier_id: string | null
-	supplier: {
-		id: string
-		name: string
-	}[] | null
-	created_by_profile: {
-		id: string
-		full_name: string | null
-	}[] | null
+	supplier: { id: string; name: string } | { id: string; name: string }[] | null
+	created_by_profile: { id: string; full_name: string | null } | { id: string; full_name: string | null }[] | null
 }
 
 export default function PurchasesPage() {
@@ -81,12 +75,8 @@ export default function PurchasesPage() {
 	const handleRefresh = () => {
 		if (!tenantId) return
 		startTransition(async () => {
-			try {
-				const purchasesData = await getPurchases(tenantId)
-				setPurchases((purchasesData as Purchase[]) || [])
-			} catch (error) {
-				console.error('Error refreshing purchases:', error)
-			}
+			const purchasesData = await getPurchases(tenantId)
+			setPurchases((purchasesData as Purchase[]) || [])
 		})
 	}
 
@@ -105,6 +95,18 @@ export default function PurchasesPage() {
 
 	const fmt = (n: number) => `${currencySymbol}${n.toLocaleString('en-IN', { minimumFractionDigits: 0 })}`
 
+	const getSupplierName = (purchase: Purchase): string | null => {
+		if (!purchase.supplier) return null
+		if (Array.isArray(purchase.supplier)) return purchase.supplier[0]?.name || null
+		return (purchase.supplier as { name: string }).name || null
+	}
+
+	const getCreatedBy = (purchase: Purchase): string | null => {
+		if (!purchase.created_by_profile) return null
+		if (Array.isArray(purchase.created_by_profile)) return purchase.created_by_profile[0]?.full_name || null
+		return (purchase.created_by_profile as { full_name: string | null }).full_name || null
+	}
+
 	// Group purchases by date
 	const groupedByDate = purchases.reduce<Record<string, Purchase[]>>((groups, purchase) => {
 		const date = purchase.purchase_date
@@ -114,8 +116,6 @@ export default function PurchasesPage() {
 	}, {})
 
 	const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a))
-
-	// Totals
 	const totalSpending = purchases.reduce((sum, p) => sum + p.total_amount, 0)
 
 	if (loading) {
@@ -149,111 +149,76 @@ export default function PurchasesPage() {
 				</div>
 			</header>
 
-			{/* Purchases List - Story-like Cards */}
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				className="relative overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-br from-[#121633] via-[#060915] to-[#030308] p-8 backdrop-blur-2xl shadow-[0_30px_80px_rgba(4,5,16,0.65)]"
-			>
-				<div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent" />
-				<div className="relative z-10">
-					<div className="mb-6 flex items-center gap-4">
-						<div className="rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-4">
-							<ShoppingCart className="h-6 w-6 text-purple-300" />
-						</div>
-						<div>
-							<h2 className="text-2xl font-semibold text-white">
-								Purchase History
-							</h2>
-							<p className="text-sm text-white/60">
-								All your stock purchases and receipts
-							</p>
-						</div>
+			{/* Summary */}
+			{purchases.length > 0 && (
+				<div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+					<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+						<p className="text-xs text-white/50">Total Spendings</p>
+						<p className="text-2xl font-semibold text-white mt-1">{fmt(totalSpending)}</p>
+					</div>
+					<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+						<p className="text-xs text-white/50">Entries</p>
+						<p className="text-2xl font-semibold text-white mt-1">{purchases.length}</p>
+					</div>
+					<div className="rounded-2xl border border-white/10 bg-white/5 p-4 hidden sm:block">
+						<p className="text-xs text-white/50">Days</p>
+						<p className="text-2xl font-semibold text-white mt-1">{sortedDates.length}</p>
 					</div>
 				</div>
 			)}
 
-					{purchases.length === 0 ? (
-						<div className="text-center py-16">
-							<div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-								<ShoppingCart className="h-10 w-10 text-white/40" />
-							</div>
-							<h3 className="text-xl font-semibold text-white mb-2">
-								No purchases yet
-							</h3>
-							<p className="text-white/60 max-w-md mx-auto mb-6">
-								Create your first purchase to add stock to inventory. Purchases
-								automatically update your stock levels.
-							</p>
-							<Button
-								onClick={() => setShowPurchaseForm(true)}
-								variant="ghost"
-								className="border-white/20"
-							>
-								<Plus className="mr-2 h-4 w-4" />
-								Create Purchase
-							</Button>
-						</div>
-					) : (
-						<div className="grid gap-4">
-							{purchases.map((purchase) => (
-								<motion.div
-									key={purchase.id}
-									whileHover={{ scale: 1.01 }}
-									initial={{ opacity: 0, y: 10 }}
-									animate={{ opacity: 1, y: 0 }}
-									className="rounded-xl border border-white/10 bg-gradient-to-br from-black/40 to-black/20 p-6 backdrop-blur-sm hover:border-white/20 transition"
-								>
-									<div className="flex items-start justify-between">
-										<div className="flex-1">
-											<div className="flex items-center gap-4 mb-4">
-												<div className="rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-3">
-													<FileText className="h-5 w-5 text-purple-300" />
-												</div>
-												<div className="flex-1">
-													<div className="flex items-center gap-3 mb-2">
-														<h3 className="text-xl font-semibold text-white">
-															{purchase.invoice_number || 'Purchase'}
-														</h3>
-														<Badge
-															className={`${
-																purchase.status === 'completed'
-																	? 'border-emerald-400/50 text-emerald-400 bg-emerald-400/10'
-																	: purchase.status === 'pending'
-																		? 'border-amber-400/50 text-amber-400 bg-amber-400/10'
-																		: 'border-red-400/50 text-red-400 bg-red-400/10'
-															}`}
-														>
-															{purchase.status}
-														</Badge>
-													</div>
-													<div className="flex flex-wrap items-center gap-4 text-sm text-white/60">
-														<div className="flex items-center gap-2">
-															<Calendar className="h-4 w-4" />
-															{new Date(
-																purchase.purchase_date
-															).toLocaleDateString('en-US', {
-																year: 'numeric',
-																month: 'long',
-																day: 'numeric'
-															})}
-														</div>
-														{purchase.supplier?.[0] ? (
-															<div className="flex items-center gap-2">
-																<Building2 className="h-4 w-4" />
-																<span className="text-white/80">
-																	{purchase.supplier[0].name}
-																</span>
-															)
-														})()}
-														{purchase.created_by_profile && (() => {
-															const prof = purchase.created_by_profile
-															const name = Array.isArray(prof) ? prof[0]?.full_name : (prof as any)?.full_name
-															if (!name) return null
-															return (
-																<span className="text-xs text-white/40">by {name}</span>
-															)
-														})()}
+			{/* Date-wise List */}
+			{purchases.length === 0 ? (
+				<div className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-12 text-center">
+					<ShoppingCart className="mx-auto h-12 w-12 text-white/20 mb-4" />
+					<h3 className="text-lg font-semibold text-white mb-1">No spendings recorded</h3>
+					<p className="text-sm text-white/50 mb-4">Add your first expense or purchase to start tracking</p>
+					<Button onClick={() => setShowPurchaseForm(true)} size="sm">
+						<Plus className="mr-2 h-4 w-4" /> Add Spending
+					</Button>
+				</div>
+			) : (
+				<div className="space-y-6">
+					{sortedDates.map((date) => {
+						const dayPurchases = groupedByDate[date]!
+						const dayTotal = dayPurchases.reduce((sum, p) => sum + p.total_amount, 0)
+						const formattedDate = new Date(date).toLocaleDateString('en-IN', {
+							weekday: 'short',
+							day: '2-digit',
+							month: 'short',
+							year: 'numeric'
+						})
+
+						return (
+							<div key={date}>
+								<div className="flex items-center justify-between mb-3">
+									<div className="flex items-center gap-2">
+										<Calendar className="h-4 w-4 text-white/40" />
+										<h3 className="text-sm font-medium text-white/70">{formattedDate}</h3>
+									</div>
+									<span className="text-sm font-semibold text-white">{fmt(dayTotal)}</span>
+								</div>
+
+								<div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden divide-y divide-white/5">
+									{dayPurchases.map((purchase) => {
+										const supplierName = getSupplierName(purchase)
+										const createdBy = getCreatedBy(purchase)
+
+										return (
+											<div key={purchase.id} className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors">
+												<div className="flex-1 min-w-0">
+													<p className="text-sm font-medium text-white truncate">
+														{purchase.notes || purchase.invoice_number || 'Untitled Expense'}
+													</p>
+													<div className="flex items-center gap-2 mt-1 flex-wrap">
+														{supplierName && (
+															<span className="text-xs font-medium text-blue-300 bg-blue-500/10 border border-blue-500/20 rounded-full px-2 py-0.5">
+																{supplierName}
+															</span>
+														)}
+														{createdBy && (
+															<span className="text-xs text-white/40">by {createdBy}</span>
+														)}
 													</div>
 												</div>
 												<div className="flex items-center gap-2 ml-4">
