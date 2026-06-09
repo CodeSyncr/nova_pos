@@ -96,6 +96,7 @@ export default async function CustomDomainPOSPage() {
           name,
           description,
           base_price,
+          image_url,
           is_active,
           menu_item_variants ( id, name, price_modifier, is_default ),
           menu_item_toppings (
