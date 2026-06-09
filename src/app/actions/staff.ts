@@ -350,6 +350,43 @@ export async function markAttendance(
 	revalidatePath('/staff')
 }
 
+// Get all attendance records for a whole month (all staff)
+export async function getMonthlyAttendance(
+	tenantId: string,
+	month: string // YYYY-MM
+): Promise<AttendanceRecord[]> {
+	const supabase = await createSupabaseServerClient()
+	const { data: { user } } = await supabase.auth.getUser()
+	if (!user) throw new Error('Unauthorized')
+
+	const admin = createAdminClient()
+
+	const [year, mon] = month.split('-').map(Number)
+	const lastDay = new Date(year!, mon!, 0).getDate()
+	const startDate = `${month}-01`
+	const endDate = `${month}-${String(lastDay).padStart(2, '0')}`
+
+	const { data, error } = await admin
+		.from('staff_attendance')
+		.select('*')
+		.eq('tenant_id', tenantId)
+		.gte('date', startDate)
+		.lte('date', endDate)
+		.order('date', { ascending: true })
+
+	if (error) throw new Error(error.message)
+
+	return (data || []).map((a) => ({
+		id: a.id,
+		profileId: a.profile_id,
+		date: a.date,
+		checkIn: a.check_in,
+		checkOut: a.check_out,
+		status: a.status,
+		notes: a.notes
+	}))
+}
+
 export async function getMonthlyAttendanceSummary(
 	tenantId: string,
 	profileId: string,

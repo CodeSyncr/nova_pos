@@ -62,15 +62,20 @@ export function ItemCustomizationModal({
 	const [selectedToppings, setSelectedToppings] = useState<SelectedTopping[]>([])
 	const [quantity, setQuantity] = useState(1)
 
-	if (!item) return null
+	// Reset modal state whenever a new item is opened
+	useEffect(() => {
+		if (item) {
+			const defaultVariant =
+				item.menu_item_variants.find((v) => v.is_default) ||
+				item.menu_item_variants[0] ||
+				null
+			setSelectedVariant(defaultVariant)
+			setSelectedToppings([])
+			setQuantity(1)
+		}
+	}, [item?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-	// Initialize default variant
-	if (!selectedVariant && item.menu_item_variants.length > 0) {
-		const defaultVariant =
-			item.menu_item_variants.find((v) => v.is_default) ||
-			item.menu_item_variants[0]
-		setSelectedVariant(defaultVariant)
-	}
+	if (!item) return null
 
 	const availableToppings = item.menu_item_toppings
 		.map((entry) => {
@@ -133,7 +138,7 @@ export function ItemCustomizationModal({
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: '100%' }}
 						transition={{ type: 'spring', damping: 30, stiffness: 320 }}
-						className="fixed inset-x-0 bottom-0 z-50 flex h-[58vh] w-full flex-col overflow-hidden rounded-t-[28px] border-t border-white/10 bg-[#0a0a0a] shadow-[0_-24px_70px_rgba(0,0,0,0.7)] sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:h-[400px] sm:max-h-[calc(100vh-3rem)] sm:w-[580px] sm:max-w-[calc(100vw-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[28px] sm:border"
+						className="fixed inset-x-0 bottom-0 z-50 flex h-[70vh] w-full flex-col overflow-hidden rounded-t-[28px] border-t border-white/10 bg-[#0a0a0a] shadow-[0_-24px_70px_rgba(0,0,0,0.7)] sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:h-[520px] sm:max-h-[calc(100vh-3rem)] sm:w-[580px] sm:max-w-[calc(100vw-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[28px] sm:border"
 					>
 						{/* Background: chef-panda image with smoke vignette — content floats above it */}
 						<div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -212,7 +217,7 @@ export function ItemCustomizationModal({
 						{/* Scrollable body */}
 						<div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 pb-4">
 							{/* Variants */}
-							{item.menu_item_variants.length > 0 && (
+							{item.menu_item_variants.length > 1 && (
 								<div>
 									<p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
 										Variant

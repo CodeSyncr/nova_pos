@@ -117,27 +117,22 @@ export function POSInterface({
 }: POSInterfaceProps) {
 	const router = useRouter()
 	const categoriesWithDynamicToppings = useMemo(() => {
+		// Only use toppings explicitly linked to each menu item.
+		// No category-based fallback — items without linked toppings show none.
 		return categories.map((cat) => ({
 			...cat,
-			menu_items: cat.menu_items.map((item) => {
-				let linkedToppings = item.menu_item_toppings || []
-				if (linkedToppings.length === 0) {
-					const matchingToppings = toppings.filter((t) => {
-						if (!t.category) return false
-						const ids = t.category.split(',').map((id: string) => id.trim())
-						return ids.includes(cat.id)
-					})
-					linkedToppings = matchingToppings.map((t) => ({
-						topping: t
-					}))
-				}
-				return {
-					...item,
-					menu_item_toppings: linkedToppings
-				}
-			})
+			menu_items: cat.menu_items.map((item) => ({
+				...item,
+				menu_item_toppings: (item.menu_item_toppings || []).filter((entry) => {
+					// Keep only entries that resolve to a real topping
+					const t = entry.topping as unknown
+					if (!t) return false
+					if (Array.isArray(t)) return t.length > 0 && !!t[0]
+					return true
+				})
+			}))
 		}))
-	}, [categories, toppings])
+	}, [categories])
 	const [selectedTable, setSelectedTable] = useState<Table | null>(null)
 	const [orderType, setOrderType] = useState<
 		'dine_in' | 'takeaway' | 'delivery'
@@ -150,6 +145,15 @@ export function POSInterface({
 	const [customerName, setCustomerName] = useState('')
 	const [customerPhone, setCustomerPhone] = useState('')
 	const [customers, setCustomers] = useState<Customer[]>([])
+
+	// Default to the Pizza category if it exists
+	useEffect(() => {
+		const pizzaCat = categories.find((c) => /pizza/i.test(c.name))
+		if (pizzaCat) {
+			setSelectedCategory(pizzaCat.id)
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [])
 
 	useEffect(() => {
 		const loadCustomers = async () => {
@@ -174,15 +178,34 @@ export function POSInterface({
 	}, [categoriesWithDynamicToppings, selectedCategory])
 
 	const filteredMenuItems = useMemo(() => {
-		const items = filteredCategories.flatMap((cat) => cat.menu_items)
-		if (!searchQuery) return items
-		const query = searchQuery.toLowerCase()
-		return items.filter(
-			(item) =>
-				item.name.toLowerCase().includes(query) ||
-				item.description?.toLowerCase().includes(query)
-		)
-	}, [filteredCategories, searchQuery])
+		const query = searchQuery.trim().toLowerCase()
+
+		// When searching, search across ALL categories (ignore selected category)
+		// and return items sorted by category order, then price low-to-high
+		if (query) {
+			const allCats = categoriesWithDynamicToppings
+			const results: MenuItem[] = []
+			allCats.forEach((cat) => {
+				const matches = cat.menu_items
+					.filter(
+						(item) =>
+							item.name.toLowerCase().includes(query) ||
+							item.description?.toLowerCase().includes(query)
+					)
+					.sort((a, b) => a.base_price - b.base_price)
+				results.push(...matches)
+			})
+			return results
+		}
+
+		// No search — respect category order, items within each sorted by price
+		const items: MenuItem[] = []
+		filteredCategories.forEach((cat) => {
+			const sorted = [...cat.menu_items].sort((a, b) => a.base_price - b.base_price)
+			items.push(...sorted)
+		})
+		return items
+	}, [filteredCategories, categoriesWithDynamicToppings, searchQuery])
 
 	// Auto-select customer when phone number matches
 	useEffect(() => {
@@ -201,7 +224,7 @@ export function POSInterface({
 
 	const handleItemClick = (item: MenuItem) => {
 		if (
-			item.menu_item_variants.length > 0 ||
+			item.menu_item_variants.length > 1 ||
 			item.menu_item_toppings.length > 0
 		) {
 			setCustomizingItem(item)
@@ -593,7 +616,7 @@ export function POSInterface({
 														onClick={(e) => {
 															e.stopPropagation()
 															if (
-																item.menu_item_variants.length > 0 ||
+																item.menu_item_variants.length > 1 ||
 																item.menu_item_toppings.length > 0
 															) {
 																setCustomizingItem(item)
