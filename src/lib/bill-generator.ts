@@ -4,6 +4,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { BillTemplate } from './bill-template'
+import { EscPosEncoder } from './esc-pos-encoder'
 
 export type BillOrderData = {
 	id: string
@@ -42,11 +43,10 @@ function hexToRgb(hex: string): [number, number, number] {
 /**
  * Generates a styled PDF bill, uploads to Supabase Storage, returns the public URL.
  */
-export async function generateAndUploadBill(
-	config: BillConfig,
-	supabase: SupabaseClient,
-	tenantId: string
-): Promise<{ url: string; path: string }> {
+/**
+ * Generates the PDF document natively using jsPDF.
+ */
+export async function generateBillPDF(config: BillConfig): Promise<any> {
 	const { default: jsPDF } = await import('jspdf')
 
 	const { order, template: t, tenantName, currencySymbol } = config
@@ -331,10 +331,21 @@ export async function generateAndUploadBill(
 		doc.text(stars, W / 2, y, { align: 'center' })
 	}
 
-	// ── Upload ───────────────────────────────────────────────────────────────────
+	return doc
+}
 
+/**
+ * Generates a styled PDF bill, uploads to Supabase Storage, returns the public URL.
+ */
+export async function generateAndUploadBill(
+	config: BillConfig,
+	supabase: SupabaseClient,
+	tenantId: string
+): Promise<{ url: string; path: string }> {
+	const doc = await generateBillPDF(config)
 	const pdfBlob = doc.output('blob')
 
+	const { order } = config
 	const orderDate = new Date(order.created_at).toISOString().split('T')[0]
 	const oid = order.id.slice(0, 8)
 	const ts = Date.now()
@@ -353,6 +364,34 @@ export async function generateAndUploadBill(
 
 	const { data: urlData } = supabase.storage.from('bills').getPublicUrl(path)
 	return { url: urlData.publicUrl, path }
+}
+
+/**
+ * Generates and prints the bill using browser printing via a hidden iframe.
+ */
+export async function printBill(config: BillConfig): Promise<void> {
+	const doc = await generateBillPDF(config)
+	const pdfBlob = doc.output('blob')
+	const blobUrl = URL.createObjectURL(pdfBlob)
+
+	const iframe = document.createElement('iframe')
+	iframe.style.position = 'fixed'
+	iframe.style.right = '0'
+	iframe.style.bottom = '0'
+	iframe.style.width = '0'
+	iframe.style.height = '0'
+	iframe.style.border = '0'
+	iframe.src = blobUrl
+	document.body.appendChild(iframe)
+
+	iframe.onload = () => {
+		iframe.contentWindow?.focus()
+		iframe.contentWindow?.print()
+		setTimeout(() => {
+			document.body.removeChild(iframe)
+			URL.revokeObjectURL(blobUrl)
+		}, 1000)
+	}
 }
 
 /**
@@ -404,4 +443,241 @@ export function openWhatsApp(
 	} else {
 		window.open(waUrl, '_blank')
 	}
+}
+
+/**
+ * Generates raw ESC/POS commands from order details and prints to a BLE thermal printer.
+ */
+export async function printBluetoothBill(config: BillConfig): Promise<void> {
+	if (typeof window === 'undefined' || !(navigator as any).bluetooth) {
+		throw new Error('Web Bluetooth is not supported on this browser or device. Please use Chrome/Edge.')
+	}
+
+	// 1. Request or retrieve allowed device
+	const commonServices = [
+		'000018f0-0000-1000-8000-00805f9b34fb', // Standard BLE Printing
+		'0000ff00-0000-1000-8000-00805f9b34fb', // Custom thermal printer service
+		'0000af30-0000-1000-8000-00805f9b34fb',
+		'e7e1a000-86f1-4a91-9128-520904ab0306'
+	]
+
+	let device: any = null
+
+	// Check if we already have permission for a previously paired printer (auto-connect)
+	if ((navigator as any).bluetooth.getDevices) {
+		try {
+			const allowedDevices = await (navigator as any).bluetooth.getDevices()
+			// Find 'Printer 001' or any other device that is a printer
+			device = allowedDevices.find((d: any) => 
+				d.name === 'Printer 001' || 
+				d.name?.toLowerCase().includes('printer') ||
+				d.name?.toLowerCase().includes('mpt')
+			)
+			if (!device && allowedDevices.length > 0) {
+				device = allowedDevices[0]
+			}
+		} catch (e) {
+			console.warn('Failed to retrieve allowed Bluetooth devices:', e)
+		}
+	}
+
+	// If no permitted device was found, show the chooser dialog, filtered to focus on your printer
+	if (!device) {
+		try {
+			device = await (navigator as any).bluetooth.requestDevice({
+				filters: [
+					{ name: 'Printer 001' },
+					{ namePrefix: 'Printer' },
+					{ namePrefix: 'printer' },
+					{ namePrefix: 'MPT' },
+					{ namePrefix: 'mpt' }
+				],
+				optionalServices: commonServices
+			})
+		} catch (pairErr) {
+			console.warn('Filtered pairing failed or rejected, falling back to show all devices:', pairErr)
+			// Fallback: show all devices
+			device = await (navigator as any).bluetooth.requestDevice({
+				acceptAllDevices: true,
+				optionalServices: commonServices
+			})
+		}
+	}
+
+	if (!device || !device.gatt) {
+		throw new Error('No Bluetooth device selected.')
+	}
+
+	// Connect to GATT
+	const server = await device.gatt.connect()
+
+	// 2. Find primary service and write characteristic
+	let service: any = null
+	let characteristic: any = null
+
+	for (const serviceUuid of commonServices) {
+		try {
+			service = await server.getPrimaryService(serviceUuid)
+			if (service) {
+				const characteristics = await service.getCharacteristics()
+				for (const char of characteristics) {
+					if (char.properties.write || char.properties.writeWithoutResponse) {
+						characteristic = char
+						break
+					}
+				}
+				if (characteristic) break
+			}
+		} catch (e) {
+			console.warn(`BLE service ${serviceUuid} not found or inaccessible.`)
+		}
+	}
+
+	// Fallback to searching all primary services if not found
+	if (!characteristic) {
+		try {
+			const services = await server.getPrimaryServices()
+			for (const s of services) {
+				const characteristics = await s.getCharacteristics()
+				for (const char of characteristics) {
+					if (char.properties.write || char.properties.writeWithoutResponse) {
+						characteristic = char
+						service = s
+						break
+					}
+				}
+				if (characteristic) break
+			}
+		} catch (e) {
+			console.warn('Failed to query all primary services:', e)
+		}
+	}
+
+	if (!characteristic) {
+		throw new Error('Could not find write capability on this Bluetooth device. Make sure it is a receipt printer.')
+	}
+
+	// 3. Format receipt
+	const { order, template: t, tenantName, currencySymbol } = config
+	const charWidth = 48
+	const sym = (currencySymbol === '\u20B9' || currencySymbol === '₹') ? 'Rs' : currencySymbol
+	const formatAmt = (n: number) => `${sym} ${n.toFixed(2)}`
+	
+	const encoder = new EscPosEncoder()
+	encoder.initialize()
+
+	// Header
+	encoder.alignCenter()
+	encoder.bold(true)
+	encoder.sizeDouble()
+	encoder.line(t.headerText || tenantName)
+	encoder.sizeNormal()
+	encoder.bold(false)
+
+	if (t.taglineText) {
+		encoder.line(t.taglineText)
+	}
+	if (t.showAddress && t.addressText) {
+		encoder.line(t.addressText)
+	}
+	if (t.showPhone && t.phoneText) {
+		encoder.line(t.phoneText)
+	}
+	
+	encoder.divider(charWidth)
+
+	// Order meta
+	encoder.alignLeft()
+	encoder.row('Order #', `#${order.id.slice(0, 8).toUpperCase()}`, charWidth)
+	
+	const formatDate = (iso: string) => {
+		const d = new Date(iso)
+		return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) + ' ' + 
+			d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+	}
+	encoder.row('Date', formatDate(order.created_at), charWidth)
+
+	if (t.showOrderType) {
+		encoder.row('Type', order.order_type.replace('_', ' ').toUpperCase(), charWidth)
+	}
+	if (t.showTable && order.table_number) {
+		encoder.row('Table', order.table_number, charWidth)
+	}
+	if (order.customer_name) {
+		encoder.row('Customer', order.customer_name, charWidth)
+	}
+	if (order.payment_method) {
+		encoder.row('Payment', order.payment_method.toUpperCase(), charWidth)
+	}
+
+	encoder.divider(charWidth)
+
+	// Items Header
+	encoder.bold(true)
+	encoder.threeColumnRow('ITEM', 'QTY', 'AMOUNT', charWidth)
+	encoder.bold(false)
+	encoder.divider(charWidth)
+
+	// Items
+	order.order_items.forEach((item) => {
+		encoder.itemRow(item.name, item.quantity, formatAmt(item.total_price), charWidth)
+	})
+
+	encoder.divider(charWidth)
+
+	// Totals
+	if (t.showTaxLine && order.tax > 0) {
+		encoder.row('Tax', formatAmt(order.tax), charWidth)
+	}
+	if (order.discount_amount && order.discount_amount > 0) {
+		encoder.row('Discount', `-${formatAmt(order.discount_amount)}`, charWidth)
+	}
+
+	encoder.bold(true)
+	encoder.row('TOTAL', formatAmt(order.total), charWidth)
+	encoder.bold(false)
+
+	encoder.divider(charWidth)
+
+	// Direct UPI QR Payment if unpaid
+	if (!order.payment_method) {
+		encoder.alignCenter()
+		encoder.bold(true)
+		encoder.line('SCAN TO PAY VIA UPI')
+		encoder.bold(false)
+		encoder.line('UPI ID: pizzeriadacafe@kotak')
+		encoder.line(`Amount: ${formatAmt(order.total)}`)
+		encoder.line() // spacing for QR
+		
+		const upiUrl = `upi://pay?pa=pizzeriadacafe@kotak&pn=Pizzeria%20Da%20Cafe&am=${order.total.toFixed(2)}&cu=INR`
+		encoder.qrcode(upiUrl)
+		encoder.line() // spacing after QR
+		encoder.divider(charWidth)
+	}
+
+	// Footer
+	if (t.showThankYou && t.footerText) {
+		encoder.alignCenter()
+		encoder.line(t.footerText)
+	}
+
+	encoder.alignCenter()
+	encoder.line(`ID: ${order.id.slice(0, 12)}`)
+	
+	if (t.type === 'thermal') {
+		encoder.line('* '.repeat(Math.floor(charWidth / 2)))
+	}
+
+	encoder.cut()
+
+	// 4. Send chunks (BLE MTU limitations)
+	const data = encoder.encode()
+	const chunkSize = 20
+	for (let offset = 0; offset < data.length; offset += chunkSize) {
+		const chunk = data.slice(offset, offset + chunkSize)
+		await characteristic.writeValue(chunk)
+	}
+
+	// Disconnect GATT
+	device.gatt.disconnect()
 }

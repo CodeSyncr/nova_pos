@@ -21,7 +21,8 @@ import {
 	X,
 	LogOut,
 	FileBarChart,
-	UserCog
+	UserCog,
+	ClipboardList
 } from 'lucide-react'
 import { canAccessRoute } from '@/lib/permissions'
 import { OrderNotifications } from '@/components/order-notifications'
@@ -30,6 +31,7 @@ const navItems = [
 	{ href: '/dashboard', label: 'Home', icon: LayoutDashboard },
 	{ href: '/pos', label: 'POS', icon: TerminalSquare },
 	{ href: '/orders', label: 'Orders', icon: Receipt },
+	{ href: '/tasks', label: 'Tasks', icon: ClipboardList },
 	{ href: '/menu', label: 'Menu', icon: ChefHat },
 	{ href: '/inventory', label: 'Inventory', icon: Package },
 	{ href: '/purchases', label: 'Purchases', icon: ShoppingCart },

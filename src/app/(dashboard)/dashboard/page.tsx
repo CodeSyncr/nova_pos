@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 import { createSupabaseServerComponentClient } from '@/lib/supabase/server'
+import { getTasks } from '@/app/actions/tasks'
 import {
 	ArrowUpRight,
 	Clock,
@@ -10,7 +12,8 @@ import {
 	Banknote,
 	CalendarCheck,
 	TrendingUp,
-	TrendingDown
+	TrendingDown,
+	ClipboardList
 } from 'lucide-react'
 
 type TenantRecord = {
@@ -138,6 +141,15 @@ export default async function DashboardPage() {
 		.single()
 	const ownerName = ownerProfile?.full_name || user.email?.split('@')[0] || 'there'
 	const greeting = getGreeting(timezone)
+
+	// Fetch today's pending tasks
+	let pendingTaskCount = 0
+	try {
+		const tasks = await getTasks(tenant.id)
+		pendingTaskCount = tasks.filter((t) => t.status === 'pending').length
+	} catch (err) {
+		console.error('Error fetching tasks for dashboard:', err)
+	}
 
 	// ── Fetch today's data ─────────────────────────────────────────────────────
 
@@ -296,6 +308,31 @@ export default async function DashboardPage() {
 		<div className="flex flex-col gap-5 py-4 sm:gap-8 sm:py-6">
 			{/* Hero Header */}
 			<DashboardBanner greeting={greeting} name={ownerName} />
+
+			{/* Pending Tasks Reminder */}
+			{pendingTaskCount > 0 && (
+				<div className="rounded-[28px] border border-[#E0342A]/20 bg-gradient-to-r from-[#E0342A]/10 via-[#E0342A]/5 to-transparent p-5 backdrop-blur-md">
+					<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+						<div className="flex items-start gap-4">
+							<div className="rounded-2xl bg-[#E0342A]/20 p-3 text-[#E0342A]">
+								<ClipboardList className="h-6 w-6" />
+							</div>
+							<div>
+								<h3 className="text-lg font-semibold text-white">Pending Tasks Today</h3>
+								<p className="text-sm text-white/60 mt-0.5">
+									There are {pendingTaskCount} staff task{pendingTaskCount > 1 ? 's' : ''} remaining incomplete today.
+								</p>
+							</div>
+						</div>
+						<Link
+							href="/tasks"
+							className="inline-flex h-10 items-center justify-center rounded-xl bg-[#E0342A] px-5 text-sm font-semibold text-white transition hover:bg-[#c92f26] active:scale-95 whitespace-nowrap"
+						>
+							Manage Tasks
+						</Link>
+					</div>
+				</div>
+			)}
 
 			{/* Editorial metrics band — hero figure + hairline mini-stats */}
 			<section className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.06] via-white/[0.02] to-transparent sm:rounded-[28px]">
@@ -626,10 +663,44 @@ async function StaffDashboard({
 	const monthName = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
 	const greeting = getGreeting(timezone)
 
+	// Fetch today's pending tasks for staff
+	let pendingTaskCount = 0
+	try {
+		const tasks = await getTasks(tenantId)
+		pendingTaskCount = tasks.filter((t) => t.assigned_to === userId && t.status === 'pending').length
+	} catch (err) {
+		console.error('Error fetching staff tasks for dashboard:', err)
+	}
+
 	return (
 		<div className="flex flex-col gap-8 py-6">
 			{/* Header */}
 			<DashboardBanner greeting={greeting} name={profile?.full_name || 'Team Member'} />
+
+			{/* Pending Tasks Reminder */}
+			{pendingTaskCount > 0 && (
+				<div className="rounded-[28px] border border-[#E0342A]/20 bg-gradient-to-r from-[#E0342A]/10 via-[#E0342A]/5 to-transparent p-5 backdrop-blur-md">
+					<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+						<div className="flex items-start gap-4">
+							<div className="rounded-2xl bg-[#E0342A]/20 p-3 text-[#E0342A]">
+								<ClipboardList className="h-6 w-6" />
+							</div>
+							<div>
+								<h3 className="text-lg font-semibold text-white">Pending Tasks Today</h3>
+								<p className="text-sm text-white/60 mt-0.5">
+									You have {pendingTaskCount} pending task{pendingTaskCount > 1 ? 's' : ''} assigned to you for today.
+								</p>
+							</div>
+						</div>
+						<Link
+							href="/tasks"
+							className="inline-flex h-10 items-center justify-center rounded-xl bg-[#E0342A] px-5 text-sm font-semibold text-white transition hover:bg-[#c92f26] active:scale-95 whitespace-nowrap"
+						>
+							Open Task Board
+						</Link>
+					</div>
+				</div>
+			)}
 
 			{/* Today's Status */}
 			<div className="grid gap-4 grid-cols-2 lg:grid-cols-4">

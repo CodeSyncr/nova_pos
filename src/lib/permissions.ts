@@ -20,6 +20,9 @@ export function canAccessRoute(
 		return permissions.includes('*') || permissions.includes('all')
 	}
 
+	// Tasks board is a core staff utility; accessible to all authenticated tenant members
+	if (route === '/tasks') return true
+
 	const category = routeToCategory[route]
 	if (!category) return true // Unknown route = allow
 

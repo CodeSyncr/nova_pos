@@ -33,7 +33,9 @@ import {
 	Wallet,
 	MoreHorizontal,
 	Table,
-	Loader2
+	Loader2,
+	Printer,
+	Bluetooth
 } from 'lucide-react'
 import {
 	updateOrderStatus,
@@ -43,8 +45,8 @@ import {
 } from '@/app/actions/orders'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/ui/toast'
-import { generateAndUploadBill, openWhatsApp } from '@/lib/bill-generator'
-import { DEFAULT_WHATSAPP_TEMPLATE } from '@/lib/bill-template'
+import { generateAndUploadBill, openWhatsApp, printBluetoothBill } from '@/lib/bill-generator'
+import { DEFAULT_WHATSAPP_TEMPLATE, DEFAULT_THERMAL_TEMPLATE } from '@/lib/bill-template'
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -333,11 +335,13 @@ export default function OrdersPage() {
 
 	// Bill sending states
 	const [sendingBillId, setSendingBillId] = useState<string | null>(null)
+	const [bluetoothPrintingId, setBluetoothPrintingId] = useState<string | null>(null)
 	const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null)
 	const [savingEdit, setSavingEdit] = useState(false)
 	const [tenantName, setTenantName] = useState('')
 	const [tenantId, setTenantId] = useState('')
 	const [whatsappTemplate, setWhatsappTemplate] = useState<any>(null)
+	const [thermalTemplate, setThermalTemplate] = useState<any>(null)
 	const [billReviewLink, setBillReviewLink] = useState('')
 	const [billTagline, setBillTagline] = useState('')
 	const [toppings, setToppings] = useState<any[]>([])
@@ -404,6 +408,11 @@ export default function OrdersPage() {
 				setBillTagline(templates.whatsapp.taglineText || '')
 			} else {
 				setWhatsappTemplate(null)
+			}
+			if (templates?.thermal) {
+				setThermalTemplate(templates.thermal)
+			} else {
+				setThermalTemplate(null)
 			}
 			setBillReviewLink((settings as any).reviewLink || '')
 		}
@@ -688,6 +697,56 @@ export default function OrdersPage() {
 			toast.error(`Error sending bill: ${err.message || err}`)
 		} finally {
 			setSendingBillId(null)
+		}
+	}
+
+
+
+	const handleBluetoothPrint = async (order: Order) => {
+		if (bluetoothPrintingId) return
+		setBluetoothPrintingId(order.id)
+
+		try {
+			const finalTemplate = thermalTemplate || {
+				...DEFAULT_THERMAL_TEMPLATE,
+				type: 'thermal'
+			}
+
+			const billOrderData = {
+				id: order.id,
+				created_at: order.created_at,
+				order_type: order.order_type,
+				table_number: order.table_number,
+				customer_name: order.customer_name,
+				customer_phone: order.customer_phone,
+				subtotal: order.subtotal,
+				tax: order.tax,
+				discount_amount: order.discount_amount,
+				total: order.total,
+				payment_method: order.payment_method,
+				order_items: order.order_items.map((item) => ({
+					id: item.id,
+					name: item.name,
+					quantity: item.quantity,
+					unit_price: item.unit_price,
+					total_price: item.total_price
+				}))
+			}
+
+			const config = {
+				order: billOrderData,
+				template: finalTemplate,
+				tenantName: tenantName,
+				currencySymbol: currencySymbol
+			}
+
+			await printBluetoothBill(config)
+			toast.success('Thermal bill sent to Bluetooth printer successfully!')
+		} catch (err: any) {
+			console.error('Error printing Bluetooth bill:', err)
+			toast.error(`Error printing: ${err.message || err}`)
+		} finally {
+			setBluetoothPrintingId(null)
 		}
 	}
 
@@ -1345,24 +1404,43 @@ export default function OrdersPage() {
 										)}
 									</div>
 
-									{/* Send Bill Action */}
-									<button
-										onClick={() => handleSendBill(order)}
-										disabled={sendingBillId !== null}
-										className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.01] hover:bg-white/5 hover:border-white/15 py-2 text-xs font-medium text-white/80 transition-all cursor-pointer h-9"
-									>
-										{sendingBillId === order.id ? (
-											<div className="flex items-center gap-1.5 justify-center">
-												<div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-												<span>Sending Bill...</span>
-											</div>
-										) : (
-											<>
-												<Receipt className="h-3.5 w-3.5 text-[#E0342A]" />
-												<span>Send Bill via WhatsApp</span>
-											</>
-										)}
-									</button>
+									{/* Bill Actions */}
+									<div className="flex flex-col gap-2">
+										<button
+											onClick={() => handleSendBill(order)}
+											disabled={sendingBillId !== null}
+											className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.01] hover:bg-white/5 hover:border-white/15 py-2 text-xs font-medium text-white/80 transition-all cursor-pointer h-9"
+										>
+											{sendingBillId === order.id ? (
+												<div className="flex items-center gap-1.5 justify-center">
+													<div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+													<span>Sending Bill...</span>
+												</div>
+											) : (
+												<>
+													<Receipt className="h-3.5 w-3.5 text-[#E0342A]" />
+													<span>Send WhatsApp Bill</span>
+												</>
+											)}
+										</button>
+										<button
+											onClick={() => handleBluetoothPrint(order)}
+											disabled={bluetoothPrintingId !== null}
+											className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.01] hover:bg-white/5 hover:border-white/15 py-2 text-xs font-medium text-white/80 transition-all cursor-pointer h-9"
+										>
+											{bluetoothPrintingId === order.id ? (
+												<div className="flex items-center gap-1.5 justify-center">
+													<div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+													<span>Printing Bill...</span>
+												</div>
+											) : (
+												<>
+													<Printer className="h-3.5 w-3.5 text-[#E0342A]" />
+													<span>Print Bill</span>
+												</>
+											)}
+										</button>
+									</div>
 
 									{/* Edit and Delete Buttons */}
 									<div className="flex items-center gap-2 border-t border-white/[0.06] pt-2.5">
