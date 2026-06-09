@@ -40,8 +40,8 @@ export function CustomDomainLogin({ tenant }: { tenant: TenantProps }) {
 	}, [router, supabaseClient])
 
 	const branding = (tenant.branding as TenantBranding) || {}
-	const primaryColor = branding.primaryColor || '#7A74FF'
-	const secondaryColor = branding.secondaryColor || '#4DD4FF'
+	const primaryColor = branding.primaryColor || '#E0342A'
+	const secondaryColor = branding.secondaryColor || '#E0342A'
 
 	const authAppearance = {
 		theme: ThemeSupa,
@@ -67,13 +67,13 @@ export function CustomDomainLogin({ tenant }: { tenant: TenantProps }) {
 			button: '!rounded-2xl hover:!opacity-90 !text-sm !font-semibold !text-white !py-3 !transition-all !duration-200',
 			label: '!text-white/80 !text-sm',
 			input: '!bg-white/5 !border-white/15 !text-white !py-3',
-			message: '!text-rose-300',
+			message: '!text-[#E0342A]',
 			loader: '!text-white'
 		}
 	} as const
 
 	return (
-		<div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#040513] via-[#050A1F] to-[#02030B] text-white flex items-center justify-center px-6">
+		<div className="relative min-h-screen overflow-hidden bg-black text-white flex items-center justify-center px-6">
 			<div className="pointer-events-none absolute inset-0">
 				<div
 					className="glow -top-32 left-1/2 h-96 w-96 -translate-x-1/2 opacity-30"
@@ -141,7 +141,7 @@ export function CustomDomainLogin({ tenant }: { tenant: TenantProps }) {
 
 				<div className="mt-6 text-center text-xs text-white/35 flex items-center justify-center gap-1.5">
 					<Sparkles className="h-3 w-3" />
-					<span>Secure login managed by NovaPOS</span>
+					<span>Secure login managed by POS</span>
 				</div>
 			</motion.div>
 		</div>

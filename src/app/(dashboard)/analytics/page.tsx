@@ -496,11 +496,11 @@ export default function AnalyticsPage() {
 					initial={{ opacity: 0, y: 20 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.1 }}
-					className="rounded-[32px] border border-white/10 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 p-6 backdrop-blur-2xl"
+					className="rounded-[32px] border border-[#E0342A]/30 bg-gradient-to-br from-[#E0342A]/20 to-[#E0342A]/5 p-6 backdrop-blur-2xl"
 				>
 					<div className="flex items-center justify-between mb-4">
-						<div className="rounded-xl bg-white/10 p-3">
-							<TrendingUp className="h-6 w-6 text-emerald-300" />
+						<div className="rounded-xl bg-[#E0342A]/15 p-3">
+							<TrendingUp className="h-6 w-6 text-[#E0342A]" />
 						</div>
 						<Badge className="bg-white/20 text-white">
 							Earnings (Inc. Discounts)
@@ -528,11 +528,11 @@ export default function AnalyticsPage() {
 					initial={{ opacity: 0, y: 20 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.2 }}
-					className="rounded-[32px] border border-white/10 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 p-6 backdrop-blur-2xl"
+					className="rounded-[32px] border border-white/10 bg-white/[0.03] p-6 backdrop-blur-2xl"
 				>
 					<div className="flex items-center justify-between mb-4">
 						<div className="rounded-xl bg-white/10 p-3">
-							<DollarSign className="h-6 w-6 text-blue-300" />
+							<DollarSign className="h-6 w-6 text-white/70" />
 						</div>
 						<Badge className="bg-white/20 text-white">
 							Earnings (Excl. Discounts)
@@ -558,11 +558,11 @@ export default function AnalyticsPage() {
 					initial={{ opacity: 0, y: 20 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.3 }}
-					className="rounded-[32px] border border-white/10 bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-6 backdrop-blur-2xl"
+					className="rounded-[32px] border border-white/10 bg-white/[0.03] p-6 backdrop-blur-2xl"
 				>
 					<div className="flex items-center justify-between mb-4">
 						<div className="rounded-xl bg-white/10 p-3">
-							<ShoppingCart className="h-6 w-6 text-purple-300" />
+							<ShoppingCart className="h-6 w-6 text-white/70" />
 						</div>
 						<Badge className="bg-white/20 text-white">Total Discounts</Badge>
 					</div>
@@ -581,11 +581,11 @@ export default function AnalyticsPage() {
 					initial={{ opacity: 0, y: 20 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.4 }}
-					className="rounded-[32px] border border-white/10 bg-gradient-to-br from-red-500/20 to-orange-500/20 p-6 backdrop-blur-2xl"
+					className="rounded-[32px] border border-white/10 bg-white/[0.03] p-6 backdrop-blur-2xl"
 				>
 					<div className="flex items-center justify-between mb-4">
-						<div className="rounded-xl bg-white/10 p-3">
-							<ShoppingCart className="h-6 w-6 text-red-300" />
+						<div className="rounded-xl bg-[#E0342A]/15 p-3">
+							<ShoppingCart className="h-6 w-6 text-[#E0342A]" />
 						</div>
 						<Badge className="bg-white/20 text-white">Expenses</Badge>
 					</div>
@@ -611,11 +611,11 @@ export default function AnalyticsPage() {
 					initial={{ opacity: 0, y: 20 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.5 }}
-					className="rounded-[32px] border border-white/10 bg-gradient-to-br from-green-500/20 to-emerald-500/20 p-6 backdrop-blur-2xl"
+					className="rounded-[32px] border border-white/10 bg-white/[0.03] p-6 backdrop-blur-2xl"
 				>
 					<div className="flex items-center justify-between mb-4">
 						<div className="rounded-xl bg-white/10 p-3">
-							<TrendingUp className="h-6 w-6 text-green-300" />
+							<TrendingUp className="h-6 w-6 text-white/70" />
 						</div>
 						<Badge className="bg-white/20 text-white">Profit</Badge>
 					</div>
@@ -636,11 +636,11 @@ export default function AnalyticsPage() {
 					initial={{ opacity: 0, y: 20 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.6 }}
-					className="rounded-[32px] border border-white/10 bg-gradient-to-br from-indigo-500/20 to-blue-500/20 p-6 backdrop-blur-2xl"
+					className="rounded-[32px] border border-white/10 bg-white/[0.03] p-6 backdrop-blur-2xl"
 				>
 					<div className="flex items-center justify-between mb-4">
 						<div className="rounded-xl bg-white/10 p-3">
-							<BarChart3 className="h-6 w-6 text-indigo-300" />
+							<BarChart3 className="h-6 w-6 text-white/70" />
 						</div>
 						<Badge className="bg-white/20 text-white">Avg Order Value</Badge>
 					</div>
@@ -685,7 +685,7 @@ export default function AnalyticsPage() {
 								<div className="flex items-center justify-between">
 									<p className="text-white">Profit</p>
 									<div className="flex items-center gap-4">
-										<p className="font-semibold text-green-400">
+										<p className="font-semibold text-white">
 											{formatCurrency(analytics.profit)}
 										</p>
 										<p className="text-sm text-white/60">
@@ -696,7 +696,7 @@ export default function AnalyticsPage() {
 								<div className="flex items-center justify-between">
 									<p className="text-white">Loss</p>
 									<div className="flex items-center gap-4">
-										<p className="font-semibold text-red-400">
+										<p className="font-semibold text-[#E0342A]">
 											{formatCurrency(analytics.loss)}
 										</p>
 										<p className="text-sm text-white/60">
@@ -710,8 +710,8 @@ export default function AnalyticsPage() {
 										<p
 											className={`font-semibold ${
 												analytics.profit - analytics.previousPeriod.profit >= 0
-													? 'text-green-400'
-													: 'text-red-400'
+													? 'text-white'
+													: 'text-[#E0342A]'
 											}`}
 										>
 											{formatCurrency(
@@ -765,7 +765,7 @@ export default function AnalyticsPage() {
 										</span>
 										<div
 											className={`text-sm font-semibold ${
-												day.profit >= 0 ? 'text-green-400' : 'text-red-400'
+												day.profit >= 0 ? 'text-white' : 'text-[#E0342A]'
 											}`}
 										>
 											{day.profit >= 0 ? 'Profit' : 'Loss'}:{' '}
@@ -776,48 +776,48 @@ export default function AnalyticsPage() {
 									{/* Visual Bar */}
 									<div className="relative h-6 w-full overflow-hidden rounded-lg bg-black/30">
 										<div
-											className="absolute left-0 top-0 h-full bg-emerald-500/60"
+											className="absolute left-0 top-0 h-full bg-white/40"
 											style={{ width: `${salesPercent}%` }}
 										/>
 										<div
-											className="absolute right-0 top-0 h-full bg-red-500/60"
+											className="absolute right-0 top-0 h-full bg-[#E0342A]/60"
 											style={{ width: `${spendingsPercent}%` }}
 										/>
 									</div>
 
 									{/* Amount Details */}
 									<div className="grid grid-cols-3 gap-2 text-xs">
-										<div className="rounded-lg bg-emerald-500/10 p-2 border border-emerald-500/20">
-											<p className="text-emerald-300/70 mb-1">Earnings</p>
-											<p className="font-semibold text-emerald-300">
+										<div className="rounded-lg bg-white/5 p-2 border border-white/10">
+											<p className="text-white/50 mb-1">Earnings</p>
+											<p className="font-semibold text-white">
 												{formatCurrency(day.sales)}
 											</p>
 										</div>
-										<div className="rounded-lg bg-red-500/10 p-2 border border-red-500/20">
-											<p className="text-red-300/70 mb-1">Spendings</p>
-											<p className="font-semibold text-red-300">
+										<div className="rounded-lg bg-[#E0342A]/10 p-2 border border-[#E0342A]/20">
+											<p className="text-[#E0342A]/70 mb-1">Spendings</p>
+											<p className="font-semibold text-[#E0342A]">
 												{formatCurrency(day.spendings)}
 											</p>
 										</div>
 										<div
 											className={`rounded-lg p-2 border ${
 												day.profit >= 0
-													? 'bg-green-500/10 border-green-500/20'
-													: 'bg-red-500/10 border-red-500/20'
+													? 'bg-white/5 border-white/10'
+													: 'bg-[#E0342A]/10 border-[#E0342A]/20'
 											}`}
 										>
 											<p
 												className={`mb-1 ${
 													day.profit >= 0
-														? 'text-green-300/70'
-														: 'text-red-300/70'
+														? 'text-white/50'
+														: 'text-[#E0342A]/70'
 												}`}
 											>
 												{day.profit >= 0 ? 'Profit' : 'Loss'}
 											</p>
 											<p
 												className={`font-semibold ${
-													day.profit >= 0 ? 'text-green-300' : 'text-red-300'
+													day.profit >= 0 ? 'text-white' : 'text-[#E0342A]'
 												}`}
 											>
 												{formatCurrency(Math.abs(day.profit))}
@@ -859,7 +859,7 @@ export default function AnalyticsPage() {
 										</span>
 										<div
 											className={`text-sm font-semibold ${
-												day.profit >= 0 ? 'text-green-400' : 'text-red-400'
+												day.profit >= 0 ? 'text-white' : 'text-[#E0342A]'
 											}`}
 										>
 											{day.profit >= 0 ? 'Profit' : 'Loss'}:{' '}
@@ -870,48 +870,48 @@ export default function AnalyticsPage() {
 									{/* Visual Bar */}
 									<div className="relative h-6 w-full overflow-hidden rounded-lg bg-black/30">
 										<div
-											className="absolute left-0 top-0 h-full bg-emerald-500/60"
+											className="absolute left-0 top-0 h-full bg-white/40"
 											style={{ width: `${salesPercent}%` }}
 										/>
 										<div
-											className="absolute right-0 top-0 h-full bg-red-500/60"
+											className="absolute right-0 top-0 h-full bg-[#E0342A]/60"
 											style={{ width: `${spendingsPercent}%` }}
 										/>
 									</div>
 
 									{/* Amount Details */}
 									<div className="grid grid-cols-3 gap-2 text-xs">
-										<div className="rounded-lg bg-emerald-500/10 p-2 border border-emerald-500/20">
-											<p className="text-emerald-300/70 mb-1">Earnings</p>
-											<p className="font-semibold text-emerald-300">
+										<div className="rounded-lg bg-white/5 p-2 border border-white/10">
+											<p className="text-white/50 mb-1">Earnings</p>
+											<p className="font-semibold text-white">
 												{formatCurrency(day.sales)}
 											</p>
 										</div>
-										<div className="rounded-lg bg-red-500/10 p-2 border border-red-500/20">
-											<p className="text-red-300/70 mb-1">Spendings</p>
-											<p className="font-semibold text-red-300">
+										<div className="rounded-lg bg-[#E0342A]/10 p-2 border border-[#E0342A]/20">
+											<p className="text-[#E0342A]/70 mb-1">Spendings</p>
+											<p className="font-semibold text-[#E0342A]">
 												{formatCurrency(day.spendings)}
 											</p>
 										</div>
 										<div
 											className={`rounded-lg p-2 border ${
 												day.profit >= 0
-													? 'bg-green-500/10 border-green-500/20'
-													: 'bg-red-500/10 border-red-500/20'
+													? 'bg-white/5 border-white/10'
+													: 'bg-[#E0342A]/10 border-[#E0342A]/20'
 											}`}
 										>
 											<p
 												className={`mb-1 ${
 													day.profit >= 0
-														? 'text-green-300/70'
-														: 'text-red-300/70'
+														? 'text-white/50'
+														: 'text-[#E0342A]/70'
 												}`}
 											>
 												Leftover
 											</p>
 											<p
 												className={`font-semibold ${
-													day.profit >= 0 ? 'text-green-300' : 'text-red-300'
+													day.profit >= 0 ? 'text-white' : 'text-[#E0342A]'
 												}`}
 											>
 												{formatCurrency(Math.abs(day.profit))}
@@ -954,7 +954,7 @@ export default function AnalyticsPage() {
 										</div>
 										<div className="h-2 w-full overflow-hidden rounded-full bg-black/30">
 											<div
-												className="h-full bg-gradient-to-r from-blue-500 to-cyan-500"
+												className="h-full bg-[#E0342A]"
 												style={{ width: `${percent}%` }}
 											/>
 										</div>
@@ -998,7 +998,7 @@ export default function AnalyticsPage() {
 									</div>
 									<div className="h-2 w-full overflow-hidden rounded-full bg-black/30">
 										<div
-											className="h-full bg-gradient-to-r from-red-500 to-orange-500"
+											className="h-full bg-[#E0342A]"
 											style={{ width: `${percent}%` }}
 										/>
 									</div>

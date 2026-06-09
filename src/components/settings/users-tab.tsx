@@ -176,7 +176,7 @@ export function UsersTab({ tenantId, onRefresh }: UsersTabProps) {
 												className="h-10 w-10 rounded-full"
 											/>
 										) : (
-											<div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20">
+											<div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10">
 												<User className="h-5 w-5 text-white/70" />
 											</div>
 										)}
@@ -193,7 +193,7 @@ export function UsersTab({ tenantId, onRefresh }: UsersTabProps) {
 									{user.role && (
 										<div className="mt-3 rounded-lg border border-white/10 bg-white/5 p-3">
 											<div className="flex items-center gap-2">
-												<Shield className="h-4 w-4 text-amber-400" />
+												<Shield className="h-4 w-4 text-[#E0342A]" />
 												<span className="text-sm font-medium text-white">
 													{user.role.name}
 												</span>
@@ -223,7 +223,7 @@ export function UsersTab({ tenantId, onRefresh }: UsersTabProps) {
 												toast.error(err.message)
 											}
 										}}
-										className={`border text-xs ${user.is_staff ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-white/15 bg-white/5 text-white/70'}`}
+										className={`border text-xs ${user.is_staff ? 'border-white/20 bg-white/10 text-white' : 'border-white/15 bg-white/5 text-white/70'}`}
 									>
 										<UserCog className="mr-1 h-3.5 w-3.5" />
 										{user.is_staff ? 'Staff' : 'Mark Staff'}
@@ -243,7 +243,7 @@ export function UsersTab({ tenantId, onRefresh }: UsersTabProps) {
 										size="sm"
 										variant="ghost"
 										onClick={() => setDeletingUser(user)}
-										className="border border-white/15 bg-white/5 text-white/70 hover:border-red-400/50 hover:text-red-400"
+										className="border border-white/15 bg-white/5 text-white/70 hover:border-[#E0342A]/50 hover:text-[#E0342A]"
 									>
 										<Trash2 className="h-4 w-4" />
 									</Button>

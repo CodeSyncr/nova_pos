@@ -91,28 +91,28 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 	const getIcon = (type: ToastType) => {
 		switch (type) {
 			case 'success':
-				return <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+				return <CheckCircle2 className="h-5 w-5 text-white" />
 			case 'error':
-				return <AlertCircle className="h-5 w-5 text-red-400" />
+				return <AlertCircle className="h-5 w-5 text-[#E0342A]" />
 			case 'warning':
-				return <AlertTriangle className="h-5 w-5 text-amber-400" />
+				return <AlertTriangle className="h-5 w-5 text-[#E0342A]" />
 			case 'info':
 			default:
-				return <Info className="h-5 w-5 text-blue-400" />
+				return <Info className="h-5 w-5 text-white/70" />
 		}
 	}
 
 	const getBgColor = (type: ToastType) => {
 		switch (type) {
 			case 'success':
-				return 'bg-emerald-500/20 border-emerald-500/30'
+				return 'bg-white/10 border-white/20'
 			case 'error':
-				return 'bg-red-500/20 border-red-500/30'
+				return 'bg-[#E0342A]/15 border-[#E0342A]/30'
 			case 'warning':
-				return 'bg-amber-500/20 border-amber-500/30'
+				return 'bg-[#E0342A]/10 border-[#E0342A]/30'
 			case 'info':
 			default:
-				return 'bg-blue-500/20 border-blue-500/30'
+				return 'bg-white/[0.03] border-white/10'
 		}
 	}
 

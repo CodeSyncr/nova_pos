@@ -164,10 +164,10 @@ function SubdomainSetupContent() {
 	}
 
 	return (
-		<div className="relative min-h-screen bg-gradient-to-b from-[#03030A] via-[#050818] to-[#02030A] text-white">
+		<div className="relative min-h-screen bg-black text-white">
 			<div className="pointer-events-none absolute inset-0">
-				<div className="glow -top-32 left-1/2 h-96 w-96 -translate-x-1/2 bg-[#6B6DFF]/30" />
-				<div className="glow bottom-0 right-10 h-80 w-80 bg-[#4DD4FF]/25" />
+				<div className="glow -top-32 left-1/2 h-96 w-96 -translate-x-1/2 bg-[#E0342A]/20" />
+				<div className="glow bottom-0 right-10 h-80 w-80 bg-[#E0342A]/15" />
 			</div>
 
 			<div className="relative z-10 mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center justify-center gap-8 px-6 py-12">
@@ -181,8 +181,8 @@ function SubdomainSetupContent() {
 							<Sparkles className="mr-2 h-4 w-4" /> Subdomain Setup
 						</Badge>
 						<div className="flex items-center justify-center">
-							<div className="rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 p-4">
-								<Link2 className="h-8 w-8 text-cyan-300" />
+							<div className="rounded-2xl bg-[#E0342A]/15 p-4">
+								<Link2 className="h-8 w-8 text-[#E0342A]" />
 							</div>
 						</div>
 						<h1 className="text-3xl font-semibold md:text-4xl">
@@ -201,15 +201,15 @@ function SubdomainSetupContent() {
 						<motion.div
 							initial={{ opacity: 0, scale: 0.95 }}
 							animate={{ opacity: 1, scale: 1 }}
-							className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-6 text-center"
+							className="rounded-2xl border border-white/20 bg-white/10 p-6 text-center"
 						>
-							<Check className="mx-auto h-12 w-12 text-emerald-300" />
+							<Check className="mx-auto h-12 w-12 text-white" />
 							<h2 className="mt-4 text-2xl font-semibold text-white">
 								Subdomain Created!
 							</h2>
 							<p className="mt-2 text-white/70">
 								Your workspace is now accessible at{' '}
-								<span className="font-mono text-emerald-300">
+								<span className="font-mono text-white">
 									{subdomain}.novapos.in
 								</span>
 							</p>
@@ -240,7 +240,7 @@ function SubdomainSetupContent() {
 										)}
 										{!subdomainStatus.checking &&
 											subdomainStatus.available === true && (
-												<Check className="h-4 w-4 text-emerald-400" />
+												<Check className="h-4 w-4 text-white" />
 											)}
 										{!subdomainStatus.checking &&
 											subdomainStatus.available === false && (
@@ -254,7 +254,7 @@ function SubdomainSetupContent() {
 													Checking availability...
 												</p>
 											) : subdomainStatus.available === true ? (
-												<p className="text-xs text-emerald-400">
+												<p className="text-xs text-white">
 													✓ {subdomainStatus.message}
 												</p>
 											) : subdomainStatus.available === false ? (
@@ -262,7 +262,7 @@ function SubdomainSetupContent() {
 													✗ {subdomainStatus.message}
 												</p>
 											) : subdomainStatus.message ? (
-												<p className="text-xs text-amber-400">
+												<p className="text-xs text-[#E0342A]">
 													{subdomainStatus.message}
 												</p>
 											) : null}
@@ -318,8 +318,8 @@ function SubdomainSetupContent() {
 								</Button>
 							</div>
 
-							<div className="rounded-xl border border-blue-400/30 bg-blue-400/10 p-4">
-								<p className="text-xs text-blue-200">
+							<div className="rounded-xl border border-white/10 bg-white/5 p-4">
+								<p className="text-xs text-white/70">
 									💡 <strong>Tip:</strong> Choose a subdomain that&apos;s easy to
 									remember and represents your brand. You can set it up later in
 									settings if you skip now.

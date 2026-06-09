@@ -276,7 +276,7 @@ export function MenuItemsTab({
 																			<Badge
 																				className={`flex-shrink-0 ${
 																					item.is_active
-																						? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'
+																						? 'border-white/20 bg-white/10 text-white'
 																						: 'border-white/20 bg-white/10 text-white/80'
 																				}`}
 																			>
@@ -330,7 +330,7 @@ export function MenuItemsTab({
 																				</Badge>
 																			)}
 																			{item.menu_item_toppings.length > 0 && (
-																				<Badge className="border-emerald-400/30 bg-emerald-400/10 text-xs text-emerald-200">
+																				<Badge className="border-white/20 bg-white/10 text-xs text-white/80">
 																					{item.menu_item_toppings.length} add
 																					on
 																					{item.menu_item_toppings.length !== 1
@@ -339,7 +339,7 @@ export function MenuItemsTab({
 																				</Badge>
 																			)}
 																			{ingredientNames.length > 0 && (
-																				<Badge className="border-blue-400/30 bg-blue-400/10 text-xs text-blue-200">
+																				<Badge className="border-white/20 bg-white/10 text-xs text-white/80">
 																					{ingredientNames.length} ingredient
 																					{ingredientNames.length !== 1
 																						? 's'
@@ -347,7 +347,7 @@ export function MenuItemsTab({
 																				</Badge>
 																			)}
 																			{sop?.steps.length ? (
-																				<Badge className="border-purple-400/30 bg-purple-400/10 text-xs text-purple-200">
+																				<Badge className="border-[#E0342A]/30 bg-[#E0342A]/10 text-xs text-[#E0342A]">
 																					{sop.steps.length} SOP step
 																					{sop.steps.length !== 1 ? 's' : ''}
 																				</Badge>
@@ -373,7 +373,7 @@ export function MenuItemsTab({
 																				<Button
 																					size="sm"
 																					variant="ghost"
-																					className="border border-white/15 bg-white/5 text-white/70 hover:bg-red-400/10 hover:border-red-400/50 hover:text-red-400 h-8 w-8 p-0"
+																					className="border border-white/15 bg-white/5 text-white/70 hover:bg-[#E0342A]/10 hover:border-[#E0342A]/30 hover:text-[#E0342A] h-8 w-8 p-0"
 																				>
 																					<Trash2 className="h-3.5 w-3.5" />
 																				</Button>

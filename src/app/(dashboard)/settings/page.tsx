@@ -12,10 +12,7 @@ import {
 	User,
 	Users,
 	Shield,
-	Database,
-	Globe,
 	LayoutGrid,
-	AlertCircle,
 	FileText
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -28,9 +25,7 @@ import { OrganizationSettingsTab } from '@/components/settings/organization-sett
 import { ProfileSettingsTab } from '@/components/settings/profile-settings-tab'
 import { RolesPermissionsTab } from '@/components/settings/roles-permissions-tab'
 import { SuppliersTab } from '@/components/settings/suppliers-tab'
-import { FirebaseSyncTab } from '@/components/settings/firebase-sync-tab'
 import { UsersTab } from '@/components/settings/users-tab'
-import { DomainSettingsTab } from '@/components/settings/domain-settings-tab'
 import { TablesSettingsTab } from '@/components/settings/tables-settings-tab'
 
 type Tenant = {
@@ -52,85 +47,71 @@ const tabs = [
 		id: 'organization',
 		label: 'Organization',
 		icon: Building2,
-		color: 'from-blue-500/20 to-cyan-500/20',
+		color: 'from-[#E0342A]/20 to-[#E0342A]/5',
 		description: 'Branding, contact & business details'
-	},
-	{
-		id: 'domain',
-		label: 'Domain & Landing Page',
-		icon: Globe,
-		color: 'from-indigo-500/20 to-purple-500/20',
-		description: 'Custom domain and landing page settings'
 	},
 	{
 		id: 'profile',
 		label: 'Profile',
 		icon: User,
-		color: 'from-purple-500/20 to-pink-500/20',
+		color: 'from-[#E0342A]/20 to-[#E0342A]/5',
 		description: 'Your personal information'
 	},
 	{
 		id: 'users',
 		label: 'Users',
 		icon: Users,
-		color: 'from-green-500/20 to-emerald-500/20',
+		color: 'from-[#E0342A]/20 to-[#E0342A]/5',
 		description: 'Manage team members & admins'
 	},
 	{
 		id: 'roles',
 		label: 'Roles & Permissions',
 		icon: Shield,
-		color: 'from-amber-500/20 to-orange-500/20',
+		color: 'from-[#E0342A]/20 to-[#E0342A]/5',
 		description: 'Manage team access & permissions'
 	},
 	{
 		id: 'loyalty',
 		label: 'Loyalty',
 		icon: Gift,
-		color: 'from-emerald-500/20 to-teal-500/20',
+		color: 'from-[#E0342A]/20 to-[#E0342A]/5',
 		description: 'Reward programs & points'
 	},
 	{
 		id: 'coupons',
 		label: 'Coupons',
 		icon: Ticket,
-		color: 'from-rose-500/20 to-pink-500/20',
+		color: 'from-[#E0342A]/20 to-[#E0342A]/5',
 		description: 'Discount codes & promotions'
 	},
 	{
 		id: 'general',
 		label: 'General',
 		icon: Settings,
-		color: 'from-indigo-500/20 to-blue-500/20',
+		color: 'from-[#E0342A]/20 to-[#E0342A]/5',
 		description: 'Currency, locale & tax settings'
 	},
 	{
 		id: 'bill-design',
 		label: 'Bill Design',
 		icon: FileText,
-		color: 'from-pink-500/20 to-rose-500/20',
+		color: 'from-[#E0342A]/20 to-[#E0342A]/5',
 		description: 'Design WhatsApp & thermal bills'
 	},
 	{
 		id: 'tables',
 		label: 'Tables',
 		icon: LayoutGrid,
-		color: 'from-teal-500/20 to-cyan-500/20',
+		color: 'from-[#E0342A]/20 to-[#E0342A]/5',
 		description: 'Dining area & seating layout'
 	},
 	{
 		id: 'suppliers',
 		label: 'Suppliers',
 		icon: Building2,
-		color: 'from-violet-500/20 to-purple-500/20',
+		color: 'from-[#E0342A]/20 to-[#E0342A]/5',
 		description: 'Manage suppliers & vendors'
-	},
-	{
-		id: 'firebase-sync',
-		label: 'Firebase Sync',
-		icon: Database,
-		color: 'from-orange-500/20 to-red-500/20',
-		description: 'Import data from Firebase'
 	}
 ]
 
@@ -247,45 +228,6 @@ export default function SettingsPage() {
 
 	return (
 		<div className="flex flex-col gap-8 py-6">
-			{/* Migration Warning Banner */}
-			{tenant.migrationRequired && (
-				<motion.div
-					initial={{ opacity: 0, y: -10 }}
-					animate={{ opacity: 1, y: 0 }}
-					className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-5 text-amber-300 text-sm space-y-3"
-				>
-					<div className="flex items-center gap-2 font-semibold text-base">
-						<AlertCircle className="h-5 w-5 shrink-0" />
-						<span>Database Migration Required</span>
-					</div>
-					<p className="text-white/80">
-						The settings page loaded in fallback mode. To enable the **Domain & Landing Page** features, you must run the SQL migration on your Supabase database. Go to your [Supabase Dashboard](https://supabase.com/dashboard/project/yrqyuiyblhkomfbklpzy) → SQL Editor, paste the SQL below, and click **Run**:
-					</p>
-					<pre className="bg-black/40 p-4 rounded-xl text-xs font-mono overflow-x-auto text-white/95 border border-white/5 selection:bg-amber-500/30 select-all">
-{`-- Add custom domain and landing page support to tenants
-ALTER TABLE public.tenants
-  ADD COLUMN IF NOT EXISTS custom_domain text,
-  ADD COLUMN IF NOT EXISTS landing_page jsonb;
-
--- Unique constraint on custom_domain (each domain can only belong to one tenant)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'tenants_custom_domain_key'
-  ) THEN
-    ALTER TABLE public.tenants ADD CONSTRAINT tenants_custom_domain_key UNIQUE (custom_domain);
-  END IF;
-END $$;
-
--- Index for fast custom domain lookups in middleware
-CREATE INDEX IF NOT EXISTS idx_tenants_custom_domain
-  ON public.tenants (custom_domain)
-  WHERE custom_domain IS NOT NULL;`}
-					</pre>
-				</motion.div>
-			)}
-
 			{/* Hero Header */}
 			<motion.header
 				initial={{ opacity: 0, y: -20 }}
@@ -338,7 +280,7 @@ CREATE INDEX IF NOT EXISTS idx_tenants_custom_domain
 										<motion.div
 											initial={{ scale: 0 }}
 											animate={{ scale: 1 }}
-											className="h-2 w-2 rounded-full bg-emerald-400"
+											className="h-2 w-2 rounded-full bg-[#E0342A]"
 										/>
 									)}
 								</div>
@@ -400,10 +342,6 @@ CREATE INDEX IF NOT EXISTS idx_tenants_custom_domain
 							<OrganizationSettingsTab tenant={tenant} onRefresh={loadTenant} />
 						)}
 
-						{activeTab === 'domain' && (
-							<DomainSettingsTab tenant={tenant} onRefresh={loadTenant} />
-						)}
-
 						{activeTab === 'profile' && (
 							<ProfileSettingsTab tenantId={tenant.id} onRefresh={loadTenant} />
 						)}
@@ -438,10 +376,6 @@ CREATE INDEX IF NOT EXISTS idx_tenants_custom_domain
 
 						{activeTab === 'suppliers' && (
 							<SuppliersTab tenantId={tenant.id} onRefresh={loadTenant} />
-						)}
-
-						{activeTab === 'firebase-sync' && (
-							<FirebaseSyncTab tenantId={tenant.id} onRefresh={loadTenant} />
 						)}
 					</motion.div>
 				</AnimatePresence>

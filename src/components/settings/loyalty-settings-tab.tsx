@@ -158,7 +158,7 @@ export function LoyaltySettingsTab({
 					<div className="grid gap-4 md:grid-cols-2">
 						<div className="rounded-xl border border-white/10 bg-black/20 p-4">
 							<div className="mb-2 flex items-center gap-2">
-								<Gift className="h-4 w-4 text-emerald-400" />
+								<Gift className="h-4 w-4 text-[#E0342A]" />
 								<span className="text-sm font-medium text-white/70">
 									Program Status
 								</span>
@@ -166,8 +166,8 @@ export function LoyaltySettingsTab({
 							<Badge
 								className={
 									settings.enabled
-										? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'
-										: 'border-red-400/30 bg-red-400/10 text-red-200'
+										? 'border-white/20 bg-white/10 text-white'
+										: 'border-[#E0342A]/30 bg-[#E0342A]/10 text-[#E0342A]'
 								}
 							>
 								{settings.enabled ? 'Enabled' : 'Disabled'}
@@ -176,7 +176,7 @@ export function LoyaltySettingsTab({
 
 						<div className="rounded-xl border border-white/10 bg-black/20 p-4">
 							<div className="mb-2 flex items-center gap-2">
-								<TrendingUp className="h-4 w-4 text-blue-400" />
+								<TrendingUp className="h-4 w-4 text-white/50" />
 								<span className="text-sm font-medium text-white/70">
 									Earn Rate
 								</span>
@@ -188,7 +188,7 @@ export function LoyaltySettingsTab({
 
 						<div className="rounded-xl border border-white/10 bg-black/20 p-4">
 							<div className="mb-2 flex items-center gap-2">
-								<Gift className="h-4 w-4 text-purple-400" />
+								<Gift className="h-4 w-4 text-white/50" />
 								<span className="text-sm font-medium text-white/70">
 									Redeem Rate
 								</span>
@@ -200,7 +200,7 @@ export function LoyaltySettingsTab({
 
 						<div className="rounded-xl border border-white/10 bg-black/20 p-4">
 							<div className="mb-2 flex items-center gap-2">
-								<Users className="h-4 w-4 text-orange-400" />
+								<Users className="h-4 w-4 text-white/50" />
 								<span className="text-sm font-medium text-white/70">
 									Minimum Redeem
 								</span>

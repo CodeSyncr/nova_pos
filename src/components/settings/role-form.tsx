@@ -122,12 +122,12 @@ export function RoleForm({
 				initial={{ opacity: 0, x: 80 }}
 				animate={{ opacity: 1, x: 0 }}
 				exit={{ opacity: 0, x: 80 }}
-				className="absolute right-0 top-0 h-full w-full max-w-3xl overflow-y-auto border-l border-white/10 bg-gradient-to-br from-[#121633] via-[#060915] to-[#030308] p-8 shadow-[0_40px_120px_rgba(3,5,18,0.85)]"
+				className="absolute right-0 top-0 h-full w-full max-w-3xl overflow-y-auto border-l border-white/10 bg-black p-8 shadow-[0_40px_120px_rgba(0,0,0,0.85)]"
 			>
 				<div className="flex items-center justify-between mb-6">
 					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 p-3">
-							<Shield className="h-6 w-6 text-white" />
+						<div className="rounded-xl bg-[#E0342A]/15 p-3">
+							<Shield className="h-6 w-6 text-[#E0342A]" />
 						</div>
 						<div>
 							<p className="text-xs uppercase tracking-[0.3em] text-white/50">

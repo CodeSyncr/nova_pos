@@ -1,11 +1,11 @@
 {
-  "name": "Nova POS",
-  "short_name": "NovaPOS",
+  "name": "POS",
+  "short_name": "POS",
   "description": "Premium restaurant POS platform",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#020109",
-  "theme_color": "#6F6BFF",
+  "theme_color": "#E0342A",
   "orientation": "any",
   "icons": [
     {

@@ -58,14 +58,14 @@ const reportTypes: Array<{
 	description: string
 	color: string
 }> = [
-	{ id: 'sales', label: 'Sales', icon: TrendingUp, description: 'Daily sales breakdown', color: 'from-emerald-500/20 to-green-500/20' },
-	{ id: 'items', label: 'Item Sales', icon: ShoppingBag, description: 'Revenue by menu item', color: 'from-blue-500/20 to-cyan-500/20' },
-	{ id: 'categories', label: 'Categories', icon: LayoutGrid, description: 'Sales by category', color: 'from-purple-500/20 to-violet-500/20' },
-	{ id: 'customers', label: 'Customers', icon: Users, description: 'Top customers by spend', color: 'from-pink-500/20 to-rose-500/20' },
-	{ id: 'payments', label: 'Payments', icon: CreditCard, description: 'Payment method breakdown', color: 'from-amber-500/20 to-orange-500/20' },
-	{ id: 'purchases', label: 'Purchases', icon: Receipt, description: 'Expense & purchase log', color: 'from-red-500/20 to-rose-500/20' },
-	{ id: 'inventory', label: 'Inventory', icon: Package, description: 'Current stock levels', color: 'from-teal-500/20 to-cyan-500/20' },
-	{ id: 'tax', label: 'Tax', icon: FileBarChart, description: 'Tax collected summary', color: 'from-indigo-500/20 to-blue-500/20' }
+	{ id: 'sales', label: 'Sales', icon: TrendingUp, description: 'Daily sales breakdown', color: 'from-[#E0342A]/20 to-[#E0342A]/5' },
+	{ id: 'items', label: 'Item Sales', icon: ShoppingBag, description: 'Revenue by menu item', color: 'from-[#E0342A]/20 to-[#E0342A]/5' },
+	{ id: 'categories', label: 'Categories', icon: LayoutGrid, description: 'Sales by category', color: 'from-[#E0342A]/20 to-[#E0342A]/5' },
+	{ id: 'customers', label: 'Customers', icon: Users, description: 'Top customers by spend', color: 'from-[#E0342A]/20 to-[#E0342A]/5' },
+	{ id: 'payments', label: 'Payments', icon: CreditCard, description: 'Payment method breakdown', color: 'from-[#E0342A]/20 to-[#E0342A]/5' },
+	{ id: 'purchases', label: 'Purchases', icon: Receipt, description: 'Expense & purchase log', color: 'from-[#E0342A]/20 to-[#E0342A]/5' },
+	{ id: 'inventory', label: 'Inventory', icon: Package, description: 'Current stock levels', color: 'from-[#E0342A]/20 to-[#E0342A]/5' },
+	{ id: 'tax', label: 'Tax', icon: FileBarChart, description: 'Tax collected summary', color: 'from-[#E0342A]/20 to-[#E0342A]/5' }
 ]
 
 type Period = 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom'
@@ -786,9 +786,9 @@ function ReportTable({
 
 function StatusBadge({ status }: { status: 'ok' | 'low' | 'critical' }) {
 	const styles = {
-		ok: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-		low: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-		critical: 'bg-red-500/20 text-red-300 border-red-500/30'
+		ok: 'bg-white/10 text-white border-white/20',
+		low: 'bg-[#E0342A]/20 text-[#E0342A] border-[#E0342A]/30',
+		critical: 'bg-[#E0342A]/20 text-[#E0342A] border-[#E0342A]/30'
 	}
 	return (
 		<span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${styles[status]}`}>

@@ -66,8 +66,8 @@ const initialFormState: TenantCreationPayload = {
 	},
 	branding: {
 		fontFamily: 'Inter',
-		primaryColor: '#6B6DFF',
-		secondaryColor: '#4DD4FF'
+		primaryColor: '#E0342A',
+		secondaryColor: '#FFFFFF'
 	}
 }
 
@@ -229,7 +229,7 @@ export default function TenantPage() {
 
 	if (isCheckingTenant) {
 		return (
-			<div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#03030A] via-[#050818] to-[#02030A] text-white">
+			<div className="flex min-h-screen items-center justify-center bg-black text-white">
 				<div className="rounded-3xl border border-white/10 bg-white/5 px-12 py-16 text-center backdrop-blur-2xl">
 					<p className="text-sm uppercase tracking-[0.4em] text-white/40">
 						Checking workspace
@@ -241,10 +241,10 @@ export default function TenantPage() {
 	}
 
 	return (
-		<div className="relative min-h-screen bg-gradient-to-b from-[#03030A] via-[#050818] to-[#02030A] text-white">
+		<div className="relative min-h-screen bg-black text-white">
 			<div className="pointer-events-none absolute inset-0">
-				<div className="glow -top-32 left-1/2 h-96 w-96 -translate-x-1/2 bg-[#6B6DFF]/30" />
-				<div className="glow bottom-0 right-10 h-80 w-80 bg-[#4DD4FF]/25" />
+				<div className="glow -top-32 left-1/2 h-96 w-96 -translate-x-1/2 bg-[#E0342A]/20" />
+				<div className="glow bottom-0 right-10 h-80 w-80 bg-[#E0342A]/15" />
 			</div>
 
 			<div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12">
@@ -265,9 +265,9 @@ export default function TenantPage() {
 					<motion.div
 						initial={{ opacity: 0, scale: 0.95 }}
 						animate={{ opacity: 1, scale: 1 }}
-						className="rounded-[32px] border border-emerald-400/30 bg-emerald-400/10 p-10 text-center backdrop-blur-2xl"
+						className="rounded-[32px] border border-white/20 bg-white/10 p-10 text-center backdrop-blur-2xl"
 					>
-						<CheckCircle2 className="mx-auto h-14 w-14 text-emerald-300" />
+						<CheckCircle2 className="mx-auto h-14 w-14 text-white" />
 						<h2 className="mt-4 text-3xl font-semibold text-white">
 							{successTenant.name} is live!
 						</h2>
@@ -594,7 +594,7 @@ export default function TenantPage() {
 				)}
 
 				{error ? (
-					<p className="text-center text-sm text-rose-300">{error}</p>
+					<p className="text-center text-sm text-[#E0342A]">{error}</p>
 				) : null}
 			</div>
 		</div>

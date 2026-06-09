@@ -1,6 +1,6 @@
 'use client'
 
-import { type ReactNode, useState, useEffect, useRef } from 'react'
+import { type ReactNode, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -17,17 +17,12 @@ import {
 	Users,
 	Package,
 	ShoppingCart,
-	ChevronLeft,
-	ChevronRight,
 	Menu,
 	X,
-	User,
 	LogOut,
-	CreditCard,
 	FileBarChart,
 	UserCog
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { canAccessRoute } from '@/lib/permissions'
 import { OrderNotifications } from '@/components/order-notifications'
 
@@ -42,7 +37,6 @@ const navItems = [
 	{ href: '/staff', label: 'Staff', icon: UserCog },
 	{ href: '/analytics', label: 'Analytics', icon: BarChart3 },
 	{ href: '/reports', label: 'Reports', icon: FileBarChart },
-	{ href: '/subscription', label: 'Subscription', icon: CreditCard },
 	{ href: '/settings', label: 'Settings', icon: Settings }
 ]
 
@@ -51,10 +45,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 	const router = useRouter()
 	const [collapsed, setCollapsed] = useState(true)
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-	const [showProfileMenu, setShowProfileMenu] = useState(false)
 	const [userPermissions, setUserPermissions] = useState<Record<string, string[]> | null>(null)
 	const [permissionsLoaded, setPermissionsLoaded] = useState(false)
-	const profileMenuRef = useRef<HTMLDivElement>(null)
 
 	// Load user permissions on mount
 	useEffect(() => {
@@ -117,25 +109,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 		}
 	}, [permissionsLoaded, userPermissions, pathname, router])
 
-	useEffect(() => {
-		const handleClickOutside = (event: MouseEvent) => {
-			if (
-				profileMenuRef.current &&
-				!profileMenuRef.current.contains(event.target as Node)
-			) {
-				setShowProfileMenu(false)
-			}
-		}
-
-		if (showProfileMenu) {
-			document.addEventListener('mousedown', handleClickOutside)
-		}
-
-		return () => {
-			document.removeEventListener('mousedown', handleClickOutside)
-		}
-	}, [showProfileMenu])
-
 	const handleLogout = async () => {
 		const supabase = createSupabaseBrowserClient()
 		await supabase.auth.signOut()
@@ -143,7 +116,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-b from-[#020109] via-[#040516] to-[#020309] text-white">
+		<div className="min-h-screen bg-black text-white">
+			{/* Smoky header backdrop (mobile) — hides content scrolling under the top bar */}
+			<div className="pointer-events-none fixed inset-x-0 top-0 z-30 h-20 bg-gradient-to-b from-black via-black/85 to-transparent lg:hidden" />
+
 			{/* Mobile Hamburger Button */}
 			<button
 				onClick={() => setMobileMenuOpen(true)}
@@ -151,6 +127,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 			>
 				<Menu className="h-5 w-5" />
 			</button>
+
+			{/* Cafe name (mobile, top-right) */}
+			<span className="fixed right-5 top-4 z-40 flex h-10 items-center font-[family-name:var(--font-cursive)] text-2xl leading-none text-[#E0342A] lg:hidden">
+				pizzeria da cafe
+			</span>
 
 			{/* Mobile Menu Overlay */}
 			<AnimatePresence>
@@ -201,7 +182,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 											className={cn(
 												'group flex items-center gap-3 rounded-2xl border border-transparent px-3 py-2.5 text-xs transition-colors',
 												isActive
-													? 'border-white/40 bg-white/10 text-white shadow-[0_15px_40px_rgba(8,12,32,0.35)]'
+													? 'border-[#E0342A]/50 bg-[#E0342A]/15 text-white shadow-[0_15px_40px_rgba(224,52,42,0.2)]'
 													: 'hover:border-white/20 hover:bg-white/5 hover:text-white'
 											)}
 										>
@@ -212,15 +193,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 								})}
 							</nav>
 
-							<div className="mt-8 rounded-2xl border border-white/10 bg-gradient-to-br from-[#5C5CFF]/20 to-[#2DE1FF]/10 p-4 text-xs text-white/70">
-								<p className="uppercase tracking-[0.3em] text-white/50">
-									Service pulse
-								</p>
-								<p className="mt-2 text-white">
-									Keep menus, POS, and orders in sync. Changes here ripple
-									across your floor in real time.
-								</p>
-							</div>
+							<button
+								onClick={handleLogout}
+								className="mt-auto flex items-center gap-3 rounded-2xl border border-red-400/40 bg-red-400/5 px-3 py-3 text-sm font-medium text-red-400 transition hover:border-red-400 hover:bg-red-400/10 hover:text-red-300"
+							>
+								<LogOut className="h-4 w-4 shrink-0" />
+								Logout
+							</button>
 						</motion.aside>
 					</>
 				)}
@@ -276,90 +255,25 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 						})}
 					</nav>
 
-					{!collapsed && (
-						<div className="mt-8 rounded-2xl border border-white/10 bg-gradient-to-br from-[#5C5CFF]/20 to-[#2DE1FF]/10 p-4 text-xs text-white/70">
-							<p className="uppercase tracking-[0.3em] text-white/50">
-								Service pulse
-							</p>
-							<p className="mt-2 text-white">
-								Keep menus, POS, and orders in sync. Changes here ripple across
-								your floor in real time.
-							</p>
-						</div>
-					)}
-
 					<div className="mt-auto flex flex-col items-center gap-2 pb-4">
-						{/* Profile Menu */}
-						<div className="relative w-full" ref={profileMenuRef}>
-							{collapsed ? (
-								<button
-									onClick={() => setShowProfileMenu(!showProfileMenu)}
-									className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
-								>
-									<User className="h-5 w-5" />
-								</button>
-							) : (
-								<div className="flex w-full flex-col gap-2">
-									<button
-										onClick={() => setShowProfileMenu(!showProfileMenu)}
-										className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-white/70 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
-									>
-										<User className="h-4 w-4" />
-										<span className="text-xs">Profile</span>
-									</button>
-									{showProfileMenu && (
-										<motion.div
-											initial={{ opacity: 0, y: 10 }}
-											animate={{ opacity: 1, y: 0 }}
-											className="absolute bottom-full left-0 mb-2 w-full"
-										>
-											<Button
-												variant="ghost"
-												onClick={handleLogout}
-												className="w-full border border-red-400/50 text-red-400 hover:bg-red-400/10 hover:border-red-400 hover:text-red-300"
-											>
-												<LogOut className="mr-2 h-4 w-4" />
-												Logout
-											</Button>
-										</motion.div>
-									)}
-								</div>
-							)}
-							{/* Tooltip for collapsed state */}
-							{collapsed && showProfileMenu && (
-								<motion.div
-									initial={{ opacity: 0, x: -10 }}
-									animate={{ opacity: 1, x: 0 }}
-									className="absolute right-full top-1/2 mb-2 mr-2 -translate-y-1/2"
-								>
-									<div className="rounded-lg border border-white/10 bg-black/90 px-3 py-2 shadow-lg backdrop-blur-sm">
-										<Button
-											variant="ghost"
-											size="sm"
-											onClick={handleLogout}
-											className="whitespace-nowrap border border-red-400/50 text-red-400 hover:bg-red-400/10 hover:border-red-400 hover:text-red-300"
-										>
-											<LogOut className="mr-2 h-3 w-3" />
-											Logout
-										</Button>
-									</div>
-									{/* Tooltip arrow */}
-									<div className="absolute right-0 top-1/2 h-2 w-2 -translate-y-1/2 translate-x-full border-l-4 border-t-4 border-b-4 border-transparent border-l-white/10" />
-								</motion.div>
-							)}
-						</div>
-						{/* Collapse indicator */}
-						<div className="flex items-center justify-center">
-							{collapsed ? (
-								<ChevronRight className="h-4 w-4 text-white/50" />
-							) : (
-								<ChevronLeft className="h-4 w-4 text-white/40" />
-							)}
-						</div>
-						{/* Version */}
-						<p className={`text-[10px] text-white/30 ${collapsed ? 'text-center' : ''}`}>
-							{collapsed ? 'v1.2' : 'v1.2.0'}
-						</p>
+						{/* Logout */}
+						{collapsed ? (
+							<button
+								onClick={handleLogout}
+								title="Logout"
+								className="flex h-10 w-10 items-center justify-center rounded-xl border border-red-400/40 bg-red-400/5 text-red-400 transition hover:border-red-400 hover:bg-red-400/10 hover:text-red-300"
+							>
+								<LogOut className="h-5 w-5" />
+							</button>
+						) : (
+							<button
+								onClick={handleLogout}
+								className="flex w-full items-center gap-3 rounded-xl border border-red-400/40 bg-red-400/5 px-3 py-2.5 text-red-400 transition hover:border-red-400 hover:bg-red-400/10 hover:text-red-300"
+							>
+								<LogOut className="h-4 w-4 shrink-0" />
+								<span className="text-xs">Logout</span>
+							</button>
+						)}
 					</div>
 				</aside>
 

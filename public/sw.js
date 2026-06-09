@@ -48,7 +48,7 @@ self.addEventListener('push', (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Nova POS', options)
+    self.registration.showNotification(data.title || 'POS', options)
   )
 })
 

@@ -211,7 +211,7 @@ export function RolesPermissionsTab({
 							<div className="mb-4 flex items-start justify-between">
 								<div className="flex-1">
 									<div className="mb-2 flex items-center gap-2">
-										<Shield className="h-5 w-5 text-amber-400" />
+										<Shield className="h-5 w-5 text-[#E0342A]" />
 										<h4 className="text-lg font-semibold text-white">
 											{role.name}
 										</h4>

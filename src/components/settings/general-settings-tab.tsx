@@ -66,7 +66,7 @@ export function GeneralSettingsTab({
 						className="rounded-xl border border-white/10 bg-black/20 p-6"
 					>
 						<div className="mb-4 flex items-center gap-3">
-							<Globe className="h-5 w-5 text-blue-400" />
+							<Globe className="h-5 w-5 text-[#E0342A]" />
 							<h3 className="text-lg font-semibold text-white">Locale</h3>
 						</div>
 						<div className="space-y-4">
@@ -113,7 +113,7 @@ export function GeneralSettingsTab({
 						className="rounded-xl border border-white/10 bg-black/20 p-6"
 					>
 						<div className="mb-4 flex items-center gap-3">
-							<Percent className="h-5 w-5 text-purple-400" />
+							<Percent className="h-5 w-5 text-[#E0342A]" />
 							<h3 className="text-lg font-semibold text-white">Tax</h3>
 						</div>
 						<div>

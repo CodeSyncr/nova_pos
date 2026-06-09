@@ -156,12 +156,12 @@ export function TablesSettingsTab({ tenant, onRefresh }: TablesSettingsTabProps)
 									className="group rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-5 transition hover:border-white/20"
 								>
 									<div className="mb-4 flex items-center justify-between">
-										<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 text-sm font-bold text-white">
+										<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#E0342A]/15 text-sm font-bold text-[#E0342A]">
 											{table.name.slice(0, 2)}
 										</div>
 										<button
 											onClick={() => removeTable(table.id)}
-											className="rounded-lg p-1.5 text-white/30 opacity-0 transition hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
+											className="rounded-lg p-1.5 text-white/30 opacity-0 transition hover:bg-[#E0342A]/10 hover:text-[#E0342A] group-hover:opacity-100"
 										>
 											<Trash2 className="h-4 w-4" />
 										</button>
