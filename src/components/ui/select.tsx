@@ -95,7 +95,7 @@ export function CustomSelect({
 							exit={{ opacity: 0, y: -8, scale: 0.96 }}
 							transition={{ duration: 0.15, ease: 'easeOut' }}
 							className={cn(
-								"absolute left-0 right-0 mt-2 z-50 max-h-64 overflow-y-auto rounded-2xl border border-white/10 bg-[#0C0D21]/95 backdrop-blur-xl p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] scrollbar-thin scrollbar-thumb-white/10",
+								"absolute left-0 right-0 mt-2 z-50 max-h-64 overflow-y-auto rounded-2xl border border-white/10 bg-[#0d0d0f]/98 backdrop-blur-xl p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] scrollbar-thin scrollbar-thumb-white/10",
 								dropdownClassName
 							)}
 						>

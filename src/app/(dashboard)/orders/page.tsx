@@ -32,6 +32,7 @@ import {
 	QrCode,
 	Wallet,
 	MoreHorizontal,
+	Table,
 	Loader2
 } from 'lucide-react'
 import {
@@ -205,6 +206,30 @@ export default function OrdersPage() {
 	>(null)
 	const [editDiscountValue, setEditDiscountValue] = useState('')
 	const [editCustomerName, setEditCustomerName] = useState('')
+	const [editCustomerPhone, setEditCustomerPhone] = useState('')
+	const [customers, setCustomers] = useState<any[]>([])
+
+	const customerExists = useMemo(() => {
+		const phone = editCustomerPhone.trim()
+		if (!phone) return false
+		return customers.some((c) => c.phone && c.phone.trim() === phone)
+	}, [editCustomerPhone, customers])
+
+	useEffect(() => {
+		if (!editCustomerPhone.trim()) {
+			return
+		}
+
+		const matchingCustomer = customers.find(
+			(c) => c.phone && c.phone.trim() === editCustomerPhone.trim()
+		)
+
+		if (matchingCustomer && editCustomerName !== matchingCustomer.full_name) {
+			setEditCustomerName(matchingCustomer.full_name)
+		}
+	}, [editCustomerPhone, customers, editCustomerName])
+
+
 	const [editTableNumber, setEditTableNumber] = useState<string | null>(null)
 	const [editOrderType, setEditOrderType] = useState<
 		'dine_in' | 'takeaway' | 'delivery'
@@ -246,11 +271,22 @@ export default function OrdersPage() {
 	const [tables, setTables] = useState<Array<{ id: string; number: string }>>(
 		[]
 	)
+
+	const tablesWithStatus = useMemo(() => {
+		const activeTableNumbers = orders
+			.filter((o) => o.status !== 'completed' && o.status !== 'cancelled' && o.id !== editingOrder?.id)
+			.map((o) => o.table_number)
+			.filter(Boolean)
+
+		return tables.map((t) => ({
+			...t,
+			status: activeTableNumbers.includes(t.number) ? 'occupied' : 'available'
+		}))
+	}, [tables, orders, editingOrder])
+
 	const [showAddItem, setShowAddItem] = useState(false)
 	const [itemSearchQuery, setItemSearchQuery] = useState('')
-	const [selectedCategoryForItem, setSelectedCategoryForItem] = useState<
-		string | null
-	>(null)
+
 	const [customizingItem, setCustomizingItem] = useState<{
 		id: string
 		name: string
@@ -415,11 +451,7 @@ export default function OrdersPage() {
 			.eq('tenant_id', tenantRow.tenant_id)
 			.order('position', { ascending: true })
 
-		const { data: tablesData } = await supabase
-			.from('tables')
-			.select('id, number')
-			.eq('tenant_id', tenantRow.tenant_id)
-			.order('number', { ascending: true })
+		// Load tables from settings instead of querying database table
 
 		if (menuItemsData) {
 			// Ensure description field exists for all items and handle null/undefined variants/toppings
@@ -443,7 +475,34 @@ export default function OrdersPage() {
 			setMenuItems(itemsWithDescription as typeof menuItems)
 		}
 		if (categoriesData) setCategories(categoriesData)
-		if (tablesData) setTables(tablesData)
+		const configuredTables = (settings.tables as Array<{ id: string; name: string; capacity: number; section: string }> | undefined) || []
+		let initialTables = configuredTables.map((t) => ({
+			id: t.id,
+			number: t.name
+		}))
+
+		if (initialTables.length === 0) {
+			initialTables = [
+				{ id: '1', number: 'T-01' },
+				{ id: '2', number: 'T-02' },
+				{ id: '3', number: 'T-03' },
+				{ id: '4', number: 'T-04' },
+				{ id: '5', number: 'T-05' },
+				{ id: '6', number: 'T-06' },
+				{ id: '7', number: 'T-07' },
+				{ id: '8', number: 'T-08' }
+			]
+		}
+		setTables(initialTables)
+
+		// Load customers
+		const { data: customersData } = await supabase
+			.from('customers')
+			.select('id, full_name, phone')
+			.eq('tenant_id', tenantRow.tenant_id)
+			.order('full_name', { ascending: true })
+
+		if (customersData) setCustomers(customersData)
 
 		let query = supabase
 			.from('orders')
@@ -646,13 +705,13 @@ export default function OrdersPage() {
 			}))
 		)
 		setEditCustomerName(order.customer_name || '')
+		setEditCustomerPhone(order.customer_phone || '')
 		setEditTableNumber(order.table_number)
 		setEditOrderType(order.order_type as 'dine_in' | 'takeaway' | 'delivery')
 		setEditDiscountType(order.discount_type as 'percent' | 'fixed' | null)
 		setEditDiscountValue(order.discount_value?.toString() || '')
 		setShowAddItem(false)
 		setItemSearchQuery('')
-		setSelectedCategoryForItem(null)
 	}
 
 	const handleUpdateItemQuantity = (index: number, delta: number) => {
@@ -733,7 +792,6 @@ export default function OrdersPage() {
 		])
 		setShowAddItem(false)
 		setItemSearchQuery('')
-		setSelectedCategoryForItem(null)
 	}
 
 	const handleCustomizedAdd = (customized: {
@@ -781,16 +839,12 @@ export default function OrdersPage() {
 		setCustomizingItem(null)
 		setShowAddItem(false)
 		setItemSearchQuery('')
-		setSelectedCategoryForItem(null)
 	}
 
 	const filteredMenuItemsForAdd = menuItems.filter((item) => {
-		const matchesSearch = item.name
+		return item.name
 			.toLowerCase()
 			.includes(itemSearchQuery.toLowerCase())
-		const matchesCategory =
-			!selectedCategoryForItem || item.category_id === selectedCategoryForItem
-		return matchesSearch && matchesCategory
 	})
 
 	const handleSaveOrder = async () => {
@@ -818,7 +872,7 @@ export default function OrdersPage() {
 		try {
 			await updateOrder(editingOrder.id, {
 				customerName: editCustomerName || null,
-				customerPhone: null,
+				customerPhone: editCustomerPhone || null,
 				customerEmail: null,
 				tableNumber: editTableNumber,
 				orderType: editOrderType,
@@ -835,6 +889,7 @@ export default function OrdersPage() {
 			setEditingOrder(null)
 			setEditedItems([])
 			setEditCustomerName('')
+			setEditCustomerPhone('')
 			setEditTableNumber(null)
 			setEditOrderType('dine_in')
 			setEditDiscountType(null)
@@ -1095,272 +1150,257 @@ export default function OrdersPage() {
 						return (
 							<motion.div
 								key={order.id}
-								initial={{ opacity: 0, scale: 0.95 }}
-								animate={{ opacity: 1, scale: 1 }}
-								className="group relative flex min-h-[500px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.03] to-white/[0.01] p-5 backdrop-blur-xl transition-all hover:border-white/20 hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
+								initial={{ opacity: 0, y: 12 }}
+								animate={{ opacity: 1, y: 0 }}
+								className="group relative flex flex-col justify-between rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-md transition-all duration-300 hover:border-white/15 hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]"
 							>
-								{/* Status Bar */}
+								{/* Top accent border line based on status */}
 								<div
 									className={cn(
-										'absolute top-0 left-0 right-0 h-1',
+										'absolute top-0 left-0 right-0 h-[3px]',
 										status.color
 									)}
 								/>
 
 								{/* Header */}
-								<div className="mb-4 flex items-start justify-between">
-									<div className="flex-1">
-										<div className="mb-2 flex items-center gap-2">
-											<div
-												className={cn(
-													'flex items-center gap-2 rounded-lg px-2.5 py-1 text-xs font-medium',
-													status.color
-												)}
-											>
-												<StatusIcon className="h-3.5 w-3.5" />
-												{status.label}
-											</div>
-											{order.table_number && (
-												<div className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-white/80">
-													Table {order.table_number}
-												</div>
-											)}
-										</div>
-										<h3 className="text-lg font-bold text-white">
-											#{order.id.slice(0, 8).toUpperCase()}
+								<div className="mb-4 border-b border-white/[0.06] pb-3">
+									<div className="flex items-center justify-between">
+										<h3 className="text-base font-bold text-white tracking-tight">
+											Order #{order.id.slice(0, 8).toUpperCase()}
 										</h3>
-										<div className="mt-1.5 flex items-center gap-3 text-xs text-white/50">
-										{order.customer_name && (
-												<div className="flex items-center gap-1">
-													<User className="h-3 w-3" />
-													<span className="font-medium">
-														{order.customer_name}
-													</span>
-												</div>
-										)}
-											<div className="flex items-center gap-1">
-												<Calendar className="h-3 w-3" />
-												<span>
-													{minutesAgo < 1
-														? 'Just now'
-														: minutesAgo < 60
-															? `${minutesAgo}m ago`
-															: `${Math.floor(minutesAgo / 60)}h ago`}
-												</span>
-											</div>
+										<div
+											className={cn(
+												'flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
+												status.color
+											)}
+										>
+											<StatusIcon className="h-3 w-3" />
+											{status.label}
 										</div>
 									</div>
+
+									<div className="mt-2 flex flex-wrap gap-2 items-center">
+										{/* Order Type + Table Badge */}
+										<div className="flex items-center gap-1 rounded-full border border-white/5 bg-white/[0.03] px-2 py-0.5 text-[10px] font-medium text-white/65">
+											{(() => {
+												const typeData = {
+													dine_in: { label: 'Dine In', icon: ChefHat },
+													takeaway: { label: 'Takeaway', icon: Package },
+													delivery: { label: 'Delivery', icon: Clock }
+												}[order.order_type as 'dine_in' | 'takeaway' | 'delivery'] || { label: order.order_type, icon: ChefHat }
+												const TypeIcon = typeData.icon
+												return (
+													<>
+														<TypeIcon className="h-3 w-3 text-[#E0342A]" />
+														<span>{typeData.label}</span>
+														{order.table_number && <span className="text-white/30 ml-0.5">· Table {order.table_number}</span>}
+													</>
+												)
+											})()}
+										</div>
+
+										{/* Time elapsed badge */}
+										<div className="flex items-center gap-1 rounded-full border border-white/5 bg-white/[0.03] px-2 py-0.5 text-[10px] text-white/50">
+											<Calendar className="h-3 w-3" />
+											<span>
+												{minutesAgo < 1
+													? 'Just now'
+													: minutesAgo < 60
+														? `${minutesAgo}m ago`
+														: `${Math.floor(minutesAgo / 60)}h ago`}
+											</span>
+										</div>
+									</div>
+
+									{order.customer_name && (
+										<div className="mt-2 flex items-center gap-1.5 text-xs text-white/65 bg-white/[0.01] border border-white/[0.04] rounded-lg px-2.5 py-1">
+											<User className="h-3.5 w-3.5 text-white/40" />
+											<span className="font-medium truncate">{order.customer_name}</span>
+											{order.customer_phone && (
+												<span className="text-[10px] text-white/30 ml-auto">({order.customer_phone})</span>
+											)}
+										</div>
+									)}
 								</div>
 
 								{/* Order Items */}
-								<div className="mb-4 space-y-2">
-									{order.order_items.slice(0, 4).map((item) => (
-												<div
-													key={item.id}
-											className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-sm"
-												>
-											<div className="flex-1 min-w-0">
-												<p className="font-medium text-white truncate">
+								<div className="mb-4 flex-1 space-y-2.5 overflow-y-auto">
+									{order.order_items.slice(0, 5).map((item) => (
+										<div
+											key={item.id}
+											className="flex items-center justify-between py-1 border-b border-white/[0.04] last:border-0"
+										>
+											<div className="flex items-baseline gap-2 min-w-0">
+												<span className="text-[#E0342A] font-semibold text-xs shrink-0">
+													{item.quantity}x
+												</span>
+												<span className="font-medium text-white text-sm truncate">
 													{item.name}
-												</p>
-												<div className="mt-0.5 flex items-center gap-2 text-xs text-white/50">
-													<span>Qty: {item.quantity}</span>
-														{item.notes && (
-														<span className="truncate">• {item.notes}</span>
-														)}
-													</div>
+												</span>
+												{item.notes && (
+													<span className="text-[10px] text-white/40 truncate">
+														({item.notes})
+													</span>
+												)}
 											</div>
-											<div className="ml-3 shrink-0 text-sm font-semibold text-white">
+											<div className="ml-3 shrink-0 text-xs text-white/70 font-medium tabular-nums">
 												{currencySymbol}
-												{item.total_price.toFixed(2)}
+												{item.total_price.toFixed(0)}
 											</div>
-												</div>
-											))}
-									{order.order_items.length > 4 && (
-										<div className="rounded-lg bg-white/5 px-3 py-2 text-center text-xs font-medium text-white/60">
-											+{order.order_items.length - 4} more item
-											{order.order_items.length - 4 !== 1 ? 's' : ''}
+										</div>
+									))}
+									{order.order_items.length > 5 && (
+										<div className="text-[11px] text-center text-white/40 pt-1">
+											+{order.order_items.length - 5} more item
+											{order.order_items.length - 5 !== 1 ? 's' : ''}
 										</div>
 									)}
-									</div>
+								</div>
 
-								{/* Summary */}
-								<div className="mb-4 space-y-1.5 rounded-lg border border-white/10 bg-white/5 p-3">
-									<div className="flex items-center justify-between text-xs">
-										<span className="text-white/60">Subtotal</span>
-										<span className="font-medium text-white">
-											{currencySymbol}
-											{order.subtotal.toFixed(2)}
-										</span>
-											</div>
+								{/* Summary Totals */}
+								<div className="pt-3 border-t border-white/[0.06] space-y-1.5">
 									{order.tax > 0 && (
-										<div className="flex items-center justify-between text-xs">
-											<span className="text-white/60">Tax</span>
-											<span className="font-medium text-white">
-												{currencySymbol}
-												{order.tax.toFixed(2)}
-											</span>
-											</div>
+										<div className="flex items-center justify-between text-xs text-white/40">
+											<span>Tax</span>
+											<span className="tabular-nums">{currencySymbol}{order.tax.toFixed(0)}</span>
+										</div>
 									)}
-											{order.discount_amount && order.discount_amount > 0 && (
-										<div className="flex items-center justify-between text-xs">
-											<span className="text-white/70">Discount</span>
-											<span className="font-medium text-white/70">
-												-{currencySymbol}
-												{order.discount_amount.toFixed(2)}
-													</span>
-												</div>
-											)}
-									<div className="border-t border-white/10 pt-1.5 mt-1.5 flex items-center justify-between">
-										<span className="text-sm font-semibold text-white">
-											Total
-										</span>
-										<span className="text-lg font-bold text-white">
-											{currencySymbol}
-											{/* Recalculate total to ensure accuracy: subtotal + tax - discount */}
-											{(order.subtotal + order.tax - (order.discount_amount || 0)).toFixed(2)}
+									{(order.discount_amount ?? 0) > 0 && (
+										<div className="flex items-center justify-between text-xs text-[#E0342A]/85">
+											<span>Discount</span>
+											<span className="tabular-nums">-{currencySymbol}{order.discount_amount?.toFixed(0)}</span>
+										</div>
+									)}
+									<div className="flex items-baseline justify-between pt-1 text-white">
+										<span className="text-sm font-semibold">Total</span>
+										<span className="text-xl font-bold text-[#E0342A] tabular-nums">
+											{currencySymbol}{(order.subtotal + order.tax - (order.discount_amount || 0)).toFixed(0)}
 										</span>
 									</div>
 								</div>
 
-								{/* Footer - Fixed at bottom */}
-								<div className="mt-auto space-y-3 pt-4">
-									{/* Status Actions */}
-									<div className="flex items-center justify-between">
-										<div className="flex items-center gap-2">
-											{order.payment_method && (
-												<div className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs font-medium capitalize text-white/70">
-														{order.payment_method}
-												</div>
-											)}
-											<div className="text-xs text-white/50">
-												{itemCount} item{itemCount !== 1 ? 's' : ''}
-											</div>
-										</div>
-										<div className="flex items-center gap-1.5">
-											{order.status === 'pending' && (
-												<Button
-													size="sm"
-													onClick={() =>
-														handleStatusUpdate(order.id, 'confirmed')
-													}
-													disabled={updatingOrderId === order.id}
-													className="h-8 text-xs font-medium"
-												>
-													{updatingOrderId === order.id ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />}
-													Confirm
-												</Button>
-											)}
-											{order.status === 'confirmed' && (
-												<Button
-													size="sm"
-													onClick={() =>
-														handleStatusUpdate(order.id, 'preparing')
-													}
-													disabled={updatingOrderId === order.id}
-													className="h-8 text-xs font-medium"
-												>
-													{updatingOrderId === order.id ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <ChefHat className="mr-1.5 h-3.5 w-3.5" />}
-													Start
-												</Button>
-											)}
-											{order.status === 'preparing' && (
-												<Button
-													size="sm"
-													onClick={() => handleStatusUpdate(order.id, 'ready')}
-													disabled={updatingOrderId === order.id}
-													className="h-8 text-xs font-medium"
-												>
-													{updatingOrderId === order.id ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Package className="mr-1.5 h-3.5 w-3.5" />}
-													Ready
-												</Button>
-											)}
-											{order.status === 'ready' && (
-												<Button
-													size="sm"
-													onClick={() => handleCompleteClick(order)}
-													className="h-8 text-xs font-medium bg-[#E0342A] hover:bg-[#E0342A]/90"
-												>
-													<CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-													Complete
-												</Button>
-											)}
-											{order.status !== 'completed' &&
-												order.status !== 'cancelled' && (
-													<Button
-														size="icon"
-														variant="ghost"
-														onClick={() =>
-															handleStatusUpdate(order.id, 'cancelled')
-														}
-														className="h-8 w-8 text-red-400 hover:bg-red-400/10 hover:text-red-300"
-													>
-														<XCircle className="h-4 w-4" />
-													</Button>
+								{/* Footer Actions */}
+								<div className="mt-auto space-y-2.5 pt-3">
+									<div className="flex items-center justify-between gap-1.5">
+										{order.status === 'pending' && (
+											<button
+												onClick={() => handleStatusUpdate(order.id, 'confirmed')}
+												disabled={updatingOrderId === order.id}
+												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#E0342A] hover:bg-[#C42A21] py-2 text-xs font-semibold text-white transition-all shadow-[0_4px_12px_rgba(224,52,42,0.3)] disabled:opacity-50 cursor-pointer h-9"
+											>
+												{updatingOrderId === order.id ? (
+													<Loader2 className="h-3.5 w-3.5 animate-spin" />
+												) : (
+													<CheckCircle2 className="h-3.5 w-3.5" />
 												)}
-										</div>
+												Confirm Order
+											</button>
+										)}
+										{order.status === 'confirmed' && (
+											<button
+												onClick={() => handleStatusUpdate(order.id, 'preparing')}
+												disabled={updatingOrderId === order.id}
+												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/15 py-2 text-xs font-semibold text-white transition-all border border-white/5 disabled:opacity-50 cursor-pointer h-9"
+											>
+												{updatingOrderId === order.id ? (
+													<Loader2 className="h-3.5 w-3.5 animate-spin" />
+												) : (
+													<ChefHat className="h-3.5 w-3.5" />
+												)}
+												Start Cooking
+											</button>
+										)}
+										{order.status === 'preparing' && (
+											<button
+												onClick={() => handleStatusUpdate(order.id, 'ready')}
+												disabled={updatingOrderId === order.id}
+												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/15 py-2 text-xs font-semibold text-white transition-all border border-white/5 disabled:opacity-50 cursor-pointer h-9"
+											>
+												{updatingOrderId === order.id ? (
+													<Loader2 className="h-3.5 w-3.5 animate-spin" />
+												) : (
+													<Package className="h-3.5 w-3.5" />
+												)}
+												Mark Ready
+											</button>
+										)}
+										{order.status === 'ready' && (
+											<button
+												onClick={() => handleCompleteClick(order)}
+												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#E0342A] hover:bg-[#C42A21] py-2 text-xs font-semibold text-white transition-all shadow-[0_4px_12px_rgba(224,52,42,0.3)] cursor-pointer h-9"
+											>
+												<CheckCircle2 className="h-3.5 w-3.5" />
+												Complete Order
+											</button>
+										)}
+										{order.status !== 'completed' && order.status !== 'cancelled' && (
+											<button
+												onClick={() => handleStatusUpdate(order.id, 'cancelled')}
+												disabled={updatingOrderId === order.id}
+												className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/5 bg-white/[0.02] text-white/50 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all cursor-pointer"
+												title="Cancel Order"
+											>
+												<XCircle className="h-4 w-4" />
+											</button>
+										)}
 									</div>
 
 									{/* Send Bill Action */}
-									<Button
-										variant="ghost"
-										size="sm"
+									<button
 										onClick={() => handleSendBill(order)}
 										disabled={sendingBillId !== null}
-										className="w-full border border-white/10 text-white/70 hover:bg-white/10 hover:text-white h-9"
+										className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.01] hover:bg-white/5 hover:border-white/15 py-2 text-xs font-medium text-white/80 transition-all cursor-pointer h-9"
 									>
 										{sendingBillId === order.id ? (
 											<div className="flex items-center gap-1.5 justify-center">
 												<div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-												<span>Sending...</span>
+												<span>Sending Bill...</span>
 											</div>
 										) : (
 											<>
-												<Receipt className="mr-2 h-4 w-4" />
-												Send Bill to WhatsApp
+												<Receipt className="h-3.5 w-3.5 text-[#E0342A]" />
+												<span>Send Bill via WhatsApp</span>
 											</>
 										)}
-									</Button>
+									</button>
 
-									{/* Edit and Delete Buttons - Fixed at bottom */}
-									<div className="flex items-center gap-2 border-t border-white/10 pt-3">
-											<Button
-											variant="ghost"
-												size="sm"
+									{/* Edit and Delete Buttons */}
+									<div className="flex items-center gap-2 border-t border-white/[0.06] pt-2.5">
+										<button
 											onClick={() => handleEditClick(order)}
-											className="flex-1 border border-white/10 hover:bg-white/10"
+											className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.01] hover:bg-white/5 hover:border-white/15 py-2 text-xs font-medium text-white/80 transition-all cursor-pointer h-9"
 										>
-											<Edit className="mr-2 h-4 w-4" />
-											Edit
-										</Button>
+											<Edit className="h-3.5 w-3.5 text-white/40" />
+											<span>Edit</span>
+										</button>
 										<AlertDialog>
 											<AlertDialogTrigger asChild>
-												<Button
-												variant="ghost"
-													size="sm"
-													className="flex-1 border border-red-400/20 text-red-400 hover:bg-red-400/10 hover:text-red-300"
+												<button
+													className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-red-500/10 bg-red-500/[0.01] hover:bg-red-500/10 hover:border-red-500/20 py-2 text-xs font-medium text-red-400 transition-all cursor-pointer h-9"
 												>
-													<Trash2 className="mr-2 h-4 w-4" />
-													Delete
-												</Button>
+													<Trash2 className="h-3.5 w-3.5" />
+													<span>Delete</span>
+												</button>
 											</AlertDialogTrigger>
-											<AlertDialogContent>
+											<AlertDialogContent className="bg-[#0d0d0f]/98 border border-white/10 rounded-2xl">
 												<AlertDialogHeader>
-													<AlertDialogTitle>
+													<AlertDialogTitle className="text-white">
 														Delete Order #{order.id.slice(0, 8).toUpperCase()}?
 													</AlertDialogTitle>
-													<AlertDialogDescription>
+													<AlertDialogDescription className="text-white/60">
 														This order will be permanently deleted. This action
 														cannot be undone.
 													</AlertDialogDescription>
 												</AlertDialogHeader>
 												<AlertDialogFooter>
-													<AlertDialogCancel>Keep Order</AlertDialogCancel>
+													<AlertDialogCancel className="bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl">
+														Keep Order
+													</AlertDialogCancel>
 													<AlertDialogAction
-												onClick={() => handleDelete(order.id)}
-														className="bg-red-500 hover:bg-red-600"
-											>
-												Delete
+														onClick={() => handleDelete(order.id)}
+														className="bg-red-500 hover:bg-red-600 text-white rounded-xl"
+													>
+														Delete
 													</AlertDialogAction>
 												</AlertDialogFooter>
 											</AlertDialogContent>
@@ -1387,7 +1427,7 @@ export default function OrdersPage() {
 						initial={{ opacity: 0, x: 80 }}
 						animate={{ opacity: 1, x: 0 }}
 						exit={{ opacity: 0, x: 80 }}
-						className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-white/10 bg-gradient-to-br from-[#121633] via-[#060915] to-[#030308] p-6 shadow-[0_40px_120px_rgba(3,5,18,0.85)]"
+						className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-white/10 bg-gradient-to-br from-[#1c0808] via-[#080202] to-[#000000] p-6 shadow-[0_40px_120px_rgba(0,0,0,0.9)]"
 					>
 						<div className="mb-6 flex items-center justify-between">
 							<div>
@@ -1405,13 +1445,13 @@ export default function OrdersPage() {
 									setEditingOrder(null)
 									setEditedItems([])
 									setEditCustomerName('')
+									setEditCustomerPhone('')
 									setEditTableNumber(null)
 									setEditOrderType('dine_in')
 									setEditDiscountType(null)
 									setEditDiscountValue('')
 									setShowAddItem(false)
 									setItemSearchQuery('')
-									setSelectedCategoryForItem(null)
 								}}
 							>
 								<X className="h-5 w-5" />
@@ -1426,43 +1466,80 @@ export default function OrdersPage() {
 								</h3>
 								<div className="space-y-3">
 									<div>
-										<label className="mb-1 block text-xs text-white/60">
-											Customer Name
-										</label>
-										<input
-											type="text"
-											value={editCustomerName}
-											onChange={(e) => setEditCustomerName(e.target.value)}
-											placeholder="Enter customer name"
-											className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
-										/>
+										<p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
+											<User className="h-3 w-3" /> Customer
+											{customerExists ? (
+												<span className="font-normal normal-case tracking-normal text-[#E0342A]">
+													· returning
+												</span>
+											) : (
+												<span className="font-normal normal-case tracking-normal text-white/25">
+													· optional
+												</span>
+											)}
+										</p>
+										<div className="grid grid-cols-2 gap-2">
+											<input
+												value={editCustomerPhone}
+												onChange={(e) => setEditCustomerPhone(e.target.value)}
+												placeholder="Phone"
+												type="tel"
+												className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+											/>
+											<input
+												value={editCustomerName}
+												onChange={(e) => setEditCustomerName(e.target.value)}
+												placeholder="Name"
+												className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+											/>
+										</div>
 									</div>
 									<div className="grid grid-cols-2 gap-3">
-										<div>
+										<div className="col-span-2">
 											<label className="mb-1.5 block text-xs text-white/60">
 												Order Type
 											</label>
 											<CustomSelect
 												value={editOrderType}
-												onChange={(val) => setEditOrderType(val as any)}
+												onChange={(val) => {
+													setEditOrderType(val as any)
+													if (val !== 'dine_in') setEditTableNumber(null)
+												}}
 												options={orderTypeOptions}
 												placeholder="Select type"
 											/>
 										</div>
-										{editOrderType === 'dine_in' && (
-											<div>
-												<label className="mb-1.5 block text-xs text-white/60">
-													Table
-												</label>
-												<CustomSelect
-													value={editTableNumber || ''}
-													onChange={(val) => setEditTableNumber(val || null)}
-													options={tableOptions}
-													placeholder="Select table"
-												/>
-											</div>
-										)}
 									</div>
+									{editOrderType === 'dine_in' && (
+										<div>
+											<p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
+												<Table className="h-3 w-3" /> Table
+												{!editTableNumber && <span className="text-[#E0342A]">*</span>}
+											</p>
+											<div className="flex gap-1.5 overflow-x-auto pb-1.5 [&::-webkit-scrollbar]:hidden">
+												{tablesWithStatus.map((t) => {
+													const isSel = editTableNumber === t.number
+													return (
+														<button
+															key={t.id}
+															type="button"
+															onClick={() => setEditTableNumber(isSel ? null : t.number)}
+															className={cn(
+																'shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition cursor-pointer',
+																isSel
+																	? 'border-[#E0342A] bg-[#E0342A] text-white'
+																	: t.status === 'occupied'
+																		? 'border-[#E0342A]/25 bg-[#E0342A]/[0.08] text-white/90 hover:border-[#E0342A]/50'
+																		: 'border-white/[0.08] bg-white/[0.02] text-white/70 hover:border-white/20 hover:text-white'
+															)}
+														>
+															{t.number}
+														</button>
+													)
+												})}
+											</div>
+										</div>
+									)}
 								</div>
 							</div>
 
@@ -1487,7 +1564,7 @@ export default function OrdersPage() {
 								{showAddItem && (
 									<div className="rounded-lg border border-white/10 bg-white/5 p-4">
 										<div className="mb-3">
-											<div className="relative mb-2">
+											<div className="relative">
 												<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
 												<input
 													type="text"
@@ -1496,35 +1573,6 @@ export default function OrdersPage() {
 													onChange={(e) => setItemSearchQuery(e.target.value)}
 													className="w-full rounded-lg border border-white/10 bg-white/5 pl-10 pr-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
 												/>
-											</div>
-											<div className="flex gap-2 overflow-x-auto">
-												<Button
-													variant={
-														selectedCategoryForItem === null
-															? 'default'
-															: 'ghost'
-													}
-													size="sm"
-													onClick={() => setSelectedCategoryForItem(null)}
-													className="shrink-0 text-xs"
-												>
-													All
-												</Button>
-												{categories.map((cat) => (
-													<Button
-														key={cat.id}
-														variant={
-															selectedCategoryForItem === cat.id
-																? 'default'
-																: 'ghost'
-														}
-														size="sm"
-														onClick={() => setSelectedCategoryForItem(cat.id)}
-														className="shrink-0 text-xs"
-													>
-														{cat.name}
-													</Button>
-												))}
 											</div>
 										</div>
 										<div className="max-h-48 space-y-2 overflow-y-auto">
@@ -1577,62 +1625,54 @@ export default function OrdersPage() {
 									</div>
 								)}
 
-								{editedItems.map((item, index) => (
-									<div
-										key={index}
-										className="rounded-lg border border-white/10 bg-white/5 p-4"
-									>
-										<div className="mb-3 flex items-start justify-between">
-											<div className="flex-1">
-												<p className="font-medium text-white">{item.name}</p>
-												<p className="mt-1 text-sm text-white/60">
-													{currencySymbol}
-													{item.unitPrice.toFixed(2)} each
+								{editedItems.map((item, index) => {
+									const itemPrice = item.totalPrice
+									const hasTrash = item.quantity <= 1
+									return (
+										<div
+											key={index}
+											className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2"
+										>
+											<div className="min-w-0 flex-1">
+												<p className="truncate text-sm font-medium text-white">{item.name}</p>
+												<p className="truncate text-[11px] text-white/40">
+													{currencySymbol}{item.unitPrice.toFixed(0)} each
+													{item.notes ? ` · ${item.notes}` : ''}
 												</p>
-												{item.notes && (
-													<p className="mt-1 text-xs text-white/50">
-														{item.notes}
-													</p>
-												)}
 											</div>
-											<Button
-												size="icon"
-												variant="ghost"
-												onClick={() => handleRemoveItem(index)}
-												className="h-8 w-8 text-red-400 hover:bg-red-400/10"
-											>
-												<Trash2 className="h-4 w-4" />
-											</Button>
-										</div>
-										<div className="flex items-center justify-between">
-											<div className="flex items-center gap-3">
-												<Button
-													size="icon"
-													variant="ghost"
-													onClick={() => handleUpdateItemQuantity(index, -1)}
-													className="h-8 w-8 border border-white/10"
+											<div className="flex items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.03] p-0.5">
+												<button
+													type="button"
+													onClick={() =>
+														hasTrash
+															? handleRemoveItem(index)
+															: handleUpdateItemQuantity(index, -1)
+													}
+													className="flex h-6 w-6 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white"
 												>
-													<Minus className="h-4 w-4" />
-												</Button>
-												<span className="w-8 text-center font-medium text-white">
+													{hasTrash ? (
+														<Trash2 className="h-3 w-3 text-red-400" />
+													) : (
+														<Minus className="h-3 w-3" />
+													)}
+												</button>
+												<span className="w-5 text-center text-xs font-semibold tabular-nums text-white">
 													{item.quantity}
 												</span>
-												<Button
-													size="icon"
-													variant="ghost"
+												<button
+													type="button"
 													onClick={() => handleUpdateItemQuantity(index, 1)}
-													className="h-8 w-8 border border-white/10"
+													className="flex h-6 w-6 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white"
 												>
-													<Plus className="h-4 w-4" />
-												</Button>
+													<Plus className="h-3 w-3" />
+												</button>
 											</div>
-											<p className="text-lg font-semibold text-white">
-												{currencySymbol}
-												{item.totalPrice.toFixed(2)}
+											<p className="w-14 shrink-0 text-right text-sm font-semibold tabular-nums text-white">
+												{currencySymbol}{itemPrice.toFixed(0)}
 											</p>
 										</div>
-									</div>
-								))}
+									)
+								})}
 							</div>
 
 							{/* Discount Section */}
@@ -1706,15 +1746,6 @@ export default function OrdersPage() {
 
 							{/* Summary */}
 							<div className="rounded-lg border border-white/10 bg-white/5 p-4">
-								<div className="mb-3 flex items-center justify-between text-sm">
-									<span className="text-white/60">Subtotal</span>
-									<span className="font-medium text-white">
-										{currencySymbol}
-										{editedItems
-											.reduce((sum, item) => sum + item.totalPrice, 0)
-											.toFixed(2)}
-									</span>
-								</div>
 								{taxRate > 0 && (
 									<div className="mb-3 flex items-center justify-between text-sm">
 										<span className="text-white/60">Tax</span>
@@ -1820,7 +1851,7 @@ export default function OrdersPage() {
 						initial={{ opacity: 0, x: 80 }}
 						animate={{ opacity: 1, x: 0 }}
 						exit={{ opacity: 0, x: 80 }}
-						className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-white/10 bg-gradient-to-br from-[#121633] via-[#060915] to-[#030308] p-8 shadow-[0_40px_120px_rgba(3,5,18,0.85)]"
+						className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-white/10 bg-gradient-to-br from-[#1c0808] via-[#080202] to-[#000000] p-8 shadow-[0_40px_120px_rgba(0,0,0,0.9)]"
 					>
 						<div className="flex items-center justify-between mb-6">
 							<div>
@@ -1850,13 +1881,6 @@ export default function OrdersPage() {
 							{/* Order Summary */}
 							<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
 								<div className="flex items-center justify-between text-sm text-white/70 mb-2">
-									<span>Subtotal</span>
-									<span>
-										{currencySymbol}
-										{completingOrder.subtotal.toFixed(2)}
-									</span>
-								</div>
-								<div className="flex items-center justify-between text-sm text-white/70 mb-2">
 									<span>Tax</span>
 									<span>
 										{currencySymbol}
@@ -1864,8 +1888,7 @@ export default function OrdersPage() {
 									</span>
 								</div>
 								{(calculatedDiscount > 0 ||
-									(completingOrder.discount_amount &&
-										completingOrder.discount_amount > 0)) && (
+									(completingOrder.discount_amount ?? 0) > 0) && (
 									<div className="flex items-center justify-between text-sm text-white/70 mb-2">
 										<span>
 											Discount

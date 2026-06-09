@@ -164,8 +164,8 @@ export default async function DashboardPage() {
 		.select('id, total')
 		.eq('tenant_id', tenant.id)
 		.eq('status', 'completed')
-		.gte('completed_at', yesterdayStart)
-		.lte('completed_at', yesterdayEnd)
+		.gte('created_at', yesterdayStart)
+		.lte('created_at', yesterdayEnd)
 
 	// Pending orders (not completed/cancelled)
 	const { data: pendingOrders } = await supabase

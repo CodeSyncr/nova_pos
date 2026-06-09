@@ -75,12 +75,12 @@ export async function getSalesReport(
 
 	const { data: orders, error } = await supabase
 		.from('orders')
-		.select('completed_at, subtotal, tax, discount_amount, total')
+		.select('created_at, subtotal, tax, discount_amount, total')
 		.eq('tenant_id', tenantId)
 		.eq('status', 'completed')
-		.gte('completed_at', dateRange.startDate)
-		.lte('completed_at', dateRange.endDate)
-		.order('completed_at', { ascending: true })
+		.gte('created_at', dateRange.startDate)
+		.lte('created_at', dateRange.endDate)
+		.order('created_at', { ascending: true })
 
 	if (error) throw new Error(error.message)
 
@@ -88,8 +88,8 @@ export async function getSalesReport(
 	const dailyMap = new Map<string, SalesReportRow>()
 
 	orders?.forEach((order) => {
-		if (!order.completed_at) return
-		const date = new Date(order.completed_at).toISOString().split('T')[0]!
+		if (!order.created_at) return
+		const date = new Date(order.created_at).toISOString().split('T')[0]!
 		const existing = dailyMap.get(date) || {
 			date,
 			orderCount: 0,
@@ -126,8 +126,8 @@ export async function getItemSalesReport(
 		.select('order_items(name, quantity, unit_price, total_price)')
 		.eq('tenant_id', tenantId)
 		.eq('status', 'completed')
-		.gte('completed_at', dateRange.startDate)
-		.lte('completed_at', dateRange.endDate)
+		.gte('created_at', dateRange.startDate)
+		.lte('created_at', dateRange.endDate)
 
 	if (error) throw new Error(error.message)
 
@@ -189,8 +189,8 @@ export async function getCategorySalesReport(
 		.select('order_items(name, quantity, total_price)')
 		.eq('tenant_id', tenantId)
 		.eq('status', 'completed')
-		.gte('completed_at', dateRange.startDate)
-		.lte('completed_at', dateRange.endDate)
+		.gte('created_at', dateRange.startDate)
+		.lte('created_at', dateRange.endDate)
 
 	if (error) throw new Error(error.message)
 
@@ -234,11 +234,11 @@ export async function getCustomerReport(
 
 	const { data: orders, error } = await supabase
 		.from('orders')
-		.select('customer_name, customer_phone, customer_email, total, completed_at')
+		.select('customer_name, customer_phone, customer_email, total, created_at')
 		.eq('tenant_id', tenantId)
 		.eq('status', 'completed')
-		.gte('completed_at', dateRange.startDate)
-		.lte('completed_at', dateRange.endDate)
+		.gte('created_at', dateRange.startDate)
+		.lte('created_at', dateRange.endDate)
 		.not('customer_phone', 'is', null)
 
 	if (error) throw new Error(error.message)
@@ -258,8 +258,8 @@ export async function getCustomerReport(
 		}
 		existing.orderCount += 1
 		existing.totalSpent += order.total || 0
-		if (!existing.lastOrderDate || (order.completed_at && order.completed_at > existing.lastOrderDate)) {
-			existing.lastOrderDate = order.completed_at
+		if (!existing.lastOrderDate || (order.created_at && order.created_at > existing.lastOrderDate)) {
+			existing.lastOrderDate = order.created_at
 		}
 		customerMap.set(key, existing)
 	})
@@ -282,8 +282,8 @@ export async function getPaymentMethodReport(
 		.select('payment_method, total')
 		.eq('tenant_id', tenantId)
 		.eq('status', 'completed')
-		.gte('completed_at', dateRange.startDate)
-		.lte('completed_at', dateRange.endDate)
+		.gte('created_at', dateRange.startDate)
+		.lte('created_at', dateRange.endDate)
 
 	if (error) throw new Error(error.message)
 
@@ -381,20 +381,20 @@ export async function getTaxReport(
 
 	const { data: orders, error } = await supabase
 		.from('orders')
-		.select('completed_at, subtotal, tax')
+		.select('created_at, subtotal, tax')
 		.eq('tenant_id', tenantId)
 		.eq('status', 'completed')
-		.gte('completed_at', dateRange.startDate)
-		.lte('completed_at', dateRange.endDate)
-		.order('completed_at', { ascending: true })
+		.gte('created_at', dateRange.startDate)
+		.lte('created_at', dateRange.endDate)
+		.order('created_at', { ascending: true })
 
 	if (error) throw new Error(error.message)
 
 	const dailyMap = new Map<string, TaxReportRow>()
 
 	orders?.forEach((order) => {
-		if (!order.completed_at) return
-		const date = new Date(order.completed_at).toISOString().split('T')[0]!
+		if (!order.created_at) return
+		const date = new Date(order.created_at).toISOString().split('T')[0]!
 		const existing = dailyMap.get(date) || {
 			date,
 			taxableAmount: 0,

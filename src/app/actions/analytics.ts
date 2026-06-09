@@ -79,9 +79,9 @@ export async function getAnalytics(
 		)
 		.eq('tenant_id', tenantId)
 		.eq('status', 'completed')
-		.gte('completed_at', dateRange.startDate)
-		.lte('completed_at', dateRange.endDate)
-		.order('completed_at', { ascending: true })
+		.gte('created_at', dateRange.startDate)
+		.lte('created_at', dateRange.endDate)
+		.order('created_at', { ascending: true })
 
 	if (ordersError) {
 		throw new Error(`Error fetching orders: ${ordersError.message}`)
@@ -218,9 +218,9 @@ export async function getAnalytics(
 	const dailyMap = new Map<string, { sales: number; spendings: number }>()
 
 	orders?.forEach((order) => {
-		if (!order.completed_at) return
+		if (!order.created_at) return
 		// Get date string in YYYY-MM-DD format using local date (same as startDateOnly)
-		const orderDateLocal = new Date(order.completed_at)
+		const orderDateLocal = new Date(order.created_at)
 		const orderDate = formatLocalDate(orderDateLocal)
 		// Strict comparison: only include dates >= startDateOnly and <= endDateOnly
 		// This ensures Jan 4th is excluded when start date is Jan 5th
@@ -335,12 +335,12 @@ export async function getAnalytics(
 		const { data: prevOrders } = await prevSupabase
 			.from('orders')
 			.select(
-				'id, total, subtotal, tax, discount_amount, completed_at, order_items(name, quantity, unit_price, total_price)'
+				'id, total, subtotal, tax, discount_amount, created_at, order_items(name, quantity, unit_price, total_price)'
 			)
 			.eq('tenant_id', tenantId)
 			.eq('status', 'completed')
-			.gte('completed_at', previousDateRange.startDate)
-			.lte('completed_at', previousDateRange.endDate)
+			.gte('created_at', previousDateRange.startDate)
+			.lte('created_at', previousDateRange.endDate)
 
 		// Extract date-only strings for previous period using local dates
 		const prevStartDateLocal = new Date(previousDateRange.startDate)
