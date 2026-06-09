@@ -99,13 +99,27 @@ export function PurchaseForm({
 					.order('name')
 
 				setIngredients((ingredientsData as Ingredient[]) || [])
+
+				// Pre-populate if editing
+				if (purchase) {
+					setSelectedSupplierId(purchase.supplier_id || '')
+					setPurchaseDate(purchase.purchase_date || new Date().toISOString().split('T')[0])
+					setInvoiceNumber(purchase.invoice_number || '')
+					setNotes(purchase.notes || '')
+					// Set direct amount from the purchase total
+					const p = purchase as any
+					if (p.total_amount) {
+						setPurchaseType('amount')
+						setDirectAmount(p.total_amount.toString())
+					}
+				}
 			} catch (error) {
 				console.error('Error loading data:', error)
 			}
 		}
 
 		loadData()
-	}, [tenantId])
+	}, [tenantId, purchase])
 
 	const addItem = () => {
 		setItems([
@@ -546,7 +560,7 @@ export function PurchaseForm({
 							Cancel
 						</Button>
 						<Button type="submit" disabled={saving}>
-							{saving ? 'Saving...' : 'Create Purchase'}
+							{saving ? 'Saving...' : purchase ? 'Update Purchase' : 'Create Purchase'}
 						</Button>
 					</div>
 				</form>
