@@ -40,9 +40,82 @@ function hexToRgb(hex: string): [number, number, number] {
 	return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255]
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BLUETOOTH PRINTER CONFIG
+//
+// Step 1: Run this one-time in your browser console on the same page to find
+//         the exact BLE name your AT-402 broadcasts:
+//
+//   navigator.bluetooth.requestDevice({ acceptAllDevices: true })
+//     .then(d => console.log('Name:', d.name, '| ID:', d.id))
+//
+// Step 2: Replace the value below with whatever name was logged.
+//         Common AT-402 names: 'Printer001', 'RPP02N', 'BT Printer', 'MTP-II'
+//
+// After the user picks the printer ONCE via the popup, the browser remembers
+// the permission and getDevices() will return it on every subsequent call —
+// no popup shown again.
+// ─────────────────────────────────────────────────────────────────────────────
+const PRINTER_NAME = 'Printer001' // ← change this to your actual printer BLE name
+
 /**
- * Generates a styled PDF bill, uploads to Supabase Storage, returns the public URL.
+ * Returns a connected BluetoothDevice for the thermal printer.
+ *
+ * Flow:
+ *  1. Try getDevices() — returns previously permitted devices without any popup.
+ *  2. If the printer is found, connect (or reuse existing connection) and return.
+ *  3. If not found (first time), fall back to requestDevice() which shows the
+ *     picker once. After the user selects it, the browser remembers permission
+ *     so future calls skip the picker.
  */
+async function getPrinter(commonServices: string[]): Promise<any> {
+	if (typeof window === 'undefined' || !(navigator as any).bluetooth) {
+		throw new Error(
+			'Web Bluetooth is not supported on this browser or device. Please use Chrome or Edge.'
+		)
+	}
+
+	// ── 1. Try to reuse a previously permitted device (no popup) ──────────────
+	if (typeof (navigator as any).bluetooth.getDevices === 'function') {
+		try {
+			const devices: any[] = await (navigator as any).bluetooth.getDevices()
+			console.log('[BT] Previously permitted devices returned by browser:', devices.map(d => ({ name: d.name, id: d.id })))
+			
+			const printer = devices.find((d) => 
+				d.name && d.name.trim().toLowerCase() === PRINTER_NAME.trim().toLowerCase()
+			)
+
+			if (printer) {
+				console.log('[BT] Found permitted printer in getDevices():', printer.name)
+				// Reconnect if GATT dropped (e.g. printer was powered off and back on)
+				if (!printer.gatt!.connected) {
+					console.log('[BT] Connecting to printer GATT server...')
+					await printer.gatt!.connect()
+					console.log('[BT] GATT connected successfully.')
+				}
+				return printer
+			} else {
+				console.log(`[BT] No permitted device matches name "${PRINTER_NAME}"`)
+			}
+		} catch (e) {
+			// getDevices() can throw if the Permissions Policy blocks it
+			console.warn('[BT] getDevices() lookup failed, falling back to requestDevice():', e)
+		}
+	}
+
+	// ── 2. First-time: show the picker so the user grants permission once ──────
+	console.log('[BT] No permitted printer found — showing device picker')
+	const device = await (navigator as any).bluetooth.requestDevice({
+		filters: [{ name: PRINTER_NAME }],
+		optionalServices: commonServices,
+	})
+
+	console.log('[BT] User selected printer:', device.name, '- connecting to GATT...')
+	await device.gatt!.connect()
+	console.log('[BT] GATT connected successfully.')
+	return device
+}
+
 /**
  * Generates the PDF document natively using jsPDF.
  */
@@ -434,7 +507,6 @@ export function openWhatsApp(
 	}
 
 	// Use location.href for PWA standalone mode (window.open is blocked)
-	// Check if running as installed PWA
 	const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
 		(window.navigator as any).standalone === true
 
@@ -447,13 +519,17 @@ export function openWhatsApp(
 
 /**
  * Generates raw ESC/POS commands from order details and prints to a BLE thermal printer.
+ *
+ * On first call: shows the browser device picker once so the user grants permission.
+ * On subsequent calls: silently reconnects using getDevices() — no popup shown.
  */
 export async function printBluetoothBill(config: BillConfig): Promise<void> {
 	if (typeof window === 'undefined' || !(navigator as any).bluetooth) {
-		throw new Error('Web Bluetooth is not supported on this browser or device. Please use Chrome/Edge.')
+		throw new Error(
+			'Web Bluetooth is not supported on this browser or device. Please use Chrome or Edge.'
+		)
 	}
 
-	// 1. Request or retrieve allowed device
 	const commonServices = [
 		'000018f0-0000-1000-8000-00805f9b34fb', // Standard BLE Printing
 		'0000ff00-0000-1000-8000-00805f9b34fb', // Custom thermal printer service
@@ -461,57 +537,21 @@ export async function printBluetoothBill(config: BillConfig): Promise<void> {
 		'e7e1a000-86f1-4a91-9128-520904ab0306'
 	]
 
-	let device: any = null
-
-	// Check if we already have permission for a previously paired printer (auto-connect)
-	if ((navigator as any).bluetooth.getDevices) {
-		try {
-			const allowedDevices = await (navigator as any).bluetooth.getDevices()
-			// Find 'Printer 001' or any other device that is a printer
-			device = allowedDevices.find((d: any) => 
-				d.name === 'Printer 001' || 
-				d.name?.toLowerCase().includes('printer') ||
-				d.name?.toLowerCase().includes('mpt')
-			)
-			if (!device && allowedDevices.length > 0) {
-				device = allowedDevices[0]
-			}
-		} catch (e) {
-			console.warn('Failed to retrieve allowed Bluetooth devices:', e)
-		}
-	}
-
-	// If no permitted device was found, show the chooser dialog, filtered to focus on your printer
-	if (!device) {
-		try {
-			device = await (navigator as any).bluetooth.requestDevice({
-				filters: [
-					{ name: 'Printer 001' },
-					{ namePrefix: 'Printer' },
-					{ namePrefix: 'printer' },
-					{ namePrefix: 'MPT' },
-					{ namePrefix: 'mpt' }
-				],
-				optionalServices: commonServices
-			})
-		} catch (pairErr) {
-			console.warn('Filtered pairing failed or rejected, falling back to show all devices:', pairErr)
-			// Fallback: show all devices
-			device = await (navigator as any).bluetooth.requestDevice({
-				acceptAllDevices: true,
-				optionalServices: commonServices
-			})
-		}
-	}
+	// ── 1. Get printer (reuses existing permission, no popup after first time) ──
+	const device = await getPrinter(commonServices)
 
 	if (!device || !device.gatt) {
-		throw new Error('No Bluetooth device selected.')
+		throw new Error('No Bluetooth device found.')
 	}
 
-	// Connect to GATT
-	const server = await device.gatt.connect()
+	// ── 2. Ensure GATT is connected ────────────────────────────────────────────
+	// getPrinter already connects, but guard here in case something disconnected
+	// between getPrinter returning and this line executing.
+	const server = device.gatt.connected
+		? device.gatt
+		: await device.gatt.connect()
 
-	// 2. Find primary service and write characteristic
+	// ── 3. Find writable characteristic ───────────────────────────────────────
 	let service: any = null
 	let characteristic: any = null
 
@@ -529,11 +569,11 @@ export async function printBluetoothBill(config: BillConfig): Promise<void> {
 				if (characteristic) break
 			}
 		} catch (e) {
-			console.warn(`BLE service ${serviceUuid} not found or inaccessible.`)
+			console.warn(`[BT] Service ${serviceUuid} not found or inaccessible.`)
 		}
 	}
 
-	// Fallback to searching all primary services if not found
+	// Fallback: search all primary services
 	if (!characteristic) {
 		try {
 			const services = await server.getPrimaryServices()
@@ -549,20 +589,22 @@ export async function printBluetoothBill(config: BillConfig): Promise<void> {
 				if (characteristic) break
 			}
 		} catch (e) {
-			console.warn('Failed to query all primary services:', e)
+			console.warn('[BT] Failed to query all primary services:', e)
 		}
 	}
 
 	if (!characteristic) {
-		throw new Error('Could not find write capability on this Bluetooth device. Make sure it is a receipt printer.')
+		throw new Error(
+			'Could not find a writable characteristic on this Bluetooth device. Make sure it is a receipt printer.'
+		)
 	}
 
-	// 3. Format receipt
+	// ── 4. Build ESC/POS receipt ───────────────────────────────────────────────
 	const { order, template: t, tenantName, currencySymbol } = config
 	const charWidth = 48
 	const sym = (currencySymbol === '\u20B9' || currencySymbol === '₹') ? 'Rs' : currencySymbol
 	const formatAmt = (n: number) => `${sym} ${n.toFixed(2)}`
-	
+
 	const encoder = new EscPosEncoder()
 	encoder.initialize()
 
@@ -574,45 +616,34 @@ export async function printBluetoothBill(config: BillConfig): Promise<void> {
 	encoder.sizeNormal()
 	encoder.bold(false)
 
-	if (t.taglineText) {
-		encoder.line(t.taglineText)
-	}
-	if (t.showAddress && t.addressText) {
-		encoder.line(t.addressText)
-	}
-	if (t.showPhone && t.phoneText) {
-		encoder.line(t.phoneText)
-	}
-	
+	if (t.taglineText) encoder.line(t.taglineText)
+	if (t.showAddress && t.addressText) encoder.line(t.addressText)
+	if (t.showPhone && t.phoneText) encoder.line(t.phoneText)
+
 	encoder.divider(charWidth)
 
 	// Order meta
 	encoder.alignLeft()
 	encoder.row('Order #', `#${order.id.slice(0, 8).toUpperCase()}`, charWidth)
-	
+
 	const formatDate = (iso: string) => {
 		const d = new Date(iso)
-		return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) + ' ' + 
+		return (
+			d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) +
+			' ' +
 			d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+		)
 	}
 	encoder.row('Date', formatDate(order.created_at), charWidth)
 
-	if (t.showOrderType) {
-		encoder.row('Type', order.order_type.replace('_', ' ').toUpperCase(), charWidth)
-	}
-	if (t.showTable && order.table_number) {
-		encoder.row('Table', order.table_number, charWidth)
-	}
-	if (order.customer_name) {
-		encoder.row('Customer', order.customer_name, charWidth)
-	}
-	if (order.payment_method) {
-		encoder.row('Payment', order.payment_method.toUpperCase(), charWidth)
-	}
+	if (t.showOrderType) encoder.row('Type', order.order_type.replace('_', ' ').toUpperCase(), charWidth)
+	if (t.showTable && order.table_number) encoder.row('Table', order.table_number, charWidth)
+	if (order.customer_name) encoder.row('Customer', order.customer_name, charWidth)
+	if (order.payment_method) encoder.row('Payment', order.payment_method.toUpperCase(), charWidth)
 
 	encoder.divider(charWidth)
 
-	// Items Header
+	// Items header
 	encoder.bold(true)
 	encoder.threeColumnRow('ITEM', 'QTY', 'AMOUNT', charWidth)
 	encoder.bold(false)
@@ -626,9 +657,7 @@ export async function printBluetoothBill(config: BillConfig): Promise<void> {
 	encoder.divider(charWidth)
 
 	// Totals
-	if (t.showTaxLine && order.tax > 0) {
-		encoder.row('Tax', formatAmt(order.tax), charWidth)
-	}
+	if (t.showTaxLine && order.tax > 0) encoder.row('Tax', formatAmt(order.tax), charWidth)
 	if (order.discount_amount && order.discount_amount > 0) {
 		encoder.row('Discount', `-${formatAmt(order.discount_amount)}`, charWidth)
 	}
@@ -639,7 +668,7 @@ export async function printBluetoothBill(config: BillConfig): Promise<void> {
 
 	encoder.divider(charWidth)
 
-	// Direct UPI QR Payment if unpaid
+	// UPI QR if unpaid
 	if (!order.payment_method) {
 		encoder.alignCenter()
 		encoder.bold(true)
@@ -647,11 +676,11 @@ export async function printBluetoothBill(config: BillConfig): Promise<void> {
 		encoder.bold(false)
 		encoder.line('UPI ID: pizzeriadacafe@kotak')
 		encoder.line(`Amount: ${formatAmt(order.total)}`)
-		encoder.line() // spacing for QR
-		
+		encoder.line()
+
 		const upiUrl = `upi://pay?pa=pizzeriadacafe@kotak&pn=Pizzeria%20Da%20Cafe&am=${order.total.toFixed(2)}&cu=INR`
 		encoder.qrcode(upiUrl)
-		encoder.line() // spacing after QR
+		encoder.line()
 		encoder.divider(charWidth)
 	}
 
@@ -663,21 +692,18 @@ export async function printBluetoothBill(config: BillConfig): Promise<void> {
 
 	encoder.alignCenter()
 	encoder.line(`ID: ${order.id.slice(0, 12)}`)
-	
+
 	if (t.type === 'thermal') {
 		encoder.line('* '.repeat(Math.floor(charWidth / 2)))
 	}
 
 	encoder.cut()
 
-	// 4. Send chunks (BLE MTU limitations)
+	// ── 5. Send in BLE-safe chunks (max 20 bytes per write) ───────────────────
 	const data = encoder.encode()
 	const chunkSize = 20
 	for (let offset = 0; offset < data.length; offset += chunkSize) {
 		const chunk = data.slice(offset, offset + chunkSize)
 		await characteristic.writeValue(chunk)
 	}
-
-	// Disconnect GATT
-	device.gatt.disconnect()
 }
