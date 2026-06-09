@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 export async function GET(request: Request) {
-	const { searchParams, origin } = new URL(request.url)
+	const host = request.headers.get('host') || ''
+	const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https')
+	const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`
+
+	const { searchParams } = new URL(request.url)
 	const code = searchParams.get('code')
 	// if "next" is in param, use it as the redirect path, else default to /dashboard
 	const next = searchParams.get('next') ?? '/dashboard'
@@ -12,15 +16,7 @@ export async function GET(request: Request) {
 			const supabase = await createSupabaseServerClient()
 			const { error } = await supabase.auth.exchangeCodeForSession(code)
 			if (!error) {
-				const forwardedHost = request.headers.get('x-forwarded-host')
-				const isLocalEnv = process.env.NODE_ENV === 'development'
-				if (isLocalEnv) {
-					return NextResponse.redirect(`${origin}${next}`)
-				} else if (forwardedHost) {
-					return NextResponse.redirect(`https://${forwardedHost}${next}`)
-				} else {
-					return NextResponse.redirect(`${origin}${next}`)
-				}
+				return NextResponse.redirect(`${baseUrl}${next}`)
 			}
 		} catch (err) {
 			console.error('Error in auth callback:', err)
@@ -28,5 +24,5 @@ export async function GET(request: Request) {
 	}
 
 	// return the user to login page with error
-	return NextResponse.redirect(`${origin}/login?error=Could not authenticate user with Google`)
+	return NextResponse.redirect(`${baseUrl}/login?error=Could not authenticate user with Google`)
 }
