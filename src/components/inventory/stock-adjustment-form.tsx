@@ -86,7 +86,7 @@ export function StockAdjustmentForm({
 				initial={{ opacity: 0, x: 80 }}
 				animate={{ opacity: 1, x: 0 }}
 				exit={{ opacity: 0, x: 80 }}
-				className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-white/10 bg-gradient-to-br from-[#121633] via-[#060915] to-[#030308] p-8 shadow-[0_40px_120px_rgba(3,5,18,0.85)]"
+				className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-white/10 bg-black p-8 shadow-[0_40px_120px_rgba(3,5,18,0.85)]"
 			>
 				<div className="flex items-center justify-between mb-6">
 					<div>
@@ -120,7 +120,7 @@ export function StockAdjustmentForm({
 								onClick={() => setAdjustmentType('add')}
 								className={`flex items-center justify-center gap-2 rounded-xl border p-4 transition ${
 									adjustmentType === 'add'
-										? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-300'
+										? 'border-white/20 bg-white/10 text-white'
 										: 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
 								}`}
 							>
@@ -132,7 +132,7 @@ export function StockAdjustmentForm({
 								onClick={() => setAdjustmentType('remove')}
 								className={`flex items-center justify-center gap-2 rounded-xl border p-4 transition ${
 									adjustmentType === 'remove'
-										? 'border-red-400/50 bg-red-500/10 text-red-300'
+										? 'border-[#E0342A]/30 bg-[#E0342A]/10 text-[#E0342A]'
 										: 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
 								}`}
 							>
@@ -163,7 +163,7 @@ export function StockAdjustmentForm({
 								<span
 									className={
 										inventoryItem.current_stock - parseFloat(quantity) < 0
-											? 'text-red-400'
+											? 'text-[#E0342A]'
 											: 'text-white'
 									}
 								>
@@ -178,7 +178,7 @@ export function StockAdjustmentForm({
 						{adjustmentType === 'add' && quantity && (
 							<p className="mt-2 text-sm text-white/60">
 								New stock will be:{' '}
-								<span className="text-emerald-400">
+								<span className="text-white">
 									{inventoryItem.current_stock + parseFloat(quantity)}{' '}
 									{inventoryItem.unit}
 								</span>

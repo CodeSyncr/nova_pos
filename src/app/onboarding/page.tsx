@@ -106,7 +106,7 @@ export default function OnboardingPage() {
 
 	if (isCheckingTenant) {
 		return (
-			<div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#040516] via-[#050A1F] to-[#020308] text-white">
+			<div className="flex min-h-screen items-center justify-center bg-black text-white">
 				<div className="rounded-3xl border border-white/10 bg-white/5 px-12 py-16 text-center backdrop-blur-2xl">
 					<p className="text-sm uppercase tracking-[0.4em] text-white/40">
 						Preparing
@@ -118,11 +118,11 @@ export default function OnboardingPage() {
 	}
 
 	return (
-		<div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-[#040516] via-[#050A1F] to-[#020308] text-white">
+		<div className="relative min-h-screen overflow-hidden bg-black text-white">
 			<div className="pointer-events-none absolute inset-0">
-				<div className="glow -top-32 right-1/3 h-96 w-96 bg-[#7A74FF]/30" />
-				<div className="glow bottom-0 left-12 h-80 w-80 bg-[#4DD4FF]/25" />
-				<div className="glow -bottom-12 right-10 h-80 w-80 bg-[#FF7ACB]/30" />
+				<div className="glow -top-32 right-1/3 h-96 w-96 bg-[#E0342A]/20" />
+				<div className="glow bottom-0 left-12 h-80 w-80 bg-[#E0342A]/15" />
+				<div className="glow -bottom-12 right-10 h-80 w-80 bg-[#E0342A]/15" />
 			</div>
 
 			<div className="relative z-10 mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-10 px-6 py-12">
@@ -131,7 +131,7 @@ export default function OnboardingPage() {
 						<Sparkles className="mr-2 h-4 w-4" /> Story Onboarding
 					</Badge>
 					<h1 className="text-4xl font-semibold leading-tight md:text-5xl">
-						Let’s shape your NovaPOS universe
+						Let’s shape your POS universe
 					</h1>
 					<p className="text-white/70">
 						Three cinematic steps so we can personalize automation rituals,
@@ -147,7 +147,7 @@ export default function OnboardingPage() {
 						</div>
 						<div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
 							<div
-								className="h-full rounded-full bg-gradient-to-r from-[#6B6DFF] to-[#4DD4FF] transition-all"
+								className="h-full rounded-full bg-[#E0342A] transition-all"
 								style={{ width: `${progress}%` }}
 							/>
 						</div>
@@ -168,7 +168,7 @@ export default function OnboardingPage() {
 									Chapter 01
 								</p>
 								<h2 className="text-3xl font-semibold text-white">
-									Welcome to NovaPOS
+									Welcome to POS
 								</h2>
 								<p className="text-white/70">
 									We’ll align on your concept, operations focus, and ownership
@@ -284,7 +284,7 @@ export default function OnboardingPage() {
 									</div>
 								</div>
 								{error ? (
-									<p className="text-sm text-rose-300">{error}</p>
+									<p className="text-sm text-[#E0342A]">{error}</p>
 								) : null}
 								<p className="text-xs text-white/50">
 									This helps calibrate your automations—no marketing spam, ever.
@@ -295,7 +295,7 @@ export default function OnboardingPage() {
 
 					<div className="mt-8 flex flex-col gap-3 border-t border-white/10 pt-6 text-sm text-white/60 md:flex-row md:items-center md:justify-between">
 						<div className="flex items-center gap-2">
-							<Target className="h-4 w-4 text-teal-300" />
+							<Target className="h-4 w-4 text-white/70" />
 							<span>
 								{currentStep < 2
 									? 'Next: personalize automations'

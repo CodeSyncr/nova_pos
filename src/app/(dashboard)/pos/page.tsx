@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createSupabaseServerComponentClient } from '@/lib/supabase/server'
 import { POSInterface } from '@/components/pos/pos-interface'
-import { SubscriptionGuard } from '@/components/subscription-guard'
 
 type TenantRecord = {
 	id: string
@@ -60,6 +59,7 @@ export default async function POSPage() {
           name,
           description,
           base_price,
+          image_url,
           is_active,
           menu_item_variants ( id, name, price_modifier, is_default ),
           menu_item_toppings (
@@ -82,14 +82,12 @@ export default async function POSPage() {
 	const taxRate = ((tenant.settings?.taxRate as number) ?? 0) || 0
 
 	return (
-		<SubscriptionGuard>
-			<POSInterface
-				categories={categories ?? []}
-				tenant={tenant}
-				currencySymbol={currencySymbol}
-				taxRate={taxRate}
-				toppings={toppings ?? []}
-			/>
-		</SubscriptionGuard>
+		<POSInterface
+			categories={categories ?? []}
+			tenant={tenant}
+			currencySymbol={currencySymbol}
+			taxRate={taxRate}
+			toppings={toppings ?? []}
+		/>
 	)
 }

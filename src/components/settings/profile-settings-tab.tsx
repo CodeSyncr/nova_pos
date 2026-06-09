@@ -105,7 +105,7 @@ export function ProfileSettingsTab({
 								className="h-24 w-24 rounded-full object-cover border-2 border-white/20"
 							/>
 						) : (
-							<div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 border-2 border-white/20">
+							<div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/[0.03] border-2 border-white/20">
 								<User className="h-12 w-12 text-white/60" />
 							</div>
 						)}
@@ -153,7 +153,7 @@ export function ProfileSettingsTab({
 					className="rounded-xl border border-white/10 bg-black/20 p-6"
 				>
 					<div className="mb-4 flex items-center gap-3">
-						<User className="h-5 w-5 text-blue-400" />
+						<User className="h-5 w-5 text-[#E0342A]" />
 						<h4 className="text-lg font-semibold text-white">
 							Personal Information
 						</h4>

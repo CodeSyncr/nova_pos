@@ -63,21 +63,21 @@ const orderTypeOptions: SelectOption[] = [
 		label: 'Dine In',
 		icon: ChefHat,
 		description: 'Customer dining in restaurant',
-		colorClass: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+		colorClass: 'text-white/70 bg-white/5 border-white/10'
 	},
 	{
 		value: 'takeaway',
 		label: 'Takeaway',
 		icon: Package,
 		description: 'Self-pickup takeaway order',
-		colorClass: 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+		colorClass: 'text-white/70 bg-white/5 border-white/10'
 	},
 	{
 		value: 'delivery',
 		label: 'Delivery',
 		icon: Clock,
 		description: 'Home delivery courier',
-		colorClass: 'text-sky-400 bg-sky-500/10 border-sky-500/20'
+		colorClass: 'text-white/70 bg-white/5 border-white/10'
 	}
 ]
 
@@ -87,35 +87,35 @@ const paymentOptions: SelectOption[] = [
 		label: 'Cash',
 		icon: Coins,
 		description: 'Accept cash in hand',
-		colorClass: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+		colorClass: 'text-white/70 bg-white/5 border-white/10'
 	},
 	{
 		value: 'card',
 		label: 'Card',
 		icon: CreditCard,
 		description: 'Credit/Debit card reader terminal',
-		colorClass: 'text-sky-400 bg-sky-500/10 border-sky-500/20'
+		colorClass: 'text-white/70 bg-white/5 border-white/10'
 	},
 	{
 		value: 'upi',
 		label: 'UPI',
 		icon: QrCode,
 		description: 'Direct UPI mobile bank transfer',
-		colorClass: 'text-violet-400 bg-violet-500/10 border-violet-500/20'
+		colorClass: 'text-white/70 bg-white/5 border-white/10'
 	},
 	{
 		value: 'wallet',
 		label: 'Wallet',
 		icon: Wallet,
 		description: 'Paytm, PhonePe, GPay, etc.',
-		colorClass: 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+		colorClass: 'text-white/70 bg-white/5 border-white/10'
 	},
 	{
 		value: 'other',
 		label: 'Other',
 		icon: MoreHorizontal,
 		description: 'Alternative payment channel',
-		colorClass: 'text-pink-400 bg-pink-500/10 border-pink-500/20'
+		colorClass: 'text-white/70 bg-white/5 border-white/10'
 	}
 ]
 
@@ -151,32 +151,32 @@ const statusConfig: Record<
 > = {
 	pending: {
 		label: 'Pending',
-		color: 'bg-yellow-400/20 text-yellow-300',
+		color: 'bg-[#E0342A]/20 text-[#E0342A]',
 		icon: Clock
 	},
 	confirmed: {
 		label: 'Confirmed',
-		color: 'bg-blue-400/20 text-blue-300',
+		color: 'bg-white/10 text-white/70',
 		icon: CheckCircle2
 	},
 	preparing: {
 		label: 'Preparing',
-		color: 'bg-purple-400/20 text-purple-300',
+		color: 'bg-white/10 text-white/70',
 		icon: ChefHat
 	},
 	ready: {
 		label: 'Ready',
-		color: 'bg-green-400/20 text-green-300',
+		color: 'bg-white/10 text-white/70',
 		icon: Package
 	},
 	completed: {
 		label: 'Completed',
-		color: 'bg-emerald-400/20 text-emerald-300',
+		color: 'bg-white/15 text-white',
 		icon: CheckCircle2
 	},
 	cancelled: {
 		label: 'Cancelled',
-		color: 'bg-red-400/20 text-red-300',
+		color: 'bg-[#E0342A]/20 text-[#E0342A]',
 		icon: XCircle
 	}
 }
@@ -313,10 +313,10 @@ export default function OrdersPage() {
 			label: `Table ${table.number}`,
 			description: `Dining Table ${table.number}`,
 			icon: User,
-			colorClass: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20'
+			colorClass: 'text-white/70 bg-white/5 border-white/10'
 		}))
 		return [
-			{ value: '', label: 'Select table', description: 'Clear table assignment', icon: X, colorClass: 'text-rose-400 bg-rose-500/10 border-rose-500/20' },
+			{ value: '', label: 'Select table', description: 'Clear table assignment', icon: X, colorClass: 'text-[#E0342A] bg-[#E0342A]/10 border-[#E0342A]/20' },
 			...opts
 		]
 	}, [tables])
@@ -1208,8 +1208,8 @@ export default function OrdersPage() {
 									)}
 											{order.discount_amount && order.discount_amount > 0 && (
 										<div className="flex items-center justify-between text-xs">
-											<span className="text-emerald-300">Discount</span>
-											<span className="font-medium text-emerald-300">
+											<span className="text-white/70">Discount</span>
+											<span className="font-medium text-white/70">
 												-{currencySymbol}
 												{order.discount_amount.toFixed(2)}
 													</span>
@@ -1283,7 +1283,7 @@ export default function OrdersPage() {
 												<Button
 													size="sm"
 													onClick={() => handleCompleteClick(order)}
-													className="h-8 text-xs font-medium bg-emerald-500 hover:bg-emerald-600"
+													className="h-8 text-xs font-medium bg-[#E0342A] hover:bg-[#E0342A]/90"
 												>
 													<CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
 													Complete
@@ -1311,7 +1311,7 @@ export default function OrdersPage() {
 										size="sm"
 										onClick={() => handleSendBill(order)}
 										disabled={sendingBillId !== null}
-										className="w-full border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 h-9"
+										className="w-full border border-white/10 text-white/70 hover:bg-white/10 hover:text-white h-9"
 									>
 										{sendingBillId === order.id ? (
 											<div className="flex items-center gap-1.5 justify-center">
@@ -1750,8 +1750,8 @@ export default function OrdersPage() {
 												: Math.min(value, totalBeforeDiscount)
 										return (
 											<div className="mb-3 flex items-center justify-between text-sm">
-												<span className="text-emerald-300">Discount</span>
-												<span className="font-medium text-emerald-300">
+												<span className="text-white/70">Discount</span>
+												<span className="font-medium text-white/70">
 													-{currencySymbol}
 													{discount.toFixed(2)}
 												</span>
@@ -1870,7 +1870,7 @@ export default function OrdersPage() {
 								{(calculatedDiscount > 0 ||
 									(completingOrder.discount_amount &&
 										completingOrder.discount_amount > 0)) && (
-									<div className="flex items-center justify-between text-sm text-emerald-300 mb-2">
+									<div className="flex items-center justify-between text-sm text-white/70 mb-2">
 										<span>
 											Discount
 											{discountType === 'percent' && discountValue

@@ -179,7 +179,7 @@ export function CategoriesTab({
 									isDragging
 										? 'opacity-50 scale-95'
 										: isDragOver
-											? 'border-blue-400/50 bg-blue-400/10 scale-105'
+											? 'border-[#E0342A]/30 bg-[#E0342A]/10 scale-105'
 											: 'hover:border-white/20 hover:bg-white/10'
 								}`}
 							>

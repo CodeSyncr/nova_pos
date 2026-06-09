@@ -62,9 +62,9 @@ export default async function CustomDomainPOSPage() {
 
 	if (!profileTenant) {
 		// User is logged in but has no permission to manage this specific tenant
-		const primaryColor = (tenant.branding?.primaryColor as string) || '#7A74FF'
+		const primaryColor = (tenant.branding?.primaryColor as string) || '#E0342A'
 		return (
-			<div className="relative min-h-screen bg-gradient-to-br from-[#040513] via-[#050A1F] to-[#02030B] text-white flex items-center justify-center px-6">
+			<div className="relative min-h-screen bg-black text-white flex items-center justify-center px-6">
 				<div className="w-full max-w-md rounded-[32px] border border-red-500/20 bg-red-500/5 p-8 backdrop-blur-2xl text-center space-y-6">
 					<div className="mx-auto h-16 w-16 rounded-2xl bg-red-500/10 flex items-center justify-center border border-red-500/20 text-red-400">
 						<ShieldAlert className="h-8 w-8" />

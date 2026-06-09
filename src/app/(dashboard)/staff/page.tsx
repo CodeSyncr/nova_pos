@@ -241,7 +241,7 @@ export default function StaffPage() {
 											</div>
 											<div className="rounded-xl bg-white/5 border border-white/10 p-3">
 												<p className="text-xs text-white/50">Advances ({selectedMonth.slice(5)})</p>
-												<p className="text-lg font-semibold text-amber-300">
+												<p className="text-lg font-semibold text-[#E0342A]">
 													{monthAdvances > 0 ? fmt(monthAdvances) : '—'}
 												</p>
 											</div>
@@ -332,25 +332,25 @@ export default function StaffPage() {
 													<div className="flex gap-1 justify-end">
 														<button
 															onClick={() => handleMarkAttendance(member.id, 'present')}
-															className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-300 hover:bg-emerald-500/20"
+															className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs text-white hover:bg-white/20"
 														>
 															Present
 														</button>
 														<button
 															onClick={() => handleMarkAttendance(member.id, 'half_day')}
-															className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs text-amber-300 hover:bg-amber-500/20"
+															className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70 hover:bg-white/10"
 														>
 															Half
 														</button>
 														<button
 															onClick={() => handleMarkAttendance(member.id, 'absent')}
-															className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-300 hover:bg-red-500/20"
+															className="rounded-lg border border-[#E0342A]/30 bg-[#E0342A]/10 px-2 py-1 text-xs text-[#E0342A] hover:bg-[#E0342A]/20"
 														>
 															Absent
 														</button>
 														<button
 															onClick={() => handleMarkAttendance(member.id, 'leave')}
-															className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-2 py-1 text-xs text-blue-300 hover:bg-blue-500/20"
+															className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70 hover:bg-white/10"
 														>
 															Leave
 														</button>
@@ -401,7 +401,7 @@ export default function StaffPage() {
 										return (
 											<tr key={adv.id} className="border-b border-white/5 hover:bg-white/5">
 												<td className="px-5 py-3 text-white">{member?.fullName || member?.email || 'Unknown'}</td>
-												<td className="px-5 py-3 text-amber-300 font-semibold">{fmt(adv.amount)}</td>
+												<td className="px-5 py-3 text-[#E0342A] font-semibold">{fmt(adv.amount)}</td>
 												<td className="px-5 py-3 text-white/60">{adv.reason || '—'}</td>
 												<td className="px-5 py-3 text-white/60">{new Date(adv.advanceDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</td>
 												<td className="px-5 py-3 text-right">
@@ -423,9 +423,9 @@ export default function StaffPage() {
 					{/* Total */}
 					{advances.length > 0 && (
 						<div className="flex justify-end">
-							<div className="rounded-xl bg-amber-500/10 border border-amber-500/20 px-5 py-3">
-								<p className="text-xs text-amber-300/70">Total Advances</p>
-								<p className="text-xl font-semibold text-amber-300">
+							<div className="rounded-xl bg-[#E0342A]/10 border border-[#E0342A]/20 px-5 py-3">
+								<p className="text-xs text-[#E0342A]/70">Total Advances</p>
+								<p className="text-xl font-semibold text-[#E0342A]">
 									{fmt(advances.reduce((s, a) => s + a.amount, 0))}
 								</p>
 							</div>
@@ -495,10 +495,10 @@ export default function StaffPage() {
 
 function AttendanceBadge({ status }: { status: string }) {
 	const styles: Record<string, string> = {
-		present: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-		half_day: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-		absent: 'bg-red-500/20 text-red-300 border-red-500/30',
-		leave: 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+		present: 'bg-white/15 text-white border-white/20',
+		half_day: 'bg-white/10 text-white/70 border-white/10',
+		absent: 'bg-[#E0342A]/20 text-[#E0342A] border-[#E0342A]/30',
+		leave: 'bg-white/10 text-white/70 border-white/10'
 	}
 	const labels: Record<string, string> = {
 		present: 'Present',

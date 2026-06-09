@@ -391,7 +391,7 @@ export function MenuItemForm({
 				initial={{ opacity: 0, x: 80 }}
 				animate={{ opacity: 1, x: 0 }}
 				exit={{ opacity: 0, x: 80 }}
-				className="absolute right-0 top-0 h-full w-full max-w-3xl overflow-y-auto border-l border-white/10 bg-gradient-to-br from-[#0B0E24] via-[#05060F] to-[#020205] p-8 shadow-[0_50px_140px_rgba(3,5,18,0.85)]"
+				className="absolute right-0 top-0 h-full w-full max-w-3xl overflow-y-auto border-l border-white/10 bg-black p-8 shadow-[0_50px_140px_rgba(3,5,18,0.85)]"
 			>
 				<div className="flex items-center justify-between">
 					<div>
@@ -540,7 +540,7 @@ export function MenuItemForm({
 									type="checkbox"
 									checked={isActive}
 									onChange={(e) => setIsActive(e.target.checked)}
-									className="h-5 w-5 rounded border-white/20 bg-white/5 text-[#5B7BFF] focus:ring-2 focus:ring-[#5B7BFF]/50"
+									className="h-5 w-5 rounded border-white/20 bg-white/5 text-[#E0342A] focus:ring-2 focus:ring-[#E0342A]/50"
 								/>
 								<span className="text-sm text-white/70">
 									Active (visible in POS)
@@ -594,7 +594,7 @@ export function MenuItemForm({
 								<label className="block text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
 									Calories
 								</label>
-								<div className="mt-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-white">
+								<div className="mt-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-white">
 									{calories} kcal
 								</div>
 							</div>
@@ -638,10 +638,10 @@ export function MenuItemForm({
 												'flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition',
 												'border-white/12 bg-white/5 text-white/70 hover:border-white/30 hover:bg-white/10',
 												selectedIngredients.includes(ingredient.id) &&
-													'border-emerald-400/50 bg-emerald-400/15 text-emerald-100'
+													'border-[#E0342A]/30 bg-[#E0342A]/15 text-white'
 											)}
 										>
-											<span className="h-2 w-2 rounded-full bg-emerald-400/80" />
+											<span className="h-2 w-2 rounded-full bg-[#E0342A]" />
 											<span className="truncate max-w-[120px]">
 												{ingredient.name}
 											</span>
@@ -744,7 +744,7 @@ export function MenuItemForm({
 																e.target.checked
 															)
 														}
-														className="h-4 w-4 rounded border-white/20 bg-white/5 text-[#5B7BFF] focus:ring-2 focus:ring-[#5B7BFF]/50"
+														className="h-4 w-4 rounded border-white/20 bg-white/5 text-[#E0342A] focus:ring-2 focus:ring-[#E0342A]/50"
 													/>
 													<span className="text-xs text-white/70">Default</span>
 												</label>
@@ -753,7 +753,7 @@ export function MenuItemForm({
 													size="icon"
 													variant="ghost"
 													onClick={() => removeVariant(variant.id)}
-													className="h-8 w-8 text-white/60 hover:text-red-400"
+													className="h-8 w-8 text-white/60 hover:text-[#E0342A]"
 												>
 													<Trash2 className="h-4 w-4" />
 												</Button>
@@ -798,7 +798,7 @@ export function MenuItemForm({
 											onClick={() => toggleTopping(topping.id)}
 											className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition ${
 												selected
-													? 'border-emerald-400/60 bg-emerald-400/15 text-emerald-100'
+													? 'border-[#E0342A]/30 bg-[#E0342A]/15 text-white'
 													: 'border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:bg-white/10'
 											}`}
 										>
@@ -846,7 +846,7 @@ export function MenuItemForm({
 							{sopSteps.map((step, index) => (
 								<div
 									key={step.id}
-									className="rounded-2xl border border-white/10 bg-[#070A1C]/60 p-4"
+									className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
 								>
 									<div className="flex items-center justify-between">
 										<p className="text-xs uppercase tracking-[0.3em] text-white/40">

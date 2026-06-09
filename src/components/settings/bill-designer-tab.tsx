@@ -497,7 +497,7 @@ export function BillDesignerTab({ tenant, onRefresh }: Props) {
 										step="10"
 										value={currentTemplate.canvasWidth}
 										onChange={(e) => updateField('canvasWidth', Number(e.target.value))}
-										className="flex-1 accent-indigo-500 bg-white/10 rounded-lg appearance-none h-1.5"
+										className="flex-1 accent-[#E0342A] bg-white/10 rounded-lg appearance-none h-1.5"
 									/>
 									<span className="text-sm text-white font-mono shrink-0 w-12 text-right">
 										{currentTemplate.canvasWidth}px
@@ -533,7 +533,7 @@ export function BillDesignerTab({ tenant, onRefresh }: Props) {
 										type="checkbox"
 										checked={!!currentTemplate[toggle.field]}
 										onChange={(e) => updateField(toggle.field as any, e.target.checked)}
-										className="h-4 w-4 rounded border-white/20 bg-black text-indigo-600 focus:ring-0 focus:ring-offset-0"
+										className="h-4 w-4 rounded border-white/20 bg-black text-[#E0342A] focus:ring-0 focus:ring-offset-0"
 									/>
 									<span className="text-sm text-white/80">{toggle.label}</span>
 								</label>

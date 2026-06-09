@@ -78,15 +78,15 @@ export function PWAUpdatePrompt() {
 
 	return (
 		<div className="fixed bottom-4 left-4 right-4 z-[9999] md:left-auto md:right-4 md:w-[360px]">
-			<div className="rounded-2xl border border-white/20 bg-[#0F1225]/95 backdrop-blur-xl p-4 shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+			<div className="rounded-2xl border border-white/20 bg-black/95 backdrop-blur-xl p-4 shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
 				<div className="flex items-start gap-3">
-					<div className="rounded-xl bg-blue-500/20 p-2.5">
-						<RefreshCw className="h-5 w-5 text-blue-400" />
+					<div className="rounded-xl bg-[#E0342A]/15 p-2.5">
+						<RefreshCw className="h-5 w-5 text-[#E0342A]" />
 					</div>
 					<div className="flex-1">
 						<h3 className="text-sm font-semibold text-white">Update Available</h3>
 						<p className="mt-0.5 text-xs text-white/60">
-							A new version of Nova POS is ready. Update now for the latest features.
+							A new version of POS is ready. Update now for the latest features.
 						</p>
 						<div className="mt-3 flex gap-2">
 							<Button size="sm" onClick={handleUpdate} className="text-xs">

@@ -53,8 +53,8 @@ export function OrganizationSettingsTab({
 		logoUrl: (tenant as { logo_url?: string }).logo_url || '',
 		branding: {
 			fontFamily: (branding.fontFamily as string) || 'Inter',
-			primaryColor: (branding.primaryColor as string) || '#6B6DFF',
-			secondaryColor: (branding.secondaryColor as string) || '#4DD4FF'
+			primaryColor: (branding.primaryColor as string) || '#E0342A',
+			secondaryColor: (branding.secondaryColor as string) || '#FFFFFF'
 		},
 		contact: {
 			email: (contact.email as string) || '',
@@ -139,11 +139,11 @@ export function OrganizationSettingsTab({
 				<motion.div
 					initial={{ opacity: 0, y: 10 }}
 					animate={{ opacity: 1, y: 0 }}
-					className="rounded-xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-6"
+					className="rounded-xl border border-white/10 bg-white/[0.03] p-6"
 				>
 					<div className="mb-4 flex items-center gap-3">
-						<div className="rounded-xl bg-emerald-400/20 p-2.5">
-							<Link2 className="h-5 w-5 text-emerald-300" />
+						<div className="rounded-xl bg-white/10 p-2.5">
+							<Link2 className="h-5 w-5 text-white/70" />
 						</div>
 						<div className="flex-1">
 							<h4 className="text-lg font-semibold text-white">
@@ -169,8 +169,8 @@ export function OrganizationSettingsTab({
 						>
 							{copied ? (
 								<>
-									<Check className="h-4 w-4 text-emerald-400" />
-									<span className="text-emerald-400">Copied!</span>
+									<Check className="h-4 w-4 text-white" />
+									<span className="text-white">Copied!</span>
 								</>
 							) : (
 								<>
@@ -189,11 +189,11 @@ export function OrganizationSettingsTab({
 				<motion.div
 					initial={{ opacity: 0, y: 10 }}
 					animate={{ opacity: 1, y: 0 }}
-					className="rounded-xl border border-amber-400/30 bg-gradient-to-br from-amber-500/10 to-orange-500/10 p-6"
+					className="rounded-xl border border-[#E0342A]/30 bg-[#E0342A]/10 p-6"
 				>
 					<div className="mb-4 flex items-center gap-3">
-						<div className="rounded-xl bg-amber-400/20 p-2.5">
-							<Link2 className="h-5 w-5 text-amber-300" />
+						<div className="rounded-xl bg-[#E0342A]/15 p-2.5">
+							<Link2 className="h-5 w-5 text-[#E0342A]" />
 						</div>
 						<div className="flex-1">
 							<h4 className="text-lg font-semibold text-white">
@@ -219,7 +219,7 @@ export function OrganizationSettingsTab({
 					className="rounded-xl border border-white/10 bg-black/20 p-6"
 				>
 					<div className="mb-4 flex items-center gap-3">
-						<Building2 className="h-5 w-5 text-blue-400" />
+						<Building2 className="h-5 w-5 text-[#E0342A]" />
 						<h4 className="text-lg font-semibold text-white">
 							Basic Information
 						</h4>
@@ -274,7 +274,7 @@ export function OrganizationSettingsTab({
 					className="rounded-xl border border-white/10 bg-black/20 p-6"
 				>
 					<div className="mb-4 flex items-center gap-3">
-						<Palette className="h-5 w-5 text-purple-400" />
+						<Palette className="h-5 w-5 text-[#E0342A]" />
 						<h4 className="text-lg font-semibold text-white">Branding</h4>
 					</div>
 					<div className="grid gap-4 md:grid-cols-3">
@@ -334,7 +334,7 @@ export function OrganizationSettingsTab({
 										})
 									}
 									className="flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
-									placeholder="#6B6DFF"
+									placeholder="#E0342A"
 								/>
 							</div>
 						</div>
@@ -370,7 +370,7 @@ export function OrganizationSettingsTab({
 										})
 									}
 									className="flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
-									placeholder="#4DD4FF"
+									placeholder="#FFFFFF"
 								/>
 							</div>
 						</div>
@@ -385,7 +385,7 @@ export function OrganizationSettingsTab({
 					className="rounded-xl border border-white/10 bg-black/20 p-6"
 				>
 					<div className="mb-4 flex items-center gap-3">
-						<Phone className="h-5 w-5 text-emerald-400" />
+						<Phone className="h-5 w-5 text-[#E0342A]" />
 						<h4 className="text-lg font-semibold text-white">
 							Contact Information
 						</h4>
@@ -536,7 +536,7 @@ export function OrganizationSettingsTab({
 					className="rounded-xl border border-white/10 bg-black/20 p-6"
 				>
 					<div className="mb-4 flex items-center gap-3">
-						<DollarSign className="h-5 w-5 text-emerald-400" />
+						<DollarSign className="h-5 w-5 text-[#E0342A]" />
 						<h4 className="text-lg font-semibold text-white">
 							Currency Settings
 						</h4>
@@ -607,7 +607,7 @@ export function OrganizationSettingsTab({
 					className="rounded-xl border border-white/10 bg-black/20 p-6"
 				>
 					<div className="mb-4 flex items-center gap-3">
-						<Calendar className="h-5 w-5 text-amber-400" />
+						<Calendar className="h-5 w-5 text-[#E0342A]" />
 						<h4 className="text-lg font-semibold text-white">
 							Financial Period
 						</h4>
@@ -675,7 +675,7 @@ export function OrganizationSettingsTab({
 					className="rounded-xl border border-white/10 bg-black/20 p-6"
 				>
 					<div className="mb-4 flex items-center gap-3">
-						<Globe className="h-5 w-5 text-cyan-400" />
+						<Globe className="h-5 w-5 text-[#E0342A]" />
 						<h4 className="text-lg font-semibold text-white">Social Links</h4>
 					</div>
 					<div className="grid gap-4 md:grid-cols-3">

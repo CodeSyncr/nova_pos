@@ -100,7 +100,7 @@ export function UserForm({
 				animate={{ opacity: 1, x: 0 }}
 				exit={{ opacity: 0, x: 80 }}
 				transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-				className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-white/10 bg-gradient-to-br from-[#121633] via-[#060915] to-[#030308] p-8 shadow-[0_40px_120px_rgba(3,5,18,0.85)]"
+				className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-white/10 bg-black p-8 shadow-[0_40px_120px_rgba(0,0,0,0.85)]"
 			>
 				<div className="flex items-center justify-between mb-6">
 					<div>
@@ -204,7 +204,7 @@ export function UserForm({
 						<Button
 							type="submit"
 							disabled={loading}
-							className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600"
+							className="flex-1 bg-[#E0342A] text-white hover:bg-[#E0342A]/90"
 						>
 							{loading ? (
 								<>

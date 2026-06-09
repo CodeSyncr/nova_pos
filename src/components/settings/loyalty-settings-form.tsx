@@ -73,7 +73,7 @@ export function LoyaltySettingsForm({
 				initial={{ opacity: 0, x: 80 }}
 				animate={{ opacity: 1, x: 0 }}
 				exit={{ opacity: 0, x: 80 }}
-				className="absolute right-0 top-0 h-full w-full max-w-2xl overflow-y-auto border-l border-white/10 bg-gradient-to-br from-[#121633] via-[#060915] to-[#030308] p-8 shadow-[0_40px_120px_rgba(3,5,18,0.85)]"
+				className="absolute right-0 top-0 h-full w-full max-w-2xl overflow-y-auto border-l border-white/10 bg-black p-8 shadow-[0_40px_120px_rgba(0,0,0,0.85)]"
 			>
 				<div className="flex items-center justify-between mb-6">
 					<div>
@@ -115,7 +115,7 @@ export function LoyaltySettingsForm({
 								}
 								className="peer sr-only"
 							/>
-							<div className="peer h-6 w-11 rounded-full bg-white/10 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-white/20 after:bg-white after:transition-all after:content-[''] peer-checked:bg-emerald-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none"></div>
+							<div className="peer h-6 w-11 rounded-full bg-white/10 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-white/20 after:bg-white after:transition-all after:content-[''] peer-checked:bg-[#E0342A] peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none"></div>
 						</label>
 					</div>
 
@@ -229,7 +229,7 @@ export function LoyaltySettingsForm({
 								}
 								className="peer sr-only"
 							/>
-							<div className="peer h-6 w-11 rounded-full bg-white/10 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-white/20 after:bg-white after:transition-all after:content-[''] peer-checked:bg-emerald-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none"></div>
+							<div className="peer h-6 w-11 rounded-full bg-white/10 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-white/20 after:bg-white after:transition-all after:content-[''] peer-checked:bg-[#E0342A] peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none"></div>
 						</label>
 					</div>
 

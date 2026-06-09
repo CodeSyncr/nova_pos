@@ -1,37 +1,36 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
-import { Inter, Space_Mono } from 'next/font/google'
+import { Urbanist, Dancing_Script } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
 import { ToastProvider } from '@/components/ui/toast'
 import { PWAUpdatePrompt } from '@/components/pwa-update-prompt'
 import { cn } from '@/lib/utils'
 import './globals.css'
 
-const inter = Inter({
+const urbanist = Urbanist({
 	subsets: ['latin'],
-	variable: '--font-geist-sans',
+	variable: '--font-urbanist',
 	display: 'swap'
 })
 
-const spaceMono = Space_Mono({
+const cursive = Dancing_Script({
 	subsets: ['latin'],
-	weight: ['400', '700'],
-	variable: '--font-geist-mono',
+	variable: '--font-cursive',
 	display: 'swap'
 })
 
 export const metadata: Metadata = {
-	title: 'Nova POS',
+	title: 'POS',
 	description:
 		'Premium restaurant POS platform with effortless onboarding and beautiful operations',
 	icons: {
-		icon: '/icon.svg'
+		icon: '/favicon.png'
 	},
 	manifest: '/manifest.json',
 	appleWebApp: {
 		capable: true,
 		statusBarStyle: 'black-translucent',
-		title: 'Nova POS'
+		title: 'POS'
 	}
 }
 
@@ -40,7 +39,7 @@ export const viewport = {
 	initialScale: 1,
 	maximumScale: 1,
 	userScalable: false,
-	themeColor: '#6F6BFF'
+	themeColor: '#E0342A'
 }
 
 export default function RootLayout(props: Readonly<{ children: ReactNode }>) {
@@ -53,8 +52,8 @@ export default function RootLayout(props: Readonly<{ children: ReactNode }>) {
 			<body
 				className={cn(
 					'min-h-screen bg-[hsl(var(--background))] text-[hsl(var(--foreground))] antialiased overflow-y-auto',
-					inter.variable,
-					spaceMono.variable
+					urbanist.variable,
+					cursive.variable
 				)}
 			>
 				<ThemeProvider>

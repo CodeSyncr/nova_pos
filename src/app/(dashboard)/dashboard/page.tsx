@@ -1,32 +1,66 @@
 import { redirect } from 'next/navigation'
+import Image from 'next/image'
 import { createSupabaseServerComponentClient } from '@/lib/supabase/server'
-import { Badge } from '@/components/ui/badge'
-import { MenuAssistant } from '@/components/dashboard/menu-assistant'
-import { Button } from '@/components/ui/button'
 import {
-	Activity,
 	ArrowUpRight,
-	Brain,
 	Clock,
-	Flame,
 	IndianRupee,
-	Leaf,
-	Package,
 	Receipt,
-	ShoppingBag,
-	Sparkles,
-	TrendingUp,
 	Users,
-	AlertTriangle,
-	UserCog,
 	Banknote,
-	CalendarCheck
+	CalendarCheck,
+	TrendingUp,
+	TrendingDown
 } from 'lucide-react'
 
 type TenantRecord = {
 	id: string
 	name: string
 	settings: Record<string, unknown> | null
+}
+
+/** Time-of-day greeting based on the tenant's timezone. */
+function getGreeting(timezone: string): string {
+	const hour =
+		Number(
+			new Intl.DateTimeFormat('en-US', {
+				timeZone: timezone,
+				hour: 'numeric',
+				hour12: false
+			}).format(new Date())
+		) % 24
+	if (hour < 12) return 'Good morning'
+	if (hour < 17) return 'Good afternoon'
+	return 'Good evening'
+}
+
+/** Banner header: storefront image with a greeting + the signed-in user's name. */
+function DashboardBanner({
+	greeting,
+	name
+}: {
+	greeting: string
+	name: string
+}) {
+	return (
+		<section className="relative overflow-hidden rounded-3xl border border-white/10 sm:rounded-[32px]">
+			<Image
+				src="/dashboard_bg.png"
+				alt=""
+				fill
+				priority
+				sizes="100vw"
+				className="object-cover"
+			/>
+			<div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" />
+			<div className="relative z-10 px-6 py-10 sm:px-8 sm:py-14 md:py-20">
+				<p className="text-xs text-white/70 sm:text-sm md:text-base">{greeting},</p>
+				<h1 className="mt-1 text-2xl font-semibold capitalize text-white sm:text-3xl md:text-4xl">
+					{name}
+				</h1>
+			</div>
+		</section>
+	)
 }
 
 export default async function DashboardPage() {
@@ -66,7 +100,9 @@ export default async function DashboardPage() {
 	const currencySymbol = (settings.currencySymbol as string) || '₹'
 	const timezone = (settings.timezone as string) || 'Asia/Kolkata'
 
-	// ── Check if user is staff (has role) ──────────────────────────────────────
+	// ── Owner/admin (full access) vs restricted staff ──────────────────────────
+	// The owner also has a role (the OWNER role with ["*"] permissions), so simply
+	// having a role_id does NOT mean staff — only a RESTRICTED role does.
 	const { data: profileTenant } = await supabase
 		.from('profile_tenants')
 		.select('role_id')
@@ -74,12 +110,34 @@ export default async function DashboardPage() {
 		.eq('tenant_id', tenant.id)
 		.single()
 
-	const isStaff = !!profileTenant?.role_id
+	let isStaff = false
+	if (profileTenant?.role_id) {
+		const { data: role } = await supabase
+			.from('roles')
+			.select('code, permissions')
+			.eq('id', profileTenant.role_id)
+			.single()
+		const perms = role?.permissions as unknown
+		const isFullAccess =
+			role?.code === 'OWNER' ||
+			perms == null ||
+			(Array.isArray(perms) && (perms.includes('*') || perms.includes('all')))
+		isStaff = !isFullAccess
+	}
 
 	// If staff member, show their personal dashboard
 	if (isStaff) {
-		return <StaffDashboard userId={user.id} tenantId={tenant.id} tenantName={tenant.name} currencySymbol={currencySymbol} timezone={timezone} />
+		return <StaffDashboard userId={user.id} tenantId={tenant.id} currencySymbol={currencySymbol} timezone={timezone} />
 	}
+
+	// Owner's display name + time-based greeting
+	const { data: ownerProfile } = await supabase
+		.from('profiles')
+		.select('full_name')
+		.eq('id', user.id)
+		.single()
+	const ownerName = ownerProfile?.full_name || user.email?.split('@')[0] || 'there'
+	const greeting = getGreeting(timezone)
 
 	// ── Fetch today's data ─────────────────────────────────────────────────────
 
@@ -94,7 +152,7 @@ export default async function DashboardPage() {
 	// Today's orders
 	const { data: todayOrders } = await supabase
 		.from('orders')
-		.select('id, total, subtotal, tax, discount_amount, status, created_at, completed_at, customer_name, order_type, order_items(name, quantity, total_price)')
+		.select('id, total, subtotal, tax, discount_amount, status, created_at, completed_at, customer_name, customer_phone, order_type, order_items(name, quantity, total_price)')
 		.eq('tenant_id', tenant.id)
 		.gte('created_at', todayStart)
 		.lte('created_at', todayEnd)
@@ -125,18 +183,64 @@ export default async function DashboardPage() {
 		.eq('tenant_id', tenant.id)
 		.limit(50)
 
-	// Customer count
-	const { count: customerCount } = await supabase
-		.from('customers')
-		.select('id', { count: 'exact', head: true })
-		.eq('tenant_id', tenant.id)
-
 	// ── Compute stats ──────────────────────────────────────────────────────────
 
 	const allOrders = todayOrders || []
 	const completedToday = allOrders.filter((o) => o.status === 'completed')
 	const todayRevenue = completedToday.reduce((sum, o) => sum + (o.total || 0), 0)
 	const todayOrderCount = allOrders.length
+
+	// Customers served today, split into new vs returning (against all prior history)
+	const todayCustomerMap = new Map<string, { phone: string; name: string }>()
+	for (const o of allOrders) {
+		const phone = ((o.customer_phone || '') as string).trim()
+		const name = ((o.customer_name || '') as string).trim()
+		const key = (phone || name).toLowerCase()
+		if (key && !todayCustomerMap.has(key)) {
+			todayCustomerMap.set(key, { phone, name })
+		}
+	}
+	const todayCustomers = todayCustomerMap.size
+
+	const todayPhones = [...todayCustomerMap.values()].map((c) => c.phone).filter(Boolean)
+	const todayNames = [...todayCustomerMap.values()].map((c) => c.name).filter(Boolean)
+
+	// Which of today's customers were seen in orders BEFORE today?
+	const seenPhones = new Set<string>()
+	const seenNames = new Set<string>()
+	if (todayPhones.length > 0) {
+		const { data } = await supabase
+			.from('orders')
+			.select('customer_phone')
+			.eq('tenant_id', tenant.id)
+			.lt('created_at', todayStart)
+			.in('customer_phone', todayPhones)
+		data?.forEach((r) => {
+			const p = ((r.customer_phone || '') as string).trim().toLowerCase()
+			if (p) seenPhones.add(p)
+		})
+	}
+	if (todayNames.length > 0) {
+		const { data } = await supabase
+			.from('orders')
+			.select('customer_name')
+			.eq('tenant_id', tenant.id)
+			.lt('created_at', todayStart)
+			.in('customer_name', todayNames)
+		data?.forEach((r) => {
+			const n = ((r.customer_name || '') as string).trim().toLowerCase()
+			if (n) seenNames.add(n)
+		})
+	}
+
+	let returningCustomers = 0
+	for (const c of todayCustomerMap.values()) {
+		const seen =
+			(c.phone && seenPhones.has(c.phone.trim().toLowerCase())) ||
+			(c.name && seenNames.has(c.name.trim().toLowerCase()))
+		if (seen) returningCustomers++
+	}
+	const newCustomers = todayCustomers - returningCustomers
 	const yesterdayRevenue = (yesterdayOrders || []).reduce((sum, o) => sum + (o.total || 0), 0)
 	const revenueChange = yesterdayRevenue > 0
 		? Math.round(((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100)
@@ -182,420 +286,272 @@ export default async function DashboardPage() {
 	// Recent completed orders
 	const recentOrders = allOrders.slice(0, 6)
 
+	// Max qty for the top-items popularity bars
+	const maxTopQty = topItems.length ? Math.max(...topItems.map((i) => i.qty)) : 1
+
 	const fmtCurrency = (n: number) => `${currencySymbol}${n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 	const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: timezone })
 
 	return (
-		<div className="flex flex-col gap-8 py-6">
+		<div className="flex flex-col gap-5 py-4 sm:gap-8 sm:py-6">
 			{/* Hero Header */}
-			<section className="relative overflow-hidden rounded-[40px] border border-white/10 bg-gradient-to-br from-[#121633] via-[#060915] to-[#030308] p-8 text-white shadow-[0_50px_140px_rgba(3,5,18,0.75)]">
-				<div className="pointer-events-none absolute inset-0">
-					<div className="glow -top-32 left-1/2 h-96 w-96 -translate-x-1/2 bg-[#7C74FF]/30" />
-					<div className="glow bottom-0 right-1/4 h-80 w-80 bg-[#4DD4FF]/20" />
-				</div>
-				<div className="relative z-10 space-y-4">
-					<Badge className="border-white/20 bg-white/10 text-white/80">
-						<Activity className="mr-2 h-3.5 w-3.5" /> Live Dashboard
-					</Badge>
-					<h1 className="text-4xl font-semibold md:text-5xl">
-						Welcome back, {tenant.name}
-					</h1>
-					<p className="text-white/70 md:max-w-xl">
-						Here&apos;s how your business is performing today.
-					</p>
+			<DashboardBanner greeting={greeting} name={ownerName} />
+
+			{/* Editorial metrics band — hero figure + hairline mini-stats */}
+			<section className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.06] via-white/[0.02] to-transparent sm:rounded-[28px]">
+				<div className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-[#E0342A]/10 blur-[90px]" />
+				<div className="relative grid lg:grid-cols-[1.55fr_1fr]">
+					<div className="p-6 sm:p-8 lg:p-10">
+						<div className="flex items-center gap-2.5 text-[10px] font-medium uppercase tracking-[0.25em] text-white/40 sm:text-[11px] sm:tracking-[0.35em]">
+							<span className="h-1.5 w-1.5 rounded-full bg-[#E0342A]" />
+							Today&apos;s revenue
+						</div>
+						<div className="mt-4 flex flex-wrap items-end gap-x-3 gap-y-2 sm:mt-6 sm:gap-x-4 sm:gap-y-3">
+							<span className="text-[2.75rem] font-semibold leading-[0.9] tracking-tight text-white sm:text-6xl lg:text-[5.5rem]">
+								{fmtCurrency(todayRevenue)}
+							</span>
+							{revenueChange !== 0 && (
+								<span
+									className={`mb-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+										revenueChange > 0
+											? 'bg-white/10 text-white'
+											: 'bg-[#E0342A]/15 text-[#E0342A]'
+									}`}
+								>
+									{revenueChange > 0 ? (
+										<TrendingUp className="h-3.5 w-3.5" />
+									) : (
+										<TrendingDown className="h-3.5 w-3.5" />
+									)}
+									{Math.abs(revenueChange)}%
+								</span>
+							)}
+						</div>
+						<p className="mt-5 text-sm text-white/40">
+							{completedToday.length} order{completedToday.length !== 1 ? 's' : ''} completed
+							<span className="mx-2 text-white/20">•</span>
+							{fmtCurrency(avgOrderValue)} avg ticket
+						</p>
+					</div>
+					<div className="grid grid-rows-3 divide-y divide-white/[0.06] border-t border-white/[0.06] lg:border-l lg:border-t-0">
+						<MiniStat icon={<Receipt />} label="Orders today" value={todayOrderCount.toString()} />
+						<MiniStat icon={<Clock />} label="Pending" value={pendingCount.toString()} accent={pendingCount > 0} />
+						<div className="flex items-center justify-between gap-4 px-6 py-4 sm:px-8 sm:py-5 lg:px-9">
+							<span className="flex items-center gap-2.5 text-white/40">
+								<Users className="h-4 w-4" />
+								<span className="text-[11px] font-medium uppercase tracking-[0.18em]">Customers</span>
+							</span>
+							<span className="flex items-baseline gap-2.5">
+								<span className="flex items-baseline gap-1">
+									<span className="text-2xl font-semibold tabular-nums text-[#E0342A]">{newCustomers}</span>
+									<span className="text-[10px] uppercase tracking-wider text-white/35">new</span>
+								</span>
+								<span className="text-white/15">·</span>
+								<span className="flex items-baseline gap-1">
+									<span className="text-2xl font-semibold tabular-nums text-white">{returningCustomers}</span>
+									<span className="text-[10px] uppercase tracking-wider text-white/35">return</span>
+								</span>
+							</span>
+						</div>
+					</div>
 				</div>
 			</section>
 
-			{/* Key Metrics */}
-			<div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-				<StatCard
-					label="Today's Revenue"
-					value={fmtCurrency(todayRevenue)}
-					trend={revenueChange !== 0 ? `${revenueChange > 0 ? '+' : ''}${revenueChange}% vs yesterday` : undefined}
-					trendUp={revenueChange > 0}
-					icon={<IndianRupee className="h-5 w-5" />}
-					color="from-emerald-500/20 to-green-500/20"
-				/>
-				<StatCard
-					label="Orders Today"
-					value={todayOrderCount.toString()}
-					trend={`${completedToday.length} completed`}
-					icon={<Receipt className="h-5 w-5" />}
-					color="from-blue-500/20 to-cyan-500/20"
-				/>
-				<StatCard
-					label="Pending Orders"
-					value={pendingCount.toString()}
-					trend={pendingCount > 0 ? 'Needs attention' : 'All clear'}
-					trendUp={pendingCount === 0}
-					icon={<Clock className="h-5 w-5" />}
-					color="from-amber-500/20 to-orange-500/20"
-				/>
-				<StatCard
-					label="Avg Order Value"
-					value={fmtCurrency(avgOrderValue)}
-					trend={`${customerCount || 0} total customers`}
-					icon={<Users className="h-5 w-5" />}
-					color="from-purple-500/20 to-pink-500/20"
-				/>
-			</div>
-
-			{/* Middle Row: Pending Orders + Top Items */}
+			{/* Active orders + Top sellers */}
 			<div className="grid gap-6 md:grid-cols-2">
-				{/* Pending Orders */}
-				<section className="rounded-[28px] border border-white/10 bg-white/5 p-6 backdrop-blur-2xl">
-					<div className="flex items-center justify-between mb-5">
-						<div>
-							<p className="text-xs uppercase tracking-[0.3em] text-white/50">Live</p>
-							<h2 className="text-xl font-semibold text-white">Active Orders</h2>
-						</div>
-						<Badge className="border-amber-500/30 bg-amber-500/10 text-amber-300">
-							{pendingCount} active
-						</Badge>
-					</div>
+				<Panel
+					eyebrow="Live"
+					title="Active orders"
+					action={<span className="text-sm font-semibold tabular-nums text-[#E0342A]">{pendingCount}</span>}
+				>
 					{(pendingOrders || []).length === 0 ? (
-						<p className="text-sm text-white/50 py-8 text-center">No active orders right now</p>
+						<EmptyLine>Floor is quiet — no active orders</EmptyLine>
 					) : (
-						<div className="space-y-3">
+						<div className="divide-y divide-white/[0.06]">
 							{(pendingOrders || []).slice(0, 5).map((order) => (
-								<div key={order.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-									<div>
-										<p className="text-sm font-medium text-white">
+								<div key={order.id} className="flex items-center justify-between gap-3 py-3.5 first:pt-1">
+									<div className="min-w-0">
+										<p className="truncate text-sm font-medium text-white">
 											{order.customer_name || order.order_type || 'Walk-in'}
-											{order.table_number && <span className="ml-2 text-white/50">T{order.table_number}</span>}
+											{order.table_number && (
+												<span className="ml-1.5 text-white/35">· T{order.table_number}</span>
+											)}
 										</p>
-										<p className="text-xs text-white/50">{fmtTime(order.created_at)}</p>
+										<p className="mt-0.5 text-xs text-white/35">
+											{fmtTime(order.created_at)} <span className="text-white/20">·</span>{' '}
+											<span className="capitalize text-[#E0342A]/90">{order.status}</span>
+										</p>
 									</div>
-									<div className="text-right">
-										<p className="text-sm font-semibold text-white">{fmtCurrency(order.total || 0)}</p>
-										<StatusBadge status={order.status} />
-									</div>
+									<p className="shrink-0 text-sm font-semibold tabular-nums text-white">
+										{fmtCurrency(order.total || 0)}
+									</p>
 								</div>
 							))}
 						</div>
 					)}
-				</section>
+				</Panel>
 
-				{/* Top Selling Items Today */}
-				<section className="rounded-[28px] border border-white/10 bg-white/5 p-6 backdrop-blur-2xl">
-					<div className="flex items-center justify-between mb-5">
-						<div>
-							<p className="text-xs uppercase tracking-[0.3em] text-white/50">Today</p>
-							<h2 className="text-xl font-semibold text-white">Top Selling Items</h2>
-						</div>
-						<ShoppingBag className="h-5 w-5 text-white/40" />
-					</div>
+				<Panel eyebrow="Today" title="Top sellers">
 					{topItems.length === 0 ? (
-						<p className="text-sm text-white/50 py-8 text-center">No orders yet today</p>
+						<EmptyLine>No sales yet today</EmptyLine>
 					) : (
-						<div className="space-y-3">
+						<div className="space-y-1">
 							{topItems.map((item, idx) => (
-								<div key={item.name} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-									<div className="flex items-center gap-3">
-										<span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-xs font-bold text-white/70">
-											{idx + 1}
+								<div key={item.name} className="relative overflow-hidden rounded-lg py-2.5">
+									<div
+										className="absolute inset-y-1 left-0 rounded-lg bg-[#E0342A]/[0.12]"
+										style={{ width: `${Math.max(8, Math.round((item.qty / maxTopQty) * 100))}%` }}
+									/>
+									<div className="relative flex items-center justify-between gap-3 px-2">
+										<span className="flex min-w-0 items-center gap-2.5">
+											<span className="text-xs font-bold tabular-nums text-[#E0342A]">{idx + 1}</span>
+											<span className="truncate text-sm text-white">{item.name}</span>
 										</span>
-										<p className="text-sm font-medium text-white">{item.name}</p>
-									</div>
-									<div className="text-right">
-										<p className="text-sm font-semibold text-white">{item.qty} sold</p>
-										<p className="text-xs text-white/50">{fmtCurrency(item.revenue)}</p>
+										<span className="shrink-0 text-xs tabular-nums text-white/50">{item.qty}×</span>
 									</div>
 								</div>
 							))}
 						</div>
 					)}
-				</section>
+				</Panel>
 			</div>
 
-			{/* Bottom Row: Recent Orders + Low Stock */}
-			<div className="grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
-				{/* Recent Orders */}
-				<section className="rounded-[28px] border border-white/10 bg-white/5 p-6 backdrop-blur-2xl">
-					<div className="flex items-center justify-between mb-5">
-						<div>
-							<p className="text-xs uppercase tracking-[0.3em] text-white/50">Timeline</p>
-							<h2 className="text-xl font-semibold text-white">Recent Orders</h2>
-						</div>
-						<a href="/orders" className="flex items-center gap-1 text-xs text-white/50 hover:text-white transition-colors">
+			{/* Recent orders + Low stock */}
+			<div className="grid gap-6 md:grid-cols-[1.3fr_0.7fr]">
+				<Panel
+					eyebrow="Timeline"
+					title="Recent orders"
+					action={
+						<a href="/orders" className="flex items-center gap-1 text-xs text-white/40 transition-colors hover:text-[#E0342A]">
 							View all <ArrowUpRight className="h-3.5 w-3.5" />
 						</a>
-					</div>
+					}
+				>
 					{recentOrders.length === 0 ? (
-						<p className="text-sm text-white/50 py-8 text-center">No orders today</p>
+						<EmptyLine>No orders today</EmptyLine>
 					) : (
-						<div className="space-y-2">
+						<div className="grid gap-x-10 sm:grid-cols-2">
 							{recentOrders.map((order) => (
-								<div key={order.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-4 py-2.5">
-									<div className="flex items-center gap-3">
+								<div key={order.id} className="flex items-center justify-between gap-3 border-b border-white/[0.05] py-3">
+									<span className="flex min-w-0 items-center gap-3">
 										<StatusDot status={order.status} />
-										<div>
-											<p className="text-sm text-white">
+										<span className="min-w-0">
+											<span className="block truncate text-sm text-white">
 												{order.customer_name || order.order_type || 'Order'}
-											</p>
-											<p className="text-xs text-white/40">{fmtTime(order.created_at)}</p>
-										</div>
-									</div>
-									<p className="text-sm font-medium text-white">{fmtCurrency(order.total || 0)}</p>
+											</span>
+											<span className="block text-xs text-white/35">{fmtTime(order.created_at)}</span>
+										</span>
+									</span>
+									<span className="shrink-0 text-sm font-medium tabular-nums text-white">
+										{fmtCurrency(order.total || 0)}
+									</span>
 								</div>
 							))}
 						</div>
 					)}
-				</section>
+				</Panel>
 
-				{/* Low Stock Alerts */}
-				<section className="rounded-[28px] border border-white/10 bg-white/5 p-6 backdrop-blur-2xl">
-					<div className="flex items-center justify-between mb-5">
-						<div>
-							<p className="text-xs uppercase tracking-[0.3em] text-white/50">Alerts</p>
-							<h2 className="text-xl font-semibold text-white">Low Stock</h2>
-						</div>
-						<a href="/inventory" className="flex items-center gap-1 text-xs text-white/50 hover:text-white transition-colors">
-							Inventory <ArrowUpRight className="h-3.5 w-3.5" />
-						</a>
-					</div>
+				<Panel
+					eyebrow="Alerts"
+					title="Low stock"
+					action={<a href="/inventory" className="text-xs text-white/40 transition-colors hover:text-[#E0342A]">Manage</a>}
+				>
 					{lowStock.length === 0 ? (
-						<div className="flex flex-col items-center py-8 text-center">
-							<Package className="h-8 w-8 text-emerald-400/60 mb-2" />
-							<p className="text-sm text-white/50">All stock levels healthy</p>
-						</div>
+						<EmptyLine>All stock levels healthy</EmptyLine>
 					) : (
-						<div className="space-y-3">
+						<div className="divide-y divide-white/[0.06]">
 							{lowStock.map((item) => (
-								<div key={item.name} className="flex items-center justify-between rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3">
-									<div className="flex items-center gap-3">
-										<AlertTriangle className="h-4 w-4 text-amber-400" />
-										<p className="text-sm font-medium text-white">{item.name}</p>
-									</div>
-									<div className="text-right">
-										<p className="text-sm font-semibold text-red-300">
-											{item.stock} {item.unit}
-										</p>
-										<p className="text-xs text-white/40">min: {item.min}</p>
-									</div>
+								<div key={item.name} className="flex items-center justify-between gap-3 py-3.5 first:pt-1">
+									<span className="flex min-w-0 items-center gap-2.5">
+										<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#E0342A]" />
+										<span className="truncate text-sm text-white">{item.name}</span>
+									</span>
+									<span className="shrink-0 text-sm font-semibold tabular-nums text-[#E0342A]">
+										{item.stock}
+										<span className="ml-1 text-xs font-normal text-white/40">{item.unit}</span>
+									</span>
 								</div>
 							))}
 						</div>
 					)}
-				</section>
+				</Panel>
 			</div>
 
-			{/* AI Insights — data-driven recommendations */}
-			<section className="rounded-[28px] border border-white/10 bg-white/5 p-6 backdrop-blur-2xl">
-				<div className="flex items-center gap-3 mb-5">
-					<div className="rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-2.5">
-						<Brain className="h-5 w-5 text-purple-300" />
-					</div>
-					<div>
-						<p className="text-xs uppercase tracking-[0.3em] text-white/50">AI Powered</p>
-						<h2 className="text-xl font-semibold text-white">Smart Insights</h2>
-					</div>
-				</div>
-				<div className="grid gap-4 md:grid-cols-3">
-					<AIInsightCard insights={generateInsights({ todayRevenue, yesterdayRevenue, revenueChange, todayOrderCount, completedCount: completedToday.length, pendingCount, avgOrderValue, topItems, lowStock, currencySymbol })} />
-				</div>
-			</section>
-
-			{/* AI Menu Co-pilot */}
-			<MenuAssistant />
 		</div>
 	)
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────────────────
 
-function StatCard({
+function MiniStat({
+	icon,
 	label,
 	value,
-	trend,
-	trendUp,
-	icon,
-	color
+	accent = false
 }: {
+	icon: React.ReactNode
 	label: string
 	value: string
-	trend?: string
-	trendUp?: boolean
-	icon: React.ReactNode
-	color: string
+	accent?: boolean
 }) {
 	return (
-		<div className={`rounded-[24px] border border-white/10 bg-gradient-to-br ${color} p-5 backdrop-blur-xl`}>
-			<div className="flex items-center justify-between mb-3">
-				<div className="rounded-xl bg-white/10 p-2.5 text-white/70">{icon}</div>
-				{trend && (
-					<span className={`text-xs ${trendUp === true ? 'text-emerald-400' : trendUp === false ? 'text-red-400' : 'text-white/50'}`}>
-						{trend}
-					</span>
-				)}
-			</div>
-			<p className="text-2xl font-semibold text-white">{value}</p>
-			<p className="text-xs text-white/50 mt-1">{label}</p>
+		<div className="flex items-center justify-between gap-4 px-6 py-4 sm:px-8 sm:py-5 lg:px-9">
+			<span className="flex items-center gap-2.5 text-white/40 [&>svg]:h-4 [&>svg]:w-4">
+				{icon}
+				<span className="text-[11px] font-medium uppercase tracking-[0.18em]">{label}</span>
+			</span>
+			<span
+				className={`text-2xl font-semibold tabular-nums ${
+					accent ? 'text-[#E0342A]' : 'text-white'
+				}`}
+			>
+				{value}
+			</span>
 		</div>
 	)
 }
 
-function StatusBadge({ status }: { status: string }) {
-	const styles: Record<string, string> = {
-		pending: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-		confirmed: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-		preparing: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-		ready: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-		completed: 'bg-green-500/20 text-green-300 border-green-500/30',
-		cancelled: 'bg-red-500/20 text-red-300 border-red-500/30'
-	}
+function Panel({
+	eyebrow,
+	title,
+	action,
+	children
+}: {
+	eyebrow: string
+	title: string
+	action?: React.ReactNode
+	children: React.ReactNode
+}) {
 	return (
-		<span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${styles[status] || styles.pending}`}>
-			{status}
-		</span>
+		<section className="rounded-[28px] border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-transparent p-6 lg:p-7">
+			<div className="mb-4 flex items-start justify-between gap-3">
+				<div>
+					<p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#E0342A]/80">
+						{eyebrow}
+					</p>
+					<h2 className="mt-1.5 text-base font-semibold text-white">{title}</h2>
+				</div>
+				{action}
+			</div>
+			{children}
+		</section>
 	)
+}
+
+function EmptyLine({ children }: { children: React.ReactNode }) {
+	return <p className="py-8 text-center text-sm text-white/30">{children}</p>
 }
 
 function StatusDot({ status }: { status: string }) {
 	const colors: Record<string, string> = {
-		pending: 'bg-yellow-400',
-		confirmed: 'bg-blue-400',
-		preparing: 'bg-purple-400',
-		ready: 'bg-emerald-400',
-		completed: 'bg-green-400',
-		cancelled: 'bg-red-400'
+		pending: 'bg-[#E0342A]',
+		confirmed: 'bg-[#E0342A]',
+		preparing: 'bg-[#E0342A]',
+		ready: 'bg-white',
+		completed: 'bg-white/40',
+		cancelled: 'bg-[#E0342A]/40'
 	}
 	return <span className={`inline-block h-2.5 w-2.5 rounded-full ${colors[status] || colors.pending}`} />
-}
-
-// ─── AI Insights (data-driven) ──────────────────────────────────────────────────
-
-type InsightData = {
-	todayRevenue: number
-	yesterdayRevenue: number
-	revenueChange: number
-	todayOrderCount: number
-	completedCount: number
-	pendingCount: number
-	avgOrderValue: number
-	topItems: Array<{ name: string; qty: number; revenue: number }>
-	lowStock: Array<{ name: string; stock: number; unit: string; min: number }>
-	currencySymbol: string
-}
-
-type Insight = {
-	title: string
-	body: string
-	type: 'growth' | 'alert' | 'tip'
-}
-
-function generateInsights(data: InsightData): Insight[] {
-	const insights: Insight[] = []
-	const fmtC = (n: number) => `${data.currencySymbol}${Math.round(n).toLocaleString('en-IN')}`
-
-	// Revenue insight
-	if (data.revenueChange > 15) {
-		insights.push({
-			title: 'Revenue surge detected',
-			body: `Today's revenue is up ${data.revenueChange}% vs yesterday. Your top item "${data.topItems[0]?.name || 'menu item'}" is driving ${Math.round(((data.topItems[0]?.revenue || 0) / (data.todayRevenue || 1)) * 100)}% of sales.`,
-			type: 'growth'
-		})
-	} else if (data.revenueChange < -15 && data.yesterdayRevenue > 0) {
-		insights.push({
-			title: 'Revenue dip today',
-			body: `Sales are down ${Math.abs(data.revenueChange)}% compared to yesterday. Consider running a flash promotion or pushing high-margin items.`,
-			type: 'alert'
-		})
-	} else if (data.todayRevenue > 0) {
-		insights.push({
-			title: 'Steady performance',
-			body: `You've earned ${fmtC(data.todayRevenue)} across ${data.completedCount} orders today with an average of ${fmtC(data.avgOrderValue)} per order.`,
-			type: 'growth'
-		})
-	} else {
-		insights.push({
-			title: 'Day just started',
-			body: 'No completed orders yet. The dashboard will populate insights as orders come in throughout the day.',
-			type: 'tip'
-		})
-	}
-
-	// Stock insight
-	if (data.lowStock.length > 0) {
-		const critical = data.lowStock.filter((i) => i.stock <= 0)
-		if (critical.length > 0) {
-			insights.push({
-				title: `${critical.length} item${critical.length > 1 ? 's' : ''} out of stock`,
-				body: `${critical.map((i) => i.name).join(', ')} ${critical.length > 1 ? 'are' : 'is'} depleted. This may block orders for affected menu items. Restock urgently.`,
-				type: 'alert'
-			})
-		} else {
-			insights.push({
-				title: `${data.lowStock.length} items running low`,
-				body: `${data.lowStock.slice(0, 3).map((i) => i.name).join(', ')} are below minimum levels. Plan a restock to avoid disruptions.`,
-				type: 'alert'
-			})
-		}
-	} else {
-		insights.push({
-			title: 'Inventory looking healthy',
-			body: 'All stock levels are above minimum thresholds. No urgent restocking needed today.',
-			type: 'growth'
-		})
-	}
-
-	// Operations insight
-	if (data.pendingCount > 5) {
-		insights.push({
-			title: 'High queue detected',
-			body: `You have ${data.pendingCount} orders in progress. Consider alerting kitchen staff to prioritize or batch similar items for faster throughput.`,
-			type: 'alert'
-		})
-	} else if (data.topItems.length >= 2) {
-		const topTwo = data.topItems.slice(0, 2)
-		const ratio = topTwo[0]!.qty > 0 ? Math.round((topTwo[0]!.qty / (data.topItems.reduce((s, i) => s + i.qty, 0) || 1)) * 100) : 0
-		insights.push({
-			title: 'Menu concentration',
-			body: `"${topTwo[0]!.name}" accounts for ${ratio}% of items sold today. Consider a combo deal pairing it with "${topTwo[1]!.name}" to increase average ticket.`,
-			type: 'tip'
-		})
-	} else {
-		insights.push({
-			title: 'Optimize your service',
-			body: 'As orders flow in, AI will identify patterns in timing, popular combos, and kitchen bottlenecks to help you optimize operations.',
-			type: 'tip'
-		})
-	}
-
-	return insights
-}
-
-function AIInsightCard({ insights }: { insights: Insight[] }) {
-	const icons = {
-		growth: <TrendingUp className="h-4 w-4 text-emerald-400" />,
-		alert: <AlertTriangle className="h-4 w-4 text-amber-400" />,
-		tip: <Sparkles className="h-4 w-4 text-purple-400" />
-	}
-	const borders = {
-		growth: 'border-emerald-500/20 bg-emerald-500/5',
-		alert: 'border-amber-500/20 bg-amber-500/5',
-		tip: 'border-purple-500/20 bg-purple-500/5'
-	}
-
-	return (
-		<>
-			{insights.map((insight, idx) => (
-				<div
-					key={idx}
-					className={`rounded-3xl border px-5 py-5 ${borders[insight.type]}`}
-				>
-					<div className="flex items-center gap-2 mb-2">
-						{icons[insight.type]}
-						<span className="text-xs uppercase tracking-[0.2em] text-white/50">
-							{insight.type === 'growth' ? 'Growth' : insight.type === 'alert' ? 'Alert' : 'AI Tip'}
-						</span>
-					</div>
-					<h3 className="text-lg font-semibold text-white">{insight.title}</h3>
-					<p className="mt-1 text-sm text-white/70">{insight.body}</p>
-				</div>
-			))}
-		</>
-	)
 }
 
 // ─── Staff Dashboard (shown to users with roles) ────────────────────────────────
@@ -603,13 +559,11 @@ function AIInsightCard({ insights }: { insights: Insight[] }) {
 async function StaffDashboard({
 	userId,
 	tenantId,
-	tenantName,
 	currencySymbol,
 	timezone
 }: {
 	userId: string
 	tenantId: string
-	tenantName: string
 	currencySymbol: string
 	timezone: string
 }) {
@@ -670,46 +624,34 @@ async function StaffDashboard({
 
 	const fmtCurrency = (n: number) => `${currencySymbol}${n.toLocaleString('en-IN')}`
 	const monthName = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+	const greeting = getGreeting(timezone)
 
 	return (
 		<div className="flex flex-col gap-8 py-6">
 			{/* Header */}
-			<section className="relative overflow-hidden rounded-[40px] border border-white/10 bg-gradient-to-br from-[#121633] via-[#060915] to-[#030308] p-8 text-white shadow-[0_50px_140px_rgba(3,5,18,0.75)]">
-				<div className="pointer-events-none absolute inset-0">
-					<div className="glow -top-32 left-1/2 h-96 w-96 -translate-x-1/2 bg-[#7C74FF]/30" />
-				</div>
-				<div className="relative z-10 space-y-3">
-					<Badge className="border-white/20 bg-white/10 text-white/80">
-						<UserCog className="mr-2 h-3.5 w-3.5" /> My Dashboard
-					</Badge>
-					<h1 className="text-3xl font-semibold md:text-4xl">
-						Hello, {profile?.full_name || 'Team Member'}
-					</h1>
-					<p className="text-white/60">{tenantName} &middot; {monthName}</p>
-				</div>
-			</section>
+			<DashboardBanner greeting={greeting} name={profile?.full_name || 'Team Member'} />
 
 			{/* Today's Status */}
 			<div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-				<div className="rounded-[24px] border border-white/10 bg-gradient-to-br from-emerald-500/20 to-green-500/20 p-5">
-					<CalendarCheck className="h-5 w-5 text-emerald-400 mb-2" />
+				<div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-5">
+					<CalendarCheck className="h-5 w-5 text-[#E0342A] mb-2" />
 					<p className="text-2xl font-semibold text-white">
 						{todayAttendance ? todayAttendance.status.replace('_', ' ') : 'Not marked'}
 					</p>
 					<p className="text-xs text-white/50 mt-1">Today&apos;s Status</p>
 				</div>
-				<div className="rounded-[24px] border border-white/10 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 p-5">
-					<IndianRupee className="h-5 w-5 text-blue-400 mb-2" />
+				<div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-5">
+					<IndianRupee className="h-5 w-5 text-[#E0342A] mb-2" />
 					<p className="text-2xl font-semibold text-white">{fmtCurrency(monthlySalary)}</p>
 					<p className="text-xs text-white/50 mt-1">Monthly Salary</p>
 				</div>
-				<div className="rounded-[24px] border border-white/10 bg-gradient-to-br from-amber-500/20 to-orange-500/20 p-5">
-					<Banknote className="h-5 w-5 text-amber-400 mb-2" />
-					<p className="text-2xl font-semibold text-amber-300">{fmtCurrency(totalAdvances)}</p>
+				<div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-5">
+					<Banknote className="h-5 w-5 text-[#E0342A] mb-2" />
+					<p className="text-2xl font-semibold text-[#E0342A]">{fmtCurrency(totalAdvances)}</p>
 					<p className="text-xs text-white/50 mt-1">Advances This Month</p>
 				</div>
-				<div className="rounded-[24px] border border-white/10 bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-5">
-					<IndianRupee className="h-5 w-5 text-purple-400 mb-2" />
+				<div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-5">
+					<IndianRupee className="h-5 w-5 text-[#E0342A] mb-2" />
 					<p className="text-2xl font-semibold text-white">{fmtCurrency(Math.max(0, netSalary))}</p>
 					<p className="text-xs text-white/50 mt-1">Net Payable</p>
 				</div>
@@ -720,24 +662,24 @@ async function StaffDashboard({
 				{/* Attendance Summary */}
 				<section className="rounded-[28px] border border-white/10 bg-white/5 p-6 backdrop-blur-2xl">
 					<div className="flex items-center gap-3 mb-5">
-						<CalendarCheck className="h-5 w-5 text-emerald-400" />
+						<CalendarCheck className="h-5 w-5 text-[#E0342A]" />
 						<h2 className="text-xl font-semibold text-white">Attendance - {monthName}</h2>
 					</div>
 					<div className="grid grid-cols-2 gap-3 mb-5">
-						<div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
-							<p className="text-2xl font-bold text-emerald-300">{presentDays}</p>
+						<div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
+							<p className="text-2xl font-bold text-white">{presentDays}</p>
 							<p className="text-xs text-white/50">Present</p>
 						</div>
-						<div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-center">
-							<p className="text-2xl font-bold text-amber-300">{halfDays}</p>
+						<div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
+							<p className="text-2xl font-bold text-white">{halfDays}</p>
 							<p className="text-xs text-white/50">Half Days</p>
 						</div>
-						<div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-center">
-							<p className="text-2xl font-bold text-red-300">{absentDays}</p>
+						<div className="rounded-xl bg-[#E0342A]/10 border border-[#E0342A]/20 p-3 text-center">
+							<p className="text-2xl font-bold text-[#E0342A]">{absentDays}</p>
 							<p className="text-xs text-white/50">Absent</p>
 						</div>
-						<div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-3 text-center">
-							<p className="text-2xl font-bold text-blue-300">{leaveDays}</p>
+						<div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
+							<p className="text-2xl font-bold text-white">{leaveDays}</p>
 							<p className="text-xs text-white/50">Leave</p>
 						</div>
 					</div>
@@ -763,7 +705,7 @@ async function StaffDashboard({
 				{/* Advances */}
 				<section className="rounded-[28px] border border-white/10 bg-white/5 p-6 backdrop-blur-2xl">
 					<div className="flex items-center gap-3 mb-5">
-						<Banknote className="h-5 w-5 text-amber-400" />
+						<Banknote className="h-5 w-5 text-[#E0342A]" />
 						<h2 className="text-xl font-semibold text-white">Advances - {monthName}</h2>
 					</div>
 
@@ -787,10 +729,10 @@ async function StaffDashboard({
 							))}
 
 							{/* Total */}
-							<div className="rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3 mt-2">
+							<div className="rounded-xl bg-[#E0342A]/10 border border-[#E0342A]/20 px-4 py-3 mt-2">
 								<div className="flex justify-between items-center">
-									<span className="text-xs text-amber-300/70">Total Advances</span>
-									<span className="text-lg font-semibold text-amber-300">{fmtCurrency(totalAdvances)}</span>
+									<span className="text-xs text-[#E0342A]/70">Total Advances</span>
+									<span className="text-lg font-semibold text-[#E0342A]">{fmtCurrency(totalAdvances)}</span>
 								</div>
 							</div>
 						</div>
@@ -803,10 +745,10 @@ async function StaffDashboard({
 
 function StaffAttendanceDot({ status }: { status: string }) {
 	const colors: Record<string, string> = {
-		present: 'bg-emerald-400',
-		half_day: 'bg-amber-400',
-		absent: 'bg-red-400',
-		leave: 'bg-blue-400'
+		present: 'bg-white',
+		half_day: 'bg-white/50',
+		absent: 'bg-[#E0342A]',
+		leave: 'bg-white/30'
 	}
 	return <span className={`inline-block h-2.5 w-2.5 rounded-full ${colors[status] || colors.absent}`} />
 }

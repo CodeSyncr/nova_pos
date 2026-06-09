@@ -149,75 +149,100 @@ export default function PurchasesPage() {
 				</div>
 			</header>
 
-			{/* Summary Card */}
-			{purchases.length > 0 && (
-				<div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-					<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-						<p className="text-xs text-white/50">Total Spendings</p>
-						<p className="text-2xl font-semibold text-white mt-1">{fmt(totalSpending)}</p>
-					</div>
-					<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-						<p className="text-xs text-white/50">Entries</p>
-						<p className="text-2xl font-semibold text-white mt-1">{purchases.length}</p>
-					</div>
-					<div className="rounded-2xl border border-white/10 bg-white/5 p-4 hidden sm:block">
-						<p className="text-xs text-white/50">Days</p>
-						<p className="text-2xl font-semibold text-white mt-1">{sortedDates.length}</p>
+			{/* Purchases List - Story-like Cards */}
+			<motion.div
+				initial={{ opacity: 0, y: 20 }}
+				animate={{ opacity: 1, y: 0 }}
+				className="relative overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-br from-[#121633] via-[#060915] to-[#030308] p-8 backdrop-blur-2xl shadow-[0_30px_80px_rgba(4,5,16,0.65)]"
+			>
+				<div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent" />
+				<div className="relative z-10">
+					<div className="mb-6 flex items-center gap-4">
+						<div className="rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-4">
+							<ShoppingCart className="h-6 w-6 text-purple-300" />
+						</div>
+						<div>
+							<h2 className="text-2xl font-semibold text-white">
+								Purchase History
+							</h2>
+							<p className="text-sm text-white/60">
+								All your stock purchases and receipts
+							</p>
+						</div>
 					</div>
 				</div>
 			)}
 
-			{/* Date-wise List */}
-			{purchases.length === 0 ? (
-				<div className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-12 text-center">
-					<ShoppingCart className="mx-auto h-12 w-12 text-white/20 mb-4" />
-					<h3 className="text-lg font-semibold text-white mb-1">No spendings recorded</h3>
-					<p className="text-sm text-white/50 mb-4">Add your first expense or purchase to start tracking</p>
-					<Button onClick={() => setShowPurchaseForm(true)} size="sm">
-						<Plus className="mr-2 h-4 w-4" /> Add Spending
-					</Button>
-				</div>
-			) : (
-				<div className="space-y-6">
-					{sortedDates.map((date) => {
-						const dayPurchases = groupedByDate[date]!
-						const dayTotal = dayPurchases.reduce((sum, p) => sum + p.total_amount, 0)
-						const formattedDate = new Date(date).toLocaleDateString('en-IN', {
-							weekday: 'short',
-							day: '2-digit',
-							month: 'short',
-							year: 'numeric'
-						})
-
-						return (
-							<div key={date}>
-								{/* Date Header */}
-								<div className="flex items-center justify-between mb-3">
-									<div className="flex items-center gap-2">
-										<Calendar className="h-4 w-4 text-white/40" />
-										<h3 className="text-sm font-medium text-white/70">{formattedDate}</h3>
-									</div>
-									<span className="text-sm font-semibold text-white">{fmt(dayTotal)}</span>
-								</div>
-
-								{/* Entries */}
-								<div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden divide-y divide-white/5">
-									{dayPurchases.map((purchase) => {
-										return (
-											<div key={purchase.id} className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors">
-												<div className="flex-1 min-w-0">
-													{/* Purpose of Spending */}
-													<p className="text-sm font-medium text-white truncate">
-														{purchase.notes || purchase.invoice_number || 'Untitled Expense'}
-													</p>
-													<div className="flex items-center gap-2 mt-1 flex-wrap">
-														{(() => {
-															const sup = purchase.supplier
-															const name = Array.isArray(sup) ? sup[0]?.name : (sup as any)?.name
-															if (!name) return null
-															return (
-																<span className="text-xs font-medium text-blue-300 bg-blue-500/10 border border-blue-500/20 rounded-full px-2 py-0.5">
-																	{name}
+					{purchases.length === 0 ? (
+						<div className="text-center py-16">
+							<div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20">
+								<ShoppingCart className="h-10 w-10 text-white/40" />
+							</div>
+							<h3 className="text-xl font-semibold text-white mb-2">
+								No purchases yet
+							</h3>
+							<p className="text-white/60 max-w-md mx-auto mb-6">
+								Create your first purchase to add stock to inventory. Purchases
+								automatically update your stock levels.
+							</p>
+							<Button
+								onClick={() => setShowPurchaseForm(true)}
+								variant="ghost"
+								className="border-white/20"
+							>
+								<Plus className="mr-2 h-4 w-4" />
+								Create Purchase
+							</Button>
+						</div>
+					) : (
+						<div className="grid gap-4">
+							{purchases.map((purchase) => (
+								<motion.div
+									key={purchase.id}
+									whileHover={{ scale: 1.01 }}
+									initial={{ opacity: 0, y: 10 }}
+									animate={{ opacity: 1, y: 0 }}
+									className="rounded-xl border border-white/10 bg-gradient-to-br from-black/40 to-black/20 p-6 backdrop-blur-sm hover:border-white/20 transition"
+								>
+									<div className="flex items-start justify-between">
+										<div className="flex-1">
+											<div className="flex items-center gap-4 mb-4">
+												<div className="rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-3">
+													<FileText className="h-5 w-5 text-purple-300" />
+												</div>
+												<div className="flex-1">
+													<div className="flex items-center gap-3 mb-2">
+														<h3 className="text-xl font-semibold text-white">
+															{purchase.invoice_number || 'Purchase'}
+														</h3>
+														<Badge
+															className={`${
+																purchase.status === 'completed'
+																	? 'border-emerald-400/50 text-emerald-400 bg-emerald-400/10'
+																	: purchase.status === 'pending'
+																		? 'border-amber-400/50 text-amber-400 bg-amber-400/10'
+																		: 'border-red-400/50 text-red-400 bg-red-400/10'
+															}`}
+														>
+															{purchase.status}
+														</Badge>
+													</div>
+													<div className="flex flex-wrap items-center gap-4 text-sm text-white/60">
+														<div className="flex items-center gap-2">
+															<Calendar className="h-4 w-4" />
+															{new Date(
+																purchase.purchase_date
+															).toLocaleDateString('en-US', {
+																year: 'numeric',
+																month: 'long',
+																day: 'numeric'
+															})}
+														</div>
+														{purchase.supplier?.[0] ? (
+															<div className="flex items-center gap-2">
+																<Building2 className="h-4 w-4" />
+																<span className="text-white/80">
+																	{purchase.supplier[0].name}
 																</span>
 															)
 														})()}

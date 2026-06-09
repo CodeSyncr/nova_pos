@@ -156,8 +156,8 @@ export function CouponsTab({ tenantId, onRefresh }: CouponsTabProps) {
 											<Badge
 												className={
 													isActive
-														? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'
-														: 'border-red-400/30 bg-red-400/10 text-red-200'
+														? 'border-white/20 bg-white/10 text-white'
+														: 'border-[#E0342A]/30 bg-[#E0342A]/10 text-[#E0342A]'
 												}
 											>
 												{isActive ? 'Active' : 'Inactive'}
@@ -207,7 +207,7 @@ export function CouponsTab({ tenantId, onRefresh }: CouponsTabProps) {
 
 								<div className="space-y-2">
 									<div className="flex items-center gap-2 text-sm">
-										<DollarSign className="h-4 w-4 text-emerald-400" />
+										<DollarSign className="h-4 w-4 text-[#E0342A]" />
 										<span className="text-white/70">Discount:</span>
 										<span className="font-semibold text-white">
 											{coupon.discount_type === 'percent'
@@ -217,7 +217,7 @@ export function CouponsTab({ tenantId, onRefresh }: CouponsTabProps) {
 									</div>
 
 									<div className="flex items-center gap-2 text-sm">
-										<Calendar className="h-4 w-4 text-blue-400" />
+										<Calendar className="h-4 w-4 text-white/50" />
 										<span className="text-white/70">Valid:</span>
 										<span className="text-white">
 											{new Date(coupon.valid_from).toLocaleDateString()} -{' '}
@@ -230,7 +230,7 @@ export function CouponsTab({ tenantId, onRefresh }: CouponsTabProps) {
 										{coupon.usage_limit && (
 											<div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
 												<div
-													className="h-full bg-emerald-400 transition-all"
+													className="h-full bg-white/60 transition-all"
 													style={{
 														width: `${Math.min(usagePercentage, 100)}%`
 													}}

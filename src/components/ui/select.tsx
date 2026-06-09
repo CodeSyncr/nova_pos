@@ -139,7 +139,7 @@ export function CustomSelect({
 												</div>
 											</div>
 											{isSelected && (
-												<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
+												<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E0342A]/15 border border-[#E0342A]/30 text-[#E0342A]">
 													<CheckCircle2 className="h-3 w-3" />
 												</div>
 											)}

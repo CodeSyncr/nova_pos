@@ -213,13 +213,13 @@ export default function InventoryPage() {
 				<motion.div
 					initial={{ opacity: 0, y: 20 }}
 					animate={{ opacity: 1, y: 0 }}
-					className="relative overflow-hidden rounded-[32px] border border-amber-400/30 bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-red-500/10 p-8 backdrop-blur-2xl shadow-[0_30px_80px_rgba(251,146,60,0.15)]"
+					className="relative overflow-hidden rounded-[32px] border border-[#E0342A]/30 bg-gradient-to-br from-[#E0342A]/20 to-[#E0342A]/5 p-8 backdrop-blur-2xl shadow-[0_30px_80px_rgba(224,52,42,0.15)]"
 				>
-					<div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent" />
+					<div className="absolute inset-0 bg-gradient-to-br from-[#E0342A]/5 to-transparent" />
 					<div className="relative z-10">
 						<div className="mb-6 flex items-center gap-4">
-							<div className="rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 p-4">
-								<AlertTriangle className="h-6 w-6 text-amber-300" />
+							<div className="rounded-2xl bg-[#E0342A]/15 p-4">
+								<AlertTriangle className="h-6 w-6 text-[#E0342A]" />
 							</div>
 							<div>
 								<h2 className="text-2xl font-semibold text-white">
@@ -236,7 +236,7 @@ export default function InventoryPage() {
 								<motion.div
 									key={item.id}
 									whileHover={{ scale: 1.02 }}
-									className="rounded-xl border border-amber-400/20 bg-black/40 p-4 backdrop-blur-sm"
+									className="rounded-xl border border-[#E0342A]/20 bg-black/40 p-4 backdrop-blur-sm"
 								>
 									<div className="flex items-center justify-between">
 										<div className="flex-1">
@@ -244,7 +244,7 @@ export default function InventoryPage() {
 												{item.ingredient?.name || 'Unknown'}
 											</p>
 											<div className="mt-2 flex items-baseline gap-2">
-												<span className="text-2xl font-bold text-amber-400">
+												<span className="text-2xl font-bold text-[#E0342A]">
 													{item.current_stock}
 												</span>
 												<span className="text-sm text-white/60">
@@ -255,7 +255,7 @@ export default function InventoryPage() {
 												Min required: {item.min_stock_level} {item.unit}
 											</p>
 										</div>
-										<TrendingDown className="h-5 w-5 text-amber-400" />
+										<TrendingDown className="h-5 w-5 text-[#E0342A]" />
 									</div>
 								</motion.div>
 							))}
@@ -270,12 +270,12 @@ export default function InventoryPage() {
 				animate={{ opacity: 1, y: 0 }}
 				className="relative overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-br from-[#121633] via-[#060915] to-[#030308] p-8 backdrop-blur-2xl shadow-[0_30px_80px_rgba(4,5,16,0.65)]"
 			>
-				<div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent" />
+				<div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
 				<div className="relative z-10">
 					<div className="mb-6 flex items-center justify-between">
 						<div className="flex items-center gap-4">
-							<div className="rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 p-4">
-								<Package className="h-6 w-6 text-cyan-300" />
+							<div className="rounded-2xl bg-white/10 p-4">
+								<Package className="h-6 w-6 text-white/70" />
 							</div>
 							<div>
 								<h2 className="text-2xl font-semibold text-white">
@@ -293,7 +293,7 @@ export default function InventoryPage() {
 
 					{inventory.length === 0 ? (
 						<div className="text-center py-16">
-							<div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20">
+							<div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/10">
 								<Package className="h-10 w-10 text-white/40" />
 							</div>
 							<h3 className="text-xl font-semibold text-white mb-2">
@@ -319,7 +319,7 @@ export default function InventoryPage() {
 										whileHover={{ scale: 1.01 }}
 										className={`rounded-xl border p-6 transition ${
 											isLowStock
-												? 'border-amber-400/30 bg-gradient-to-br from-amber-500/10 to-orange-500/10'
+												? 'border-[#E0342A]/30 bg-[#E0342A]/10'
 												: 'border-white/10 bg-black/20 hover:bg-black/30'
 										}`}
 									>
@@ -329,13 +329,13 @@ export default function InventoryPage() {
 													<div
 														className={`rounded-xl p-3 ${
 															isLowStock
-																? 'bg-amber-400/20'
-																: 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20'
+																? 'bg-[#E0342A]/15'
+																: 'bg-white/10'
 														}`}
 													>
 														<Package
 															className={`h-5 w-5 ${
-																isLowStock ? 'text-amber-300' : 'text-cyan-300'
+																isLowStock ? 'text-[#E0342A]' : 'text-white/70'
 															}`}
 														/>
 													</div>
@@ -345,7 +345,7 @@ export default function InventoryPage() {
 																{item.ingredient?.name || 'Unknown'}
 															</h3>
 															{isLowStock && (
-																<Badge className="border-amber-400/50 text-amber-400 text-xs bg-amber-400/10">
+																<Badge className="border-[#E0342A]/50 text-[#E0342A] text-xs bg-[#E0342A]/10">
 																	Low Stock
 																</Badge>
 															)}
@@ -353,7 +353,7 @@ export default function InventoryPage() {
 														<div className="mt-2 flex items-baseline gap-2">
 															<span
 																className={`text-3xl font-bold ${
-																	isLowStock ? 'text-amber-400' : 'text-white'
+																	isLowStock ? 'text-[#E0342A]' : 'text-white'
 																}`}
 															>
 																{item.current_stock}
@@ -368,10 +368,10 @@ export default function InventoryPage() {
 																	<div
 																		className={`h-full transition-all ${
 																			stockPercentage < 20
-																				? 'bg-amber-400'
+																				? 'bg-[#E0342A]'
 																				: stockPercentage < 50
-																					? 'bg-yellow-400'
-																					: 'bg-emerald-400'
+																					? 'bg-white/50'
+																					: 'bg-white'
 																		}`}
 																		style={{
 																			width: `${Math.min(100, stockPercentage)}%`

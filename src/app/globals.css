@@ -2,30 +2,34 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@theme {
+	--font-sans: var(--font-urbanist), system-ui, -apple-system, sans-serif;
+}
+
 :root {
 	color-scheme: dark;
-	--background: 240 21% 9%;
+	--background: 0 0% 4%;
 	--foreground: 0 0% 100%;
-	--muted: 234 21% 15%;
-	--muted-foreground: 240 5% 64%;
-	--accent: 264 87% 70%;
-	--accent-foreground: 255 100% 98%;
-	--border: 240 18% 17%;
-	--card: 240 21% 10%;
+	--muted: 0 0% 11%;
+	--muted-foreground: 0 0% 60%;
+	--accent: 4 75% 52%;
+	--accent-foreground: 0 0% 100%;
+	--border: 0 0% 16%;
+	--card: 0 0% 7%;
 	--card-foreground: 0 0% 100%;
 	--radius: 0.95rem;
 }
 
 .dark {
 	color-scheme: dark;
-	--background: 240 21% 9%;
+	--background: 0 0% 4%;
 	--foreground: 0 0% 100%;
-	--muted: 234 21% 15%;
-	--muted-foreground: 240 5% 64%;
-	--accent: 264 87% 70%;
-	--accent-foreground: 255 100% 98%;
-	--border: 240 18% 17%;
-	--card: 240 21% 10%;
+	--muted: 0 0% 11%;
+	--muted-foreground: 0 0% 60%;
+	--accent: 4 75% 52%;
+	--accent-foreground: 0 0% 100%;
+	--border: 0 0% 16%;
+	--card: 0 0% 7%;
 	--card-foreground: 0 0% 100%;
 }
 
@@ -49,8 +53,8 @@
 
 	body {
 		font-family:
-			var(--font-geist-sans),
-			'Inter',
+			var(--font-urbanist),
+			'Urbanist',
 			system-ui,
 			-apple-system,
 			sans-serif;
@@ -74,4 +78,15 @@
 	position: absolute;
 	filter: blur(60px);
 	opacity: 0.5;
+}
+
+/* Hide scrollbars everywhere (scrolling still works) */
+* {
+	scrollbar-width: none; /* Firefox */
+	-ms-overflow-style: none; /* IE / legacy Edge */
+}
+*::-webkit-scrollbar {
+	width: 0;
+	height: 0;
+	display: none; /* Chrome / Safari / Edge */
 }

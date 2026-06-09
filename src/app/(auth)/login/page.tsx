@@ -1,69 +1,58 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { Auth } from '@supabase/auth-ui-react'
-import { ThemeSupa } from '@supabase/auth-ui-shared'
-import { motion } from 'framer-motion'
-import { Sparkles, Star, Workflow } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
+import Image from 'next/image'
+import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
+// no animations: form and sheet render statically
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
-import { Logo } from '@/components/brand/logo'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
-
-const authAppearance = {
-	theme: ThemeSupa,
-	variables: {
-		default: {
-			colors: {
-				brand: '#7A74FF',
-				brandAccent: '#4DD4FF',
-				inputBackground: '#080B1D',
-				inputBorder: '#1F2243'
-			},
-			borderWidths: {
-				buttonBorderWidth: '1px'
-			},
-			radii: {
-				borderRadiusButton: '999px',
-				borderRadiusInput: '18px'
-			}
-		}
-	},
-	className: {
-		container: 'gap-6',
-		button:
-			'!rounded-2xl !bg-gradient-to-r !from-[#6B6DFF] !to-[#4DD4FF] hover:!opacity-90 !text-sm !font-medium !text-white',
-		label: '!text-white/80 !text-sm',
-		input: '!bg-white/5 !border-white/15 !text-white',
-		message: '!text-rose-300',
-		loader: '!text-white'
-	}
-} as const
 
 export default function LoginPage() {
 	const [supabaseClient] = useState(createSupabaseBrowserClient)
 	const router = useRouter()
 
+	const [email, setEmail] = useState('')
+	const [password, setPassword] = useState('')
+	const [showPassword, setShowPassword] = useState(false)
+	const [loading, setLoading] = useState(false)
+	const [error, setError] = useState<string | null>(null)
+
 	useEffect(() => {
 		let isMounted = true
 
 		const redirectAfterAuth = async (userId: string) => {
-			// Check if user has a role (staff) or is owner
 			const { data: pt } = await supabaseClient
 				.from('profile_tenants')
 				.select('role_id')
 				.eq('profile_id', userId)
 				.single()
 
-			if (pt?.role_id) {
-				// Staff: go directly to POS
-				router.replace('/pos')
-			} else {
-				// Owner: go to onboarding (which redirects to dashboard if already set up)
+			if (!isMounted) return
+
+			// No workspace yet → onboarding
+			if (!pt) {
 				router.replace('/onboarding')
+				return
 			}
+
+			// Owner/admin (OWNER role or ["*"] permissions) → dashboard; restricted staff → POS
+			let isFullAccess = !pt.role_id
+			if (pt.role_id) {
+				const { data: role } = await supabaseClient
+					.from('roles')
+					.select('code, permissions')
+					.eq('id', pt.role_id)
+					.single()
+				const perms = role?.permissions as unknown
+				isFullAccess =
+					role?.code === 'OWNER' ||
+					perms == null ||
+					(Array.isArray(perms) &&
+						(perms.includes('*') || perms.includes('all')))
+			}
+
+			if (!isMounted) return
+			router.replace(isFullAccess ? '/dashboard' : '/pos')
 		}
 
 		supabaseClient.auth.getSession().then(({ data }) => {
@@ -75,9 +64,7 @@ export default function LoginPage() {
 		const {
 			data: { subscription }
 		} = supabaseClient.auth.onAuthStateChange((_event, session) => {
-			if (session) {
-				redirectAfterAuth(session.user.id)
-			}
+			if (session) redirectAfterAuth(session.user.id)
 		})
 
 		return () => {
@@ -86,95 +73,146 @@ export default function LoginPage() {
 		}
 	}, [router, supabaseClient])
 
-	return (
-		<div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#040513] via-[#050A1F] to-[#02030B] text-white">
-			<div className="pointer-events-none absolute inset-0">
-				<div className="glow -top-32 left-1/2 h-96 w-96 -translate-x-1/2 bg-[#7A74FF]/30" />
-				<div className="glow bottom-0 left-10 h-72 w-72 bg-[#4DD4FF]/25" />
-				<div className="glow -bottom-16 right-16 h-80 w-80 bg-[#FF7ACB]/30" />
+	const handleSubmit = async (e: FormEvent) => {
+		e.preventDefault()
+		if (loading) return
+		setError(null)
+		setLoading(true)
+
+		const { error: signInError } = await supabaseClient.auth.signInWithPassword({
+			email: email.trim(),
+			password
+		})
+
+		if (signInError) {
+			setError(signInError.message)
+			setLoading(false)
+			return
+		}
+		// onAuthStateChange handles the redirect; keep the button busy until it does.
+	}
+
+	const formBody = (
+		<>
+			<div className="mb-7">
+				<h1 className="text-2xl font-semibold tracking-tight text-white">
+					Sign in
+				</h1>
+				<p className="mt-1 text-sm text-white/40">
+					Welcome back to Pizzeria Da Cafe
+				</p>
 			</div>
 
-			<div className="relative z-10 flex min-h-screen flex-col gap-20 px-6 py-12 md:flex-row md:px-12 lg:px-20">
-				<section className="flex flex-1 flex-col justify-between gap-12">
-					<div>
-						<Logo />
-						<Badge className="mt-8 border-white/20 bg-white/10 text-white/80">
-							<Sparkles className="mr-2 h-4 w-4" /> Seamless access
-						</Badge>
-						<h1 className="mt-6 text-4xl font-semibold leading-tight text-white md:text-5xl">
-							Step back into your NovaPOS command center
-						</h1>
-						<p className="mt-4 max-w-lg text-base text-white/70">
-							Glide into operations with cinematic onboarding, live automations,
-							and a dashboard that feels like a control room designed by Vercel
-							and Linear.
-						</p>
-					</div>
-					<div className="space-y-4 text-white/70">
-						<div className="flex items-center gap-3">
-							<Star className="h-4 w-4 text-amber-300" />
-							Cinematic onboarding with guided rituals
-						</div>
-						<div className="flex items-center gap-3">
-							<Workflow className="h-4 w-4 text-teal-300" />
-							Automation studio for every channel
-						</div>
-						<p className="text-sm text-white/50">
-							Need an account?{' '}
-							<Link
-								className="text-white underline-offset-4 hover:underline"
-								href="/signup"
-							>
-								Create one in minutes
-							</Link>
-						</p>
-					</div>
-				</section>
-
-				<motion.section
-					className="flex flex-1 items-center justify-center"
-					initial={{ opacity: 0, y: 20 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.6, ease: 'easeOut' }}
-				>
-					<div className="w-full max-w-md rounded-[32px] border border-white/10 bg-white/5 p-8 backdrop-blur-2xl shadow-[0_30px_80px_rgba(4,5,16,0.65)]">
-						<div className="mb-8 text-center">
-							<p className="text-sm uppercase tracking-[0.4em] text-white/50">
-								Sign in
-							</p>
-							<h2 className="mt-3 text-3xl font-semibold text-white">
-								Welcome back
-							</h2>
-							<p className="mt-2 text-sm text-white/60">
-								Authenticate with your workspace email to access NovaPOS.
-							</p>
-						</div>
-
-						<Auth
-							supabaseClient={supabaseClient}
-							view="sign_in"
-							providers={[]}
-							appearance={authAppearance}
-							localization={{
-								variables: {
-									sign_in: {
-										email_label: 'Work email',
-										password_label: 'Access key',
-										button_label: 'Access NovaPOS'
-									}
-								}
-							}}
-							theme="dark"
+			<form onSubmit={handleSubmit} className="space-y-4">
+				{/* Email */}
+				<div className="space-y-1.5">
+					<label
+						htmlFor="email"
+						className="text-xs font-medium uppercase tracking-wider text-white/40"
+					>
+						Email
+					</label>
+					<div className="relative">
+						<Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+						<input
+							id="email"
+							type="email"
+							required
+							autoComplete="email"
+							value={email}
+							onChange={(e) => setEmail(e.target.value)}
+							placeholder="you@pizzeriadacafe.com"
+							className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-3 pl-11 pr-4 text-sm text-white placeholder-white/25 outline-none focus:border-[#E0342A] focus:bg-white/[0.06] focus:ring-2 focus:ring-[#E0342A]/20"
 						/>
-
-						<div className="mt-6 text-center text-sm text-white/60">
-							Need an invite?{' '}
-							<Button asChild variant="link" className="p-0 text-white">
-								<Link href="/signup">Join the platform</Link>
-							</Button>
-						</div>
 					</div>
-				</motion.section>
+				</div>
+
+				{/* Password */}
+				<div className="space-y-1.5">
+					<label
+						htmlFor="password"
+						className="text-xs font-medium uppercase tracking-wider text-white/40"
+					>
+						Password
+					</label>
+					<div className="relative">
+						<Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+						<input
+							id="password"
+							type={showPassword ? 'text' : 'password'}
+							required
+							autoComplete="current-password"
+							value={password}
+							onChange={(e) => setPassword(e.target.value)}
+							placeholder="••••••••"
+							className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-3 pl-11 pr-11 text-sm text-white placeholder-white/25 outline-none focus:border-[#E0342A] focus:bg-white/[0.06] focus:ring-2 focus:ring-[#E0342A]/20"
+						/>
+						<button
+							type="button"
+							onClick={() => setShowPassword((s) => !s)}
+							className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"
+							aria-label={showPassword ? 'Hide password' : 'Show password'}
+						>
+							{showPassword ? (
+								<EyeOff className="h-4 w-4" />
+							) : (
+								<Eye className="h-4 w-4" />
+							)}
+						</button>
+					</div>
+				</div>
+
+				{/* Error */}
+				{error && (
+					<p className="rounded-lg border border-[#E0342A]/30 bg-[#E0342A]/10 px-3 py-2 text-xs text-red-300">
+						{error}
+					</p>
+				)}
+
+				{/* Submit */}
+				<button
+					type="submit"
+					disabled={loading}
+					className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#E0342A] py-3 text-sm font-semibold text-white shadow-[0_10px_30px_-8px_rgba(224,52,42,0.6)] hover:bg-[#C42A21] disabled:cursor-not-allowed disabled:opacity-70"
+				>
+					{loading ? (
+						<>
+							{null}
+							Signing in…
+						</>
+					) : (
+						<>
+							Sign in
+							<ArrowRight className="h-4 w-4" />
+						</>
+					)}
+				</button>
+			</form>
+		</>
+	)
+
+	return (
+		<div className="relative min-h-screen overflow-hidden bg-black text-white lg:grid lg:grid-cols-2">
+			{/* Illustration — full-screen background on mobile, left column on desktop */}
+			<div className="absolute inset-0 lg:relative lg:h-screen">
+				<Image
+					src="/login_bg.png"
+					alt="Pizzeria Da Cafe"
+					fill
+					priority
+					className="object-cover object-top lg:object-center"
+				/>
+				{/* Fade the image into the sheet on mobile */}
+				<div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black via-black/70 to-transparent lg:hidden" />
+			</div>
+
+			{/* Form — bottom sheet on mobile, centered right column on desktop */}
+			<div className="relative z-10 flex min-h-screen flex-col justify-end lg:items-center lg:justify-center lg:px-6">
+				<div className="w-full rounded-t-[28px] border-t border-white/10 bg-black/70 px-6 pb-10 pt-5 shadow-[0_-24px_70px_rgba(0,0,0,0.7)] backdrop-blur-2xl lg:max-w-sm lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
+					{/* Grab handle — mobile only */}
+					<div className="mx-auto mb-6 h-1.5 w-11 rounded-full bg-white/20 lg:hidden" />
+					{formBody}
+				</div>
 			</div>
 		</div>
 	)

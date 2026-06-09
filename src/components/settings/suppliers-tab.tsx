@@ -107,7 +107,7 @@ export function SuppliersTab({ tenantId, onRefresh }: SuppliersTabProps) {
 
 			{suppliers.length === 0 ? (
 				<div className="text-center py-16 rounded-xl border border-white/10 bg-black/20">
-					<div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-violet-500/20 to-purple-500/20">
+					<div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/[0.03]">
 						<Building2 className="h-10 w-10 text-white/40" />
 					</div>
 					<h3 className="text-xl font-semibold text-white mb-2">
@@ -137,19 +137,19 @@ export function SuppliersTab({ tenantId, onRefresh }: SuppliersTabProps) {
 								animate={{ opacity: 1, scale: 1 }}
 								exit={{ opacity: 0, scale: 0.95 }}
 								whileHover={{ scale: 1.02 }}
-								className="rounded-xl border border-white/10 bg-gradient-to-br from-black/40 to-black/20 p-6 backdrop-blur-sm hover:border-white/20 transition"
+								className="rounded-xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-sm hover:border-white/20 transition"
 							>
 								<div className="flex items-start justify-between mb-4">
 									<div className="flex items-center gap-3">
-										<div className="rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 p-3">
-											<Building2 className="h-5 w-5 text-violet-300" />
+										<div className="rounded-xl bg-[#E0342A]/15 p-3">
+											<Building2 className="h-5 w-5 text-[#E0342A]" />
 										</div>
 										<div>
 											<h4 className="text-lg font-semibold text-white">
 												{supplier.name}
 											</h4>
 											{supplier.is_active ? (
-												<div className="flex items-center gap-1 text-xs text-emerald-400 mt-1">
+												<div className="flex items-center gap-1 text-xs text-white mt-1">
 													<CheckCircle2 className="h-3 w-3" />
 													<span>Active</span>
 												</div>
@@ -216,7 +216,7 @@ export function SuppliersTab({ tenantId, onRefresh }: SuppliersTabProps) {
 										size="sm"
 										variant="ghost"
 										onClick={() => setDeletingSupplier(supplier)}
-										className="border border-red-400/20 bg-red-400/10 text-red-300 hover:bg-red-400/20"
+										className="border border-[#E0342A]/30 bg-[#E0342A]/10 text-[#E0342A] hover:bg-[#E0342A]/15"
 									>
 										<Trash2 className="h-3 w-3" />
 									</Button>

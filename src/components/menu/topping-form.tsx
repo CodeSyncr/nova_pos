@@ -105,7 +105,7 @@ export function ToppingForm({
 				initial={{ opacity: 0, x: 80 }}
 				animate={{ opacity: 1, x: 0 }}
 				exit={{ opacity: 0, x: 80 }}
-				className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-white/10 bg-gradient-to-br from-[#121633] via-[#060915] to-[#030308] p-8 shadow-[0_40px_120px_rgba(3,5,18,0.85)]"
+				className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-white/10 bg-black p-8 shadow-[0_40px_120px_rgba(3,5,18,0.85)]"
 			>
 				<div className="flex items-center justify-between mb-6">
 					<div>
@@ -186,7 +186,7 @@ export function ToppingForm({
 										value={categorySearch}
 										onChange={(e) => setCategorySearch(e.target.value)}
 										placeholder="Search..."
-										className="w-full rounded-xl border border-white/10 bg-[#0B0E24] px-3 py-2 text-xs text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+										className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
 									/>
 								</div>
 							)}
@@ -208,7 +208,7 @@ export function ToppingForm({
 											}
 											className={`rounded-full border px-3 py-1 text-xs transition ${
 												selected
-													? 'border-emerald-400/70 bg-emerald-400/15 text-emerald-100'
+													? 'border-[#E0342A]/30 bg-[#E0342A]/15 text-white'
 													: 'border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:bg-white/10'
 											}`}
 										>

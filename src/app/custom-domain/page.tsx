@@ -62,7 +62,7 @@ export default async function TenantLandingPage() {
 		cta_text: 'View our POS Subdomain',
 		cta_url: '#',
 		bg_color: '#030712',
-		accent_color: '#3b82f6',
+		accent_color: '#E0342A',
 		logo_url: tenant.logo_url,
 		show_pos_link: true
 	}
@@ -74,7 +74,7 @@ export default async function TenantLandingPage() {
 	if (config.template === 'restaurant') {
 		return (
 			<div
-				className="min-h-screen text-white font-sans selection:bg-amber-500/30 selection:text-white"
+				className="min-h-screen text-white font-sans selection:bg-[#E0342A]/30 selection:text-white"
 				style={{ backgroundColor: config.bg_color || '#0B0A09' }}
 			>
 				{/* Header */}
@@ -88,7 +88,7 @@ export default async function TenantLandingPage() {
 									className="h-10 w-10 rounded-full object-cover border border-white/10"
 								/>
 							) : (
-								<div className="h-10 w-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold border border-amber-500/30">
+								<div className="h-10 w-10 rounded-full bg-[#E0342A]/15 flex items-center justify-center text-[#E0342A] font-bold border border-[#E0342A]/30">
 									<ChefHat className="h-5 w-5" />
 								</div>
 							)}
@@ -111,7 +111,7 @@ export default async function TenantLandingPage() {
 				<main className="max-w-6xl mx-auto px-6 py-20 md:py-32">
 					<div className="grid gap-12 lg:grid-cols-[1fr_1.1fr] items-center">
 						<div className="space-y-8">
-							<div className="inline-flex items-center gap-2 border border-amber-500/20 bg-amber-500/10 rounded-full px-4 py-1.5 text-sm text-amber-300">
+							<div className="inline-flex items-center gap-2 border border-[#E0342A]/30 bg-[#E0342A]/10 rounded-full px-4 py-1.5 text-sm text-[#E0342A]">
 								<Sparkles className="h-4 w-4" />
 								<span>Exquisite Culinary Experience</span>
 							</div>
@@ -129,8 +129,8 @@ export default async function TenantLandingPage() {
 									href={config.cta_url || '#menu'}
 									className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 font-semibold text-black transition-all duration-300 hover:scale-[1.02] shadow-lg"
 									style={{
-										backgroundColor: config.accent_color || '#eab308',
-										boxShadow: `0 10px 30px -10px ${config.accent_color || '#eab308'}`
+										backgroundColor: config.accent_color || '#E0342A',
+										boxShadow: `0 10px 30px -10px ${config.accent_color || '#E0342A'}`
 									}}
 								>
 									{config.cta_text || 'Order Now'}
@@ -144,13 +144,13 @@ export default async function TenantLandingPage() {
 							<div
 								className="absolute inset-0 opacity-20 blur-[100px] pointer-events-none"
 								style={{
-									background: `radial-gradient(circle, ${config.accent_color || '#eab308'} 0%, transparent 70%)`
+									background: `radial-gradient(circle, ${config.accent_color || '#E0342A'} 0%, transparent 70%)`
 								}}
 							/>
 							<div className="relative p-12 text-center max-w-md space-y-6">
 								<ChefHat
 									className="h-20 w-20 mx-auto opacity-80"
-									style={{ color: config.accent_color || '#eab308' }}
+									style={{ color: config.accent_color || '#E0342A' }}
 								/>
 								<h3 className="text-2xl font-bold tracking-tight">Kitchen Is Open</h3>
 								<p className="text-white/60">
@@ -187,9 +187,9 @@ export default async function TenantLandingPage() {
 											<span
 												className="text-xs uppercase tracking-wider font-semibold px-3 py-1.5 rounded-full border"
 												style={{
-													borderColor: `${config.accent_color || '#eab308'}30`,
-													color: config.accent_color || '#eab308',
-													backgroundColor: `${config.accent_color || '#eab308'}10`
+													borderColor: `${config.accent_color || '#E0342A'}30`,
+													color: config.accent_color || '#E0342A',
+													backgroundColor: `${config.accent_color || '#E0342A'}10`
 												}}
 											>
 												Popular
@@ -206,7 +206,7 @@ export default async function TenantLandingPage() {
 				<footer className="border-t border-white/5 mt-32 py-12 text-white/40 text-center text-sm">
 					<div className="max-w-6xl mx-auto px-6 space-y-4">
 						<p>© {new Date().getFullYear()} {tenant.name}. All rights reserved.</p>
-						<p className="text-xs">Powered by NovaPOS</p>
+						<p className="text-xs">Powered by POS</p>
 					</div>
 				</footer>
 			</div>
@@ -216,7 +216,7 @@ export default async function TenantLandingPage() {
 	if (config.template === 'pizza') {
 		return (
 			<div
-				className="min-h-screen text-white font-sans selection:bg-red-500/30 selection:text-white"
+				className="min-h-screen text-white font-sans selection:bg-[#E0342A]/30 selection:text-white"
 				style={{ backgroundColor: config.bg_color || '#090505' }}
 			>
 				{/* Header */}
@@ -234,7 +234,7 @@ export default async function TenantLandingPage() {
 									🍕
 								</div>
 							)}
-							<span className="font-bold text-xl tracking-tight uppercase" style={{ color: config.accent_color || '#ef4444' }}>
+							<span className="font-bold text-xl tracking-tight uppercase" style={{ color: config.accent_color || '#E0342A' }}>
 								{tenant.name}
 							</span>
 						</div>
@@ -244,7 +244,7 @@ export default async function TenantLandingPage() {
 								href={posUrl}
 								className="flex items-center gap-2 text-sm text-white/80 hover:text-white border border-red-500/20 rounded-xl px-4 py-2 hover:bg-red-500/5 transition-all duration-300"
 							>
-								<LogIn className="h-4 w-4" style={{ color: config.accent_color || '#ef4444' }} />
+								<LogIn className="h-4 w-4" style={{ color: config.accent_color || '#E0342A' }} />
 								<span>Staff POS</span>
 							</a>
 						)}
@@ -272,8 +272,8 @@ export default async function TenantLandingPage() {
 									href={config.cta_url || '#menu'}
 									className="inline-flex items-center justify-center gap-2 rounded-xl px-8 py-4 font-bold text-white transition-all duration-300 hover:scale-[1.02] shadow-lg uppercase tracking-wide"
 									style={{
-										backgroundColor: config.accent_color || '#ef4444',
-										boxShadow: `0 10px 30px -10px ${config.accent_color || '#ef4444'}`
+										backgroundColor: config.accent_color || '#E0342A',
+										boxShadow: `0 10px 30px -10px ${config.accent_color || '#E0342A'}`
 									}}
 								>
 									{config.cta_text || 'Order Delivery'}
@@ -287,12 +287,12 @@ export default async function TenantLandingPage() {
 							<div
 								className="absolute inset-0 opacity-30 blur-[80px] pointer-events-none"
 								style={{
-									background: `radial-gradient(circle, ${config.accent_color || '#ef4444'} 0%, transparent 70%)`
+									background: `radial-gradient(circle, ${config.accent_color || '#E0342A'} 0%, transparent 70%)`
 								}}
 							/>
 							<div className="relative p-12 text-center max-w-xs space-y-6">
 								<span className="text-8xl block animate-bounce duration-1000">🍕</span>
-								<h3 className="text-2xl font-black uppercase tracking-tight" style={{ color: config.accent_color || '#ef4444' }}>
+								<h3 className="text-2xl font-black uppercase tracking-tight" style={{ color: config.accent_color || '#E0342A' }}>
 									Dough Masters
 								</h3>
 								<p className="text-white/70 text-sm">
@@ -332,8 +332,8 @@ export default async function TenantLandingPage() {
 											<span
 												className="text-xs uppercase tracking-widest font-black px-3.5 py-2 rounded-xl"
 												style={{
-													color: config.accent_color || '#ef4444',
-													backgroundColor: `${config.accent_color || '#ef4444'}15`
+													color: config.accent_color || '#E0342A',
+													backgroundColor: `${config.accent_color || '#E0342A'}15`
 												}}
 											>
 												Fresh
@@ -350,7 +350,7 @@ export default async function TenantLandingPage() {
 				<footer className="border-t border-red-500/10 mt-32 py-12 text-white/40 text-center text-sm">
 					<div className="max-w-6xl mx-auto px-6 space-y-4">
 						<p>© {new Date().getFullYear()} {tenant.name}. All rights reserved.</p>
-						<p className="text-xs">Powered by NovaPOS</p>
+						<p className="text-xs">Powered by POS</p>
 					</div>
 				</footer>
 			</div>
@@ -360,7 +360,7 @@ export default async function TenantLandingPage() {
 	// Default/Minimal Template
 	return (
 		<div
-			className="min-h-screen text-white font-sans selection:bg-blue-500/30 selection:text-white flex flex-col justify-between"
+			className="min-h-screen text-white font-sans selection:bg-[#E0342A]/30 selection:text-white flex flex-col justify-between"
 			style={{ backgroundColor: config.bg_color || '#030712' }}
 		>
 			{/* Header */}
@@ -374,7 +374,7 @@ export default async function TenantLandingPage() {
 								className="h-9 w-9 rounded-full object-cover border border-white/10"
 							/>
 						) : (
-							<div className="h-9 w-9 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold border border-blue-500/30">
+							<div className="h-9 w-9 rounded-full bg-[#E0342A]/15 flex items-center justify-center text-[#E0342A] font-bold border border-[#E0342A]/30">
 								<Store className="h-4 w-4" />
 							</div>
 						)}
@@ -410,8 +410,8 @@ export default async function TenantLandingPage() {
 						href={config.cta_url || '#'}
 						className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 font-semibold text-white transition-all duration-200 hover:opacity-90 shadow-lg hover:shadow-xl"
 						style={{
-							backgroundColor: config.accent_color || '#3b82f6',
-							boxShadow: `0 10px 25px -5px ${config.accent_color || '#3b82f6'}50`
+							backgroundColor: config.accent_color || '#E0342A',
+							boxShadow: `0 10px 25px -5px ${config.accent_color || '#E0342A'}50`
 						}}
 					>
 						{config.cta_text || 'View Menu'}
@@ -447,7 +447,7 @@ export default async function TenantLandingPage() {
 			{/* Footer */}
 			<footer className="border-t border-white/5 py-12 text-white/40 text-center text-sm">
 				<div className="max-w-6xl mx-auto px-6 space-y-3">
-					<p>© {new Date().getFullYear()} {tenant.name}. Powered by NovaPOS.</p>
+					<p>© {new Date().getFullYear()} {tenant.name}. Powered by POS.</p>
 				</div>
 			</footer>
 		</div>
