@@ -424,17 +424,13 @@ export default function OrdersPage() {
 		if (menuItemsData) {
 			// Ensure description field exists for all items and handle null/undefined variants/toppings
 			const itemsWithDescription = menuItemsData.map((item) => {
-				let linkedToppings = (item as { menu_item_toppings?: any[] }).menu_item_toppings || []
-				if (linkedToppings.length === 0 && toppingsData) {
-					const matchingToppings = toppingsData.filter((t) => {
-						if (!t.category) return false
-						const ids = t.category.split(',').map((id: string) => id.trim())
-						return ids.includes(item.category_id)
-					})
-					linkedToppings = matchingToppings.map((t) => ({
-						topping: t
-					}))
-				}
+				const linkedToppings = ((item as { menu_item_toppings?: any[] }).menu_item_toppings || []).filter((entry) => {
+					// Keep only entries that resolve to a real topping
+					const t = entry.topping as unknown
+					if (!t) return false
+					if (Array.isArray(t)) return t.length > 0 && !!t[0]
+					return true
+				})
 				return {
 					...item,
 					description:
@@ -706,8 +702,8 @@ export default function OrdersPage() {
 				| null
 		}>
 	}) => {
-		// Check if item has variants or add-ons
-		const hasVariants = (menuItem.menu_item_variants?.length ?? 0) > 0
+		// Check if item has variants or add-ons (more than 1 variant or at least 1 topping)
+		const hasVariants = (menuItem.menu_item_variants?.length ?? 0) > 1
 		const hasToppings = (menuItem.menu_item_toppings?.length ?? 0) > 0
 
 		if (hasVariants || hasToppings) {
