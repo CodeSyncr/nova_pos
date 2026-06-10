@@ -197,6 +197,25 @@ export class EscPosEncoder {
 	}
 
 	/**
+	 * Print a raw raster bit image (GS v 0 command).
+	 * data: 1-bit per pixel monochrome bitmap byte array
+	 */
+	rasterImage(widthInPixels: number, heightInPixels: number, data: Uint8Array | number[]) {
+		const widthInBytes = Math.ceil(widthInPixels / 8)
+		const xL = widthInBytes & 0xFF
+		const xH = (widthInBytes >> 8) & 0xFF
+		const yL = heightInPixels & 0xFF
+		const yH = (heightInPixels >> 8) & 0xFF
+
+		// GS v 0 0 xL xH yL yH
+		this.buffer.push(0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH)
+		for (let i = 0; i < data.length; i++) {
+			this.buffer.push(data[i])
+		}
+		return this
+	}
+
+	/**
 	 * Feed paper and trigger hardware paper cutter.
 	 */
 	cut() {

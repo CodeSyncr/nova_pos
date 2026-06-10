@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import type { BillTemplate } from '@/lib/bill-template'
 import type { BillOrderData } from '@/lib/bill-generator'
 
@@ -8,6 +9,7 @@ type Props = {
 	order: BillOrderData
 	tenantName: string
 	currencySymbol: string
+	reviewLink?: string
 	/** Used by the generator to find the element. Must be unique per order. */
 	id?: string
 	/** Scale for display purposes (not applied when capturing) */
@@ -28,7 +30,8 @@ function fmtDate(iso: string) {
 	})
 }
 
-export function BillPreview({ template: t, order, tenantName, currencySymbol, id, scale = 1 }: Props) {
+export function BillPreview({ template: t, order, tenantName, currencySymbol, reviewLink, id, scale = 1 }: Props) {
+	const [logoFailed, setLogoFailed] = useState(false)
 	const ff = t.fontFamily === 'mono' ? 'font-family: "Courier New", Courier, monospace;' : 'font-family: Inter, system-ui, sans-serif;'
 	const isThermal = t.type === 'thermal'
 	const divider = t.showBorderDivider
@@ -56,15 +59,30 @@ export function BillPreview({ template: t, order, tenantName, currencySymbol, id
 			{/* Header */}
 			<div style={{ textAlign: 'center', marginBottom: '16px' }}>
 				{t.showLogo && (
-					<div style={{
-						width: '48px', height: '48px', borderRadius: '50%',
-						background: `linear-gradient(135deg, ${t.primaryColor}, ${t.accentColor})`,
-						margin: '0 auto 8px',
-						display: 'flex', alignItems: 'center', justifyContent: 'center',
-						color: '#fff', fontWeight: 700, fontSize: '18px'
-					}}>
-						{headerName.charAt(0).toUpperCase()}
-					</div>
+					!logoFailed ? (
+						<img 
+							src={isThermal ? "/favicon.png" : "/logo.png"} 
+							alt="Logo" 
+							style={{
+								width: '48px',
+								height: '48px',
+								objectFit: 'contain',
+								margin: '0 auto 8px',
+								display: 'block'
+							}} 
+							onError={() => setLogoFailed(true)}
+						/>
+					) : (
+						<div style={{
+							width: '48px', height: '48px', borderRadius: '50%',
+							background: `linear-gradient(135deg, ${t.primaryColor}, ${t.accentColor})`,
+							margin: '0 auto 8px',
+							display: 'flex', alignItems: 'center', justifyContent: 'center',
+							color: '#fff', fontWeight: 700, fontSize: '18px'
+						}}>
+							{headerName.charAt(0).toUpperCase()}
+						</div>
+					)
 				)}
 				<div style={{
 					fontSize: isThermal ? '16px' : '22px',
@@ -206,6 +224,31 @@ export function BillPreview({ template: t, order, tenantName, currencySymbol, id
 						{t.footerText}
 					</div>
 				</>
+			)}
+
+			{isThermal && order.status === 'completed' && reviewLink && (
+				<div style={{
+					display: 'flex',
+					flexDirection: 'column',
+					alignItems: 'center',
+					marginTop: '16px',
+					textAlign: 'center'
+				}}>
+					<div style={{ fontWeight: 700, fontSize: '11px', color: t.textColor, marginBottom: '6px' }}>
+						LEAVE US A GOOGLE REVIEW
+					</div>
+					<img
+						src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(reviewLink)}`}
+						alt="Google Review QR"
+						style={{
+							width: '80px',
+							height: '80px',
+							backgroundColor: '#FFFFFF',
+							padding: '4px',
+							border: `1px solid ${t.borderColor}`
+						}}
+					/>
+				</div>
 			)}
 
 			{isThermal && (

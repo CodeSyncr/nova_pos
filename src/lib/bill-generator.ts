@@ -18,6 +18,7 @@ export type BillOrderData = {
 	discount_amount?: number
 	total: number
 	payment_method?: string | null
+	status?: string
 	order_items: Array<{
 		id: string
 		name: string
@@ -32,6 +33,7 @@ export type BillConfig = {
 	template: BillTemplate
 	tenantName: string
 	currencySymbol: string
+	reviewLink?: string
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -117,6 +119,112 @@ async function getPrinter(commonServices: string[]): Promise<any> {
 }
 
 /**
+ * Helper to fetch a local/remote image and convert it to Base64 data URL.
+ */
+async function getBase64ImageFromUrl(imageUrl: string): Promise<string> {
+	if (typeof window === 'undefined') return ''
+	return new Promise((resolve, reject) => {
+		const img = new Image()
+		img.crossOrigin = 'anonymous'
+		img.src = imageUrl
+		img.onload = () => {
+			try {
+				const canvas = document.createElement('canvas')
+				canvas.width = img.naturalWidth || img.width
+				canvas.height = img.naturalHeight || img.height
+				const ctx = canvas.getContext('2d')
+				if (!ctx) {
+					reject(new Error('Could not get 2d context'))
+					return
+				}
+				ctx.drawImage(img, 0, 0)
+				resolve(canvas.toDataURL('image/png'))
+			} catch (e) {
+				reject(e)
+			}
+		}
+		img.onerror = (err) => reject(err)
+	})
+}
+
+/**
+ * Loads logo.png, draws it on a canvas, converts to a 1-bit monochrome bitmap
+ * and returns the width, height, and data bytes ready for ESC/POS bit image print.
+ */
+async function getLogoBitmap(): Promise<{ width: number; height: number; data: Uint8Array } | null> {
+	if (typeof window === 'undefined') return null
+
+	return new Promise((resolve) => {
+		const img = new Image()
+		img.crossOrigin = 'anonymous'
+		img.src = '/favicon.png'
+
+		img.onload = () => {
+			try {
+				const targetWidth = 160
+				const width = Math.ceil(targetWidth / 8) * 8
+				const scale = width / img.width
+				const height = Math.round(img.height * scale)
+
+				const canvas = document.createElement('canvas')
+				canvas.width = width
+				canvas.height = height
+				const ctx = canvas.getContext('2d')
+				if (!ctx) {
+					resolve(null)
+					return
+				}
+
+				ctx.fillStyle = '#FFFFFF'
+				ctx.fillRect(0, 0, width, height)
+				ctx.drawImage(img, 0, 0, width, height)
+
+				const imgData = ctx.getImageData(0, 0, width, height)
+				const pixels = imgData.data
+
+				const bytesNeeded = (width / 8) * height
+				const monoData = new Uint8Array(bytesNeeded)
+
+				for (let y = 0; y < height; y++) {
+					for (let x = 0; x < width; x += 8) {
+						let byteVal = 0
+						for (let b = 0; b < 8; b++) {
+							const pxIndex = ((y * width) + (x + b)) * 4
+							const r = pixels[pxIndex]
+							const g = pixels[pxIndex + 1]
+							const bVal = pixels[pxIndex + 2]
+							const a = pixels[pxIndex + 3]
+
+							let isBlack = false
+							if (a > 50) {
+								const gray = 0.299 * r + 0.587 * g + 0.114 * bVal
+								isBlack = gray < 128
+							}
+
+							if (isBlack) {
+								byteVal |= (1 << (7 - b))
+							}
+						}
+						const byteIndex = y * (width / 8) + (x / 8)
+						monoData[byteIndex] = byteVal
+					}
+				}
+
+				resolve({ width, height, data: monoData })
+			} catch (e) {
+				console.error('[BT Logo] Failed to convert logo image:', e)
+				resolve(null)
+			}
+		}
+
+		img.onerror = (e) => {
+			console.warn('[BT Logo] Failed to load logo.png for thermal print:', e)
+			resolve(null)
+		}
+	})
+}
+
+/**
  * Generates the PDF document natively using jsPDF.
  */
 export async function generateBillPDF(config: BillConfig): Promise<any> {
@@ -156,6 +264,7 @@ export async function generateBillPDF(config: BillConfig): Promise<any> {
 	estimatedH += 12 // total line + grand total
 	estimatedH += 4 // divider
 	estimatedH += (t.showThankYou && t.footerText) ? 8 : 0
+	estimatedH += (isThermal && order.status === 'completed' && config.reviewLink) ? 26 : 0
 	estimatedH += 6 // order id
 	estimatedH += isThermal ? 6 : 0
 	estimatedH += pad // bottom padding
@@ -203,14 +312,28 @@ export async function generateBillPDF(config: BillConfig): Promise<any> {
 	const headerName = safe(t.headerText || tenantName)
 
 	if (t.showLogo) {
-		const r = 4
-		doc.setFillColor(...priRgb)
-		doc.circle(W / 2, y + r, r, 'F')
-		doc.setFontSize(9)
-		doc.setFont(font, 'bold')
-		doc.setTextColor(255, 255, 255)
-		doc.text(headerName.charAt(0).toUpperCase(), W / 2, y + r + 1.2, { align: 'center' })
-		y += r * 2 + 3
+		let logoAdded = false
+		try {
+			const logoName = isThermal ? 'favicon.png' : 'logo.png'
+			const logoUrl = typeof window !== 'undefined' ? `${window.location.origin}/${logoName}` : `/${logoName}`
+			const base64Img = await getBase64ImageFromUrl(logoUrl)
+			doc.addImage(base64Img, 'PNG', W / 2 - 7, y, 14, 14)
+			y += 16
+			logoAdded = true
+		} catch (e) {
+			console.error('[PDF] Failed to load logo.png, falling back to initials text logo:', e)
+		}
+
+		if (!logoAdded) {
+			const r = 4
+			doc.setFillColor(...priRgb)
+			doc.circle(W / 2, y + r, r, 'F')
+			doc.setFontSize(9)
+			doc.setFont(font, 'bold')
+			doc.setTextColor(255, 255, 255)
+			doc.text(headerName.charAt(0).toUpperCase(), W / 2, y + r + 1.2, { align: 'center' })
+			y += r * 2 + 3
+		}
 	}
 
 	// Name
@@ -391,6 +514,23 @@ export async function generateBillPDF(config: BillConfig): Promise<any> {
 		y += 5
 	}
 
+	if (isThermal && order.status === 'completed' && config.reviewLink) {
+		y += 2
+		doc.setFontSize(8)
+		doc.setFont(font, 'bold')
+		doc.setTextColor(...txtRgb)
+		doc.text('LEAVE US A GOOGLE REVIEW', W / 2, y, { align: 'center' })
+		y += 2
+		try {
+			const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(config.reviewLink)}`
+			const base64Qr = await getBase64ImageFromUrl(qrUrl)
+			doc.addImage(base64Qr, 'PNG', W / 2 - 10, y, 20, 20)
+			y += 22
+		} catch (e) {
+			console.error('[PDF] Failed to load QR code image:', e)
+		}
+	}
+
 	doc.setFontSize(6)
 	doc.setFont(font, 'normal')
 	doc.setTextColor(...brdRgb)
@@ -500,8 +640,16 @@ export function openWhatsApp(
 	const message = encodeURIComponent(lines.join('\n'))
 	let waUrl: string
 	if (customerPhone) {
-		const cleaned = customerPhone.replace(/[^\d+]/g, '')
-		waUrl = `https://wa.me/${cleaned}?text=${message}`
+		let cleaned = customerPhone.replace(/[^\d+]/g, '')
+		if (!cleaned.startsWith('+') && !cleaned.startsWith('91')) {
+			cleaned = '91' + cleaned
+		} else if (cleaned.startsWith('+') && !cleaned.startsWith('+91')) {
+			if (cleaned.length === 11) { // e.g. + followed by 10 digits
+				cleaned = '+91' + cleaned.substring(1)
+			}
+		}
+		const finalPhone = cleaned.replace(/\+/g, '')
+		waUrl = `https://wa.me/${finalPhone}?text=${message}`
 	} else {
 		waUrl = `https://wa.me/?text=${message}`
 	}
@@ -608,6 +756,20 @@ export async function printBluetoothBill(config: BillConfig): Promise<void> {
 	const encoder = new EscPosEncoder()
 	encoder.initialize()
 
+	// Print logo if enabled
+	if (t.showLogo) {
+		try {
+			const logoBitmap = await getLogoBitmap()
+			if (logoBitmap) {
+				encoder.alignCenter()
+				encoder.rasterImage(logoBitmap.width, logoBitmap.height, logoBitmap.data)
+				encoder.line() // vertical spacer after logo
+			}
+		} catch (err) {
+			console.warn('[BT Print] Failed to print logo:', err)
+		}
+	}
+
 	// Header
 	encoder.alignCenter()
 	encoder.bold(true)
@@ -688,6 +850,17 @@ export async function printBluetoothBill(config: BillConfig): Promise<void> {
 	if (t.showThankYou && t.footerText) {
 		encoder.alignCenter()
 		encoder.line(t.footerText)
+	}
+
+	if (order.status === 'completed' && config.reviewLink) {
+		encoder.line()
+		encoder.alignCenter()
+		encoder.bold(true)
+		encoder.line('LEAVE US A GOOGLE REVIEW')
+		encoder.bold(false)
+		encoder.line()
+		encoder.qrcode(config.reviewLink)
+		encoder.line()
 	}
 
 	encoder.alignCenter()

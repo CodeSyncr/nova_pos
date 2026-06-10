@@ -41,6 +41,7 @@ const MOCK_ORDER = {
 	id: 'ord_demo123456',
 	created_at: new Date().toISOString(),
 	order_type: 'dine_in',
+	status: 'completed',
 	table_number: '07',
 	customer_name: 'Aditya Sharma',
 	customer_phone: '+919876543210',
@@ -646,6 +647,7 @@ export function BillDesignerTab({ tenant, onRefresh }: Props) {
 							order={MOCK_ORDER}
 							tenantName={tenant.name}
 							currencySymbol={(settings.currencySymbol as string) || '₹'}
+							reviewLink={reviewLink}
 						/>
 					</div>
 

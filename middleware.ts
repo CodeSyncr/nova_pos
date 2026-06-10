@@ -28,6 +28,21 @@ export async function middleware(request: NextRequest) {
 	const hostname = request.headers.get('host') || ''
 	const host = hostname.split(':')[0]!
 
+	// Skip routing for static assets, Next.js internal files, APIs, etc.
+	const skipRouting =
+		host.split('.')[0] === 'www' ||
+		host === 'localhost' ||
+		host === '127.0.0.1' ||
+		hostname.includes('localhost') ||
+		url.pathname.startsWith('/api') ||
+		url.pathname.startsWith('/_next') ||
+		url.pathname.startsWith('/static') ||
+		url.pathname.includes('.')
+
+	if (skipRouting) {
+		return updateSession(request)
+	}
+
 	// ── Custom Domain Routing ──────────────────────────────────────────────────
 	// If the incoming host is not our platform domain, resolve it as a custom domain
 	if (isCustomDomain(host)) {
@@ -81,20 +96,6 @@ export async function middleware(request: NextRequest) {
 
 	// ── Platform Subdomain Routing ─────────────────────────────────────────────
 	const subdomain = host.split('.')[0]!
-
-	const skipSubdomainRouting =
-		subdomain === 'www' ||
-		subdomain === 'localhost' ||
-		subdomain === '127.0.0.1' ||
-		hostname.includes('localhost') ||
-		url.pathname.startsWith('/api') ||
-		url.pathname.startsWith('/_next') ||
-		url.pathname.startsWith('/static') ||
-		url.pathname.includes('.')
-
-	if (skipSubdomainRouting) {
-		return updateSession(request)
-	}
 
 	const parts = host.split('.')
 	if (parts.length < 3) {

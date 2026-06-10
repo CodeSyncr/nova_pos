@@ -673,6 +673,7 @@ export default function OrdersPage() {
 				discount_amount: order.discount_amount,
 				total: order.total,
 				payment_method: order.payment_method,
+				status: order.status,
 				order_items: order.order_items.map((item) => ({
 					id: item.id,
 					name: item.name,
@@ -686,11 +687,13 @@ export default function OrdersPage() {
 				order: billOrderData,
 				template: finalTemplate,
 				tenantName: tenantName,
-				currencySymbol: currencySymbol
+				currencySymbol: currencySymbol,
+				reviewLink: billReviewLink
 			}
 
-			const { url } = await generateAndUploadBill(config, supabase, tenantId)
-			openWhatsApp(url, order.customer_phone, tenantName, billTagline, billReviewLink)
+			await generateAndUploadBill(config, supabase, tenantId)
+			const customBillUrl = `${window.location.origin}/biil/${order.id}`
+			openWhatsApp(customBillUrl, order.customer_phone, tenantName, billTagline, billReviewLink)
 			toast.success('Bill generated & WhatsApp opened successfully!')
 		} catch (err: any) {
 			console.error('Error generating/uploading bill:', err)
@@ -724,6 +727,7 @@ export default function OrdersPage() {
 				discount_amount: order.discount_amount,
 				total: order.total,
 				payment_method: order.payment_method,
+				status: order.status,
 				order_items: order.order_items.map((item) => ({
 					id: item.id,
 					name: item.name,
@@ -737,7 +741,8 @@ export default function OrdersPage() {
 				order: billOrderData,
 				template: finalTemplate,
 				tenantName: tenantName,
-				currencySymbol: currencySymbol
+				currencySymbol: currencySymbol,
+				reviewLink: billReviewLink
 			}
 
 			await printBluetoothBill(config)
