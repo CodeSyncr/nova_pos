@@ -45,7 +45,7 @@ import {
 } from '@/app/actions/orders'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/ui/toast'
-import { generateAndUploadBill, openWhatsApp, printBluetoothBill } from '@/lib/bill-generator'
+import { generateAndUploadBill, getOrGenerateBillUrl, openWhatsApp, printBluetoothBill } from '@/lib/bill-generator'
 import { DEFAULT_WHATSAPP_TEMPLATE, DEFAULT_THERMAL_TEMPLATE } from '@/lib/bill-template'
 import {
 	AlertDialog,
@@ -531,6 +531,9 @@ export default function OrdersPage() {
         payment_method,
         total,
         created_at,
+        updated_at,
+        bill_url,
+        bill_generated_at,
         created_by,
         order_items (
           id,
@@ -664,6 +667,8 @@ export default function OrdersPage() {
 			const billOrderData = {
 				id: order.id,
 				created_at: order.created_at,
+				updated_at: (order as any).updated_at,
+				bill_generated_at: (order as any).bill_generated_at,
 				order_type: order.order_type,
 				table_number: order.table_number,
 				customer_name: order.customer_name,
@@ -691,10 +696,18 @@ export default function OrdersPage() {
 				reviewLink: billReviewLink
 			}
 
-			await generateAndUploadBill(config, supabase, tenantId)
-			const customBillUrl = `${window.location.origin}/biil/${order.id}`
+			// Only re-upload the PDF when the cached copy is stale relative to
+			// the order's `updated_at`. Fresh copies skip the upload entirely
+			// and just reuse the proxy URL.
+			const { url: customBillUrl, regenerated } = await getOrGenerateBillUrl(
+				config,
+				supabase,
+				tenantId,
+				window.location.origin
+			)
+
 			openWhatsApp(customBillUrl, order.customer_phone, tenantName, billTagline, billReviewLink)
-			toast.success('Bill generated & WhatsApp opened successfully!')
+			toast.success(regenerated ? 'Bill generated & WhatsApp opened!' : 'WhatsApp opened with cached bill!')
 		} catch (err: any) {
 			console.error('Error generating/uploading bill:', err)
 			toast.error(`Error sending bill: ${err.message || err}`)

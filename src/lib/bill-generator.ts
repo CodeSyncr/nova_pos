@@ -34,6 +34,10 @@ export type BillConfig = {
 	tenantName: string
 	currencySymbol: string
 	reviewLink?: string
+	/// When generating server-side, the caller passes its own origin
+	/// (e.g. `https://app.novapos.in`) so logo / QR fetches resolve.
+	/// On the browser this is left undefined and `window.location.origin` is used.
+	serverOrigin?: string
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -120,9 +124,24 @@ async function getPrinter(commonServices: string[]): Promise<any> {
 
 /**
  * Helper to fetch a local/remote image and convert it to Base64 data URL.
+ * Works in both browser (canvas) and Node (fetch + Buffer) so the same
+ * `generateBillPDF` flow can be used by client downloads and the
+ * `/api/bills/generate` endpoint.
  */
 async function getBase64ImageFromUrl(imageUrl: string): Promise<string> {
-	if (typeof window === 'undefined') return ''
+	// Node / server-side path. The endpoint that calls into here passes a
+	// fully-qualified URL (https://…), so a plain fetch is enough.
+	if (typeof window === 'undefined') {
+		try {
+			const res = await fetch(imageUrl)
+			if (!res.ok) return ''
+			const buf = Buffer.from(await res.arrayBuffer())
+			const contentType = res.headers.get('content-type') || 'image/png'
+			return `data:${contentType};base64,${buf.toString('base64')}`
+		} catch {
+			return ''
+		}
+	}
 	return new Promise((resolve, reject) => {
 		const img = new Image()
 		img.crossOrigin = 'anonymous'
@@ -315,7 +334,8 @@ export async function generateBillPDF(config: BillConfig): Promise<any> {
 		let logoAdded = false
 		try {
 			const logoName = isThermal ? 'favicon.png' : 'logo.png'
-			const logoUrl = typeof window !== 'undefined' ? `${window.location.origin}/${logoName}` : `/${logoName}`
+			const logoOrigin = (typeof window !== 'undefined' ? window.location.origin : config.serverOrigin) || ''
+			const logoUrl = `${logoOrigin}/${logoName}`
 			const base64Img = await getBase64ImageFromUrl(logoUrl)
 			doc.addImage(base64Img, 'PNG', W / 2 - 7, y, 14, 14)
 			y += 16
@@ -550,6 +570,11 @@ export async function generateBillPDF(config: BillConfig): Promise<any> {
 
 /**
  * Generates a styled PDF bill, uploads to Supabase Storage, returns the public URL.
+ *
+ * The storage path is **stable per order** (`{tenantId}/Bill_ORD-{shortId}.pdf`)
+ * so re-uploads overwrite the previous file rather than piling up duplicate
+ * timestamped copies in the bucket. The fixed-name path is what
+ * `/bill/[id]/route.ts` looks up directly.
  */
 export async function generateAndUploadBill(
 	config: BillConfig,
@@ -560,10 +585,8 @@ export async function generateAndUploadBill(
 	const pdfBlob = doc.output('blob')
 
 	const { order } = config
-	const orderDate = new Date(order.created_at).toISOString().split('T')[0]
 	const oid = order.id.slice(0, 8)
-	const ts = Date.now()
-	const path = `${tenantId}/${ts}_Bill_ORD-${oid}_${orderDate}.pdf`
+	const path = `${tenantId}/Bill_ORD-${oid}.pdf`
 
 	const { error: uploadError } = await supabase.storage
 		.from('bills')
@@ -578,6 +601,49 @@ export async function generateAndUploadBill(
 
 	const { data: urlData } = supabase.storage.from('bills').getPublicUrl(path)
 	return { url: urlData.publicUrl, path }
+}
+
+/**
+ * Returns the canonical bill proxy URL for an order, regenerating the
+ * underlying PDF only when needed.
+ *
+ * A bill is considered fresh when `bill_generated_at >= updated_at`. Any
+ * mutation to the order (status change, item edit, payment apply, customer
+ * detail edit) bumps `updated_at`, which invalidates the cached PDF on the
+ * next call. Caches the new `bill_generated_at` back onto the orders row so
+ * subsequent calls (web or iOS) skip the upload entirely.
+ */
+export async function getOrGenerateBillUrl(
+	config: BillConfig & { order: { updated_at?: string | null; bill_generated_at?: string | null } },
+	supabase: SupabaseClient,
+	tenantId: string,
+	origin: string
+): Promise<{ url: string; regenerated: boolean }> {
+	const { order } = config
+	const proxyUrl = `${origin}/biil/${order.id}`
+
+	const updatedAt = order.updated_at ? new Date(order.updated_at).getTime() : 0
+	const billAt = order.bill_generated_at ? new Date(order.bill_generated_at).getTime() : 0
+	const isFresh = billAt > 0 && billAt >= updatedAt
+
+	if (isFresh) {
+		return { url: proxyUrl, regenerated: false }
+	}
+
+	await generateAndUploadBill(config, supabase, tenantId)
+
+	const nowIso = new Date().toISOString()
+	const { error: persistError } = await supabase
+		.from('orders')
+		.update({ bill_url: proxyUrl, bill_generated_at: nowIso })
+		.eq('id', order.id)
+
+	if (persistError) {
+		// Non-fatal: the PDF is uploaded, the link still works. Log and move on.
+		console.warn('[Bill] Failed to persist bill_url/bill_generated_at:', persistError.message)
+	}
+
+	return { url: proxyUrl, regenerated: true }
 }
 
 /**

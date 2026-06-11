@@ -190,6 +190,7 @@ export async function updateTenantOrganization(
 		}
 		monthStartDay?: number
 		monthEndDay?: number
+		posUrl?: string
 	}
 ) {
 	const supabase = await createSupabaseServerClient()
@@ -282,6 +283,11 @@ export async function updateTenantOrganization(
 	}
 	if (data.monthEndDay !== undefined) {
 		updatedSettings.monthEndDay = Number(data.monthEndDay)
+	}
+	
+	// POS URL — used by mobile clients as the base for bill links and APIs.
+	if (data.posUrl !== undefined) {
+		updatedSettings.posUrl = data.posUrl.trim()
 	}
 
 	// Log the settings object after all updates

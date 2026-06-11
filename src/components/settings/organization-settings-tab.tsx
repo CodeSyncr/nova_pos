@@ -77,7 +77,11 @@ export function OrganizationSettingsTab({
 			symbol: (settings.currencySymbol as string) || '₹'
 		},
 		monthStartDay: (settings.monthStartDay as number) || 1,
-		monthEndDay: (settings.monthEndDay as number) || 0
+		monthEndDay: (settings.monthEndDay as number) || 0,
+		// Public POS URL — used by the iOS app as the base for bill links
+		// and `/api/...` calls. Independent of the public marketing
+		// `social.website` value.
+		posUrl: (settings.posUrl as string) || ''
 	})
 	const [saving, setSaving] = useState(false)
 
@@ -90,7 +94,8 @@ export function OrganizationSettingsTab({
 			const dataToSave = {
 				...formData,
 				monthStartDay: formData.monthStartDay,
-				monthEndDay: formData.monthEndDay
+				monthEndDay: formData.monthEndDay,
+				posUrl: formData.posUrl
 			}
 			console.log('=== SAVING ORGANIZATION SETTINGS ===')
 			console.log('Tenant ID:', tenant.id)
@@ -664,6 +669,40 @@ export function OrganizationSettingsTab({
 								Set a specific day if you need a fixed end date. For example, if start day is 5, set end day to 4 to run from 5th to 4th of next month.
 							</p>
 						</div>
+					</div>
+				</motion.div>
+
+				{/* POS URL */}
+				<motion.div
+					initial={{ opacity: 0, y: 10 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ delay: 0.4 }}
+					className="rounded-xl border border-white/10 bg-black/20 p-6"
+				>
+					<div className="mb-4 flex items-center gap-3">
+						<Link2 className="h-5 w-5 text-[#E0342A]" />
+						<h4 className="text-lg font-semibold text-white">POS URL</h4>
+					</div>
+					<div>
+						<label className="mb-2 block text-sm font-medium text-white">
+							POS web app URL
+						</label>
+						<input
+							type="url"
+							value={formData.posUrl}
+							onChange={(e) =>
+								setFormData({
+									...formData,
+									posUrl: e.target.value
+								})
+							}
+							className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+							placeholder="https://app.novapos.in"
+						/>
+						<p className="mt-1 text-xs text-white/60">
+							Used by the mobile app for bill download links, report exports,
+							and server APIs. Defaults to the main NovaPOS app when empty.
+						</p>
 					</div>
 				</motion.div>
 
