@@ -85,9 +85,21 @@ export async function POST(request: NextRequest) {
 			(settings.currencySymbol as string | undefined) || '₹'
 		const reviewLink = (settings.reviewLink as string | undefined) || ''
 
-		// 3. Build BillConfig using the request origin so server-side image
-		// fetches (favicon, QR codes) resolve.
-		const origin = new URL(request.url).origin
+		// 3. Build BillConfig.
+		// `serverOrigin` is the host serving THIS request — used so the PDF
+		// renderer can fetch its own assets (`/favicon.png`) when running
+		// server-side.
+		// `publicOrigin` is the canonical public URL we put into the
+		// WhatsApp message and store on `orders.bill_url`. It comes from
+		// `tenants.settings.posUrl` (set on the web under Organization →
+		// POS URL) and only falls back to the request origin if the tenant
+		// hasn't configured one yet. Without this, a request that happens
+		// to come in with host `0.0.0.0` or `localhost` would burn that
+		// unreachable hostname into the share link.
+		const requestOrigin = new URL(request.url).origin
+		const settingsPosUrl =
+			((settings.posUrl as string | undefined) || '').trim()
+		const publicOrigin = normalizePublicOrigin(settingsPosUrl) || requestOrigin
 
 		const config: BillConfig & {
 			order: BillConfig['order'] & {
@@ -128,7 +140,7 @@ export async function POST(request: NextRequest) {
 			tenantName: tenant.name as string,
 			currencySymbol,
 			reviewLink,
-			serverOrigin: origin
+			serverOrigin: requestOrigin
 		}
 
 		// 4. Reuse the same caching helper the web side uses. Skips re-upload
@@ -137,7 +149,7 @@ export async function POST(request: NextRequest) {
 			config,
 			supabase,
 			tenant.id as string,
-			origin
+			publicOrigin
 		)
 
 		return NextResponse.json({ url, regenerated })
@@ -146,4 +158,33 @@ export async function POST(request: NextRequest) {
 		console.error('[bills/generate]', message)
 		return NextResponse.json({ error: message }, { status: 500 })
 	}
+}
+
+/**
+ * Sanitize the tenant-configured POS URL so we never produce links that
+ * point at `0.0.0.0`, `localhost`, or some other unreachable host. Trims
+ * whitespace, strips trailing slash, ensures an `https://` scheme, and
+ * returns an empty string if the host looks loopback-y.
+ */
+function normalizePublicOrigin(raw: string): string {
+	const trimmed = raw.trim()
+	if (!trimmed) return ''
+	const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+	let parsed: URL
+	try {
+		parsed = new URL(withScheme)
+	} catch {
+		return ''
+	}
+	const host = parsed.hostname.toLowerCase()
+	const looksLoopback =
+		host === 'localhost' ||
+		host === '0.0.0.0' ||
+		host === '127.0.0.1' ||
+		host.startsWith('192.168.') ||
+		host.startsWith('10.') ||
+		host.endsWith('.local')
+	if (looksLoopback) return ''
+	const origin = parsed.origin
+	return origin.endsWith('/') ? origin.slice(0, -1) : origin
 }
