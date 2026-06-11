@@ -57,6 +57,7 @@ type AnalyticsData = {
 
 type Period =
 	| 'today'
+	| 'yesterday'
 	| 'weekly'
 	| 'monthly'
 	| 'quarterly'
@@ -156,6 +157,12 @@ export default function AnalyticsPage() {
 
 					if (period === 'today') {
 						// Previous day: yesterday
+						previousStartDate = new Date(currentStartDate)
+						previousStartDate.setDate(previousStartDate.getDate() - 1)
+						previousEndDate = new Date(previousStartDate)
+						previousEndDate.setHours(23, 59, 59, 999)
+					} else if (period === 'yesterday') {
+						// Previous of yesterday: the day before yesterday
 						previousStartDate = new Date(currentStartDate)
 						previousStartDate.setDate(previousStartDate.getDate() - 1)
 						previousEndDate = new Date(previousStartDate)
@@ -273,6 +280,13 @@ export default function AnalyticsPage() {
 			const now = new Date()
 			const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
 			const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+			setDateRange({ startDate: start.toISOString(), endDate: end.toISOString() })
+			return
+		}
+		if (newPeriod === 'yesterday') {
+			const now = new Date()
+			const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0)
+			const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999)
 			setDateRange({ startDate: start.toISOString(), endDate: end.toISOString() })
 			return
 		}
@@ -400,6 +414,7 @@ export default function AnalyticsPage() {
 							{(
 								[
 									'today',
+									'yesterday',
 									'weekly',
 									'monthly',
 									'quarterly',

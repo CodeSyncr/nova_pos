@@ -258,7 +258,7 @@ export async function generateBillPDF(config: BillConfig): Promise<any> {
 	estimatedH += metaCount * 4 + 5 // meta + divider
 	estimatedH += 4 // items header
 	estimatedH += order.order_items.length * itemRowH + 6 // items + divider
-	estimatedH += 4 // subtotal
+	estimatedH += (order.tax > 0) ? 4 : 0 // subtotal (only when tax line exists)
 	estimatedH += (t.showTaxLine && order.tax > 0) ? 4 : 0
 	estimatedH += (order.discount_amount && order.discount_amount > 0) ? 4 : 0
 	estimatedH += 12 // total line + grand total
@@ -459,21 +459,22 @@ export async function generateBillPDF(config: BillConfig): Promise<any> {
 
 	doc.setFontSize(8)
 
-	// Subtotal
-	doc.setFont(font, 'normal')
-	doc.setTextColor(...mutRgb)
-	doc.text('Subtotal', pad, y)
-	doc.setTextColor(...txtRgb)
-	doc.text(fmtAmt(order.subtotal), pad + cw, y, { align: 'right' })
-	y += 4
-
-	// Tax
-	if (t.showTaxLine && order.tax > 0) {
+	// Subtotal + Tax — both hidden when tax is 0 (the Total alone is sufficient)
+	if (order.tax > 0) {
+		doc.setFont(font, 'normal')
 		doc.setTextColor(...mutRgb)
-		doc.text('Tax', pad, y)
+		doc.text('Subtotal', pad, y)
 		doc.setTextColor(...txtRgb)
-		doc.text(fmtAmt(order.tax), pad + cw, y, { align: 'right' })
+		doc.text(fmtAmt(order.subtotal), pad + cw, y, { align: 'right' })
 		y += 4
+
+		if (t.showTaxLine) {
+			doc.setTextColor(...mutRgb)
+			doc.text('Tax', pad, y)
+			doc.setTextColor(...txtRgb)
+			doc.text(fmtAmt(order.tax), pad + cw, y, { align: 'right' })
+			y += 4
+		}
 	}
 
 	// Discount

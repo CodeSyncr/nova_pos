@@ -1963,13 +1963,15 @@ export default function OrdersPage() {
 						<div className="space-y-6">
 							{/* Order Summary */}
 							<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-								<div className="flex items-center justify-between text-sm text-white/70 mb-2">
-									<span>Tax</span>
-									<span>
-										{currencySymbol}
-										{completingOrder.tax.toFixed(2)}
-									</span>
-								</div>
+								{completingOrder.tax > 0 && (
+									<div className="flex items-center justify-between text-sm text-white/70 mb-2">
+										<span>Tax</span>
+										<span>
+											{currencySymbol}
+											{completingOrder.tax.toFixed(2)}
+										</span>
+									</div>
+								)}
 								{(calculatedDiscount > 0 ||
 									(completingOrder.discount_amount ?? 0) > 0) && (
 									<div className="flex items-center justify-between text-sm text-white/70 mb-2">

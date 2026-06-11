@@ -58,10 +58,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 				const { data: { user } } = await supabase.auth.getUser()
 				if (!user) return
 
-				// Get user's profile_tenant to find their role
+				// Get user's profile_tenant to find their role and staff flag
 				const { data: pt } = await supabase
 					.from('profile_tenants')
-					.select('role_id')
+					.select('role_id, is_staff')
 					.eq('profile_id', user.id)
 					.single()
 
@@ -71,7 +71,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 					return
 				}
 
-				let isFullAccess = !pt.role_id
+				const isStaff = (pt as any).is_staff === true
+
+				// Staff members are NEVER granted full access — they must rely on their role.
+				// Only non-staff (owner/admin) with no role get full access.
+				let isFullAccess = !isStaff && !pt.role_id
 				let permissions: Record<string, string[]> | string[] | null = null
 
 				if (pt.role_id) {
@@ -84,11 +88,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
 					if (role) {
 						const perms = role.permissions
-						isFullAccess =
+						// Owner-type role grants full access ONLY if the user isn't flagged as staff
+						const roleIsFull =
 							role.code === 'OWNER' ||
+							role.code === 'DEFAULT_OWNER' ||
 							perms == null ||
 							(Array.isArray(perms) &&
 								(perms.includes('*') || perms.includes('all')))
+
+						isFullAccess = !isStaff && roleIsFull
 
 						if (!isFullAccess) {
 							permissions = perms as Record<string, string[]> | string[]
@@ -98,6 +106,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 						isFullAccess = false
 						permissions = {}
 					}
+				} else if (isStaff) {
+					// Staff with no role assigned = no permissions
+					permissions = {}
 				}
 
 				if (isFullAccess) {
