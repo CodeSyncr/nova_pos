@@ -7,12 +7,17 @@ import {
 	AlertTriangle,
 	Edit,
 	TrendingDown,
-	RefreshCw
+	RefreshCw,
+	Plus,
+	Loader2,
+	X
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
-import { getInventory, getLowStockItems } from '@/app/actions/inventory'
+import { getInventory, getLowStockItems, updateInventoryLevels } from '@/app/actions/inventory'
+import { createIngredient } from '@/app/actions/menu'
+import { useToast } from '@/components/ui/toast'
 import { StockAdjustmentForm } from '@/components/inventory/stock-adjustment-form'
 import { InventoryLevelsForm } from '@/components/inventory/inventory-levels-form'
 
@@ -40,6 +45,15 @@ export default function InventoryPage() {
 	const [showLevelsForm, setShowLevelsForm] = useState(false)
 	const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
 	const [tenantId, setTenantId] = useState<string | null>(null)
+	const [showAddForm, setShowAddForm] = useState(false)
+	const [savingIngredient, setSavingIngredient] = useState(false)
+	const [newIngredient, setNewIngredient] = useState({
+		name: '',
+		unit: 'pieces',
+		minStockLevel: '',
+		maxStockLevel: ''
+	})
+	const { success, error: showError } = useToast()
 
 	useEffect(() => {
 		const loadData = async () => {
@@ -158,6 +172,49 @@ export default function InventoryPage() {
 		setSelectedItem(item)
 		setShowAdjustmentForm(true)
 	}
+	
+	const handleCreateIngredient = async () => {
+		if (!tenantId) return
+		const name = newIngredient.name.trim()
+		if (!name) {
+			showError('Ingredient name is required.')
+			return
+		}
+		setSavingIngredient(true)
+		try {
+			// 1. Create the ingredient. The action also seeds an `inventory`
+			//    row at zero stock with the unit we pass in.
+			const ing = await createIngredient(tenantId, {
+				name,
+				unit: newIngredient.unit.trim() || 'pieces'
+			})
+			
+			// 2. If the user typed min/max stock, set them on the new
+			//    inventory row that the action just created.
+			const minLevel = parseFloat(newIngredient.minStockLevel)
+			const maxLevel = parseFloat(newIngredient.maxStockLevel)
+			if (ing && (Number.isFinite(minLevel) || Number.isFinite(maxLevel))) {
+				await updateInventoryLevels(
+					tenantId,
+					ing.id,
+					{
+						minStockLevel: Number.isFinite(minLevel) ? minLevel : 0,
+						maxStockLevel: Number.isFinite(maxLevel) ? maxLevel : null
+					}
+				)
+			}
+			
+			success('Ingredient added.')
+			setShowAddForm(false)
+			setNewIngredient({ name: '', unit: 'pieces', minStockLevel: '', maxStockLevel: '' })
+			handleRefresh()
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : 'Failed to add ingredient.'
+			showError(msg)
+		} finally {
+			setSavingIngredient(false)
+		}
+	}
 
 	const handleUpdateLevels = (item: InventoryItem) => {
 		setSelectedItem(item)
@@ -194,6 +251,12 @@ export default function InventoryPage() {
 					alerts. Never run out of what matters.
 				</p>
 				<div className="flex gap-3">
+					<Button
+						onClick={() => setShowAddForm(true)}
+					>
+						<Plus className="mr-2 h-4 w-4" />
+						Add Ingredient
+					</Button>
 					<Button
 						onClick={handleRefresh}
 						disabled={isRefreshing}
@@ -299,11 +362,15 @@ export default function InventoryPage() {
 							<h3 className="text-xl font-semibold text-white mb-2">
 								No inventory items yet
 							</h3>
-							<p className="text-white/60 max-w-md mx-auto">
-								Create ingredients in Menu management to start tracking
-								inventory. Once ingredients are added, they'll appear here
-								automatically.
+							<p className="text-white/60 max-w-md mx-auto mb-6">
+								Add your first ingredient to start tracking inventory. You can
+								also create ingredients from the Menu page when defining
+								recipes.
 							</p>
+							<Button onClick={() => setShowAddForm(true)}>
+								<Plus className="mr-2 h-4 w-4" />
+								Add Ingredient
+							</Button>
 						</div>
 					) : (
 						<div className="grid gap-4">
@@ -472,6 +539,142 @@ export default function InventoryPage() {
 						handleRefresh()
 					}}
 				/>
+			)}
+			
+			{showAddForm && (
+				<div className="fixed inset-0 z-[9999]">
+					<div
+						className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+						onClick={() => !savingIngredient && setShowAddForm(false)}
+					/>
+					<motion.div
+						initial={{ opacity: 0, scale: 0.95 }}
+						animate={{ opacity: 1, scale: 1 }}
+						className="absolute left-1/2 top-1/2 w-[90%] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/10 bg-gradient-to-br from-[#121633] via-[#060915] to-[#030308] p-6 shadow-[0_30px_80px_rgba(4,5,16,0.65)]"
+					>
+						<div className="mb-5 flex items-start justify-between">
+							<div className="flex items-center gap-3">
+								<div className="rounded-xl bg-[#E0342A]/15 p-2.5">
+									<Plus className="h-5 w-5 text-[#E0342A]" />
+								</div>
+								<div>
+									<h3 className="text-lg font-semibold text-white">
+										Add Ingredient
+									</h3>
+									<p className="text-xs text-white/55">
+										New ingredients seed an inventory row at zero stock.
+									</p>
+								</div>
+							</div>
+							<button
+								onClick={() => !savingIngredient && setShowAddForm(false)}
+								className="rounded-full border border-white/10 bg-white/5 p-1.5 text-white/60 hover:bg-white/10"
+								aria-label="Close"
+							>
+								<X className="h-4 w-4" />
+							</button>
+						</div>
+						
+						<div className="space-y-4">
+							<div>
+								<label className="mb-1.5 block text-xs font-medium text-white/70">
+									Name <span className="text-[#E0342A]">*</span>
+								</label>
+								<input
+									type="text"
+									autoFocus
+									value={newIngredient.name}
+									onChange={(e) =>
+										setNewIngredient({ ...newIngredient, name: e.target.value })
+									}
+									placeholder="e.g. Mozzarella, Tomato, Flour"
+									className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-white placeholder:text-white/35 focus:border-white/30 focus:outline-none"
+								/>
+							</div>
+							<div className="grid grid-cols-3 gap-3">
+								<div>
+									<label className="mb-1.5 block text-xs font-medium text-white/70">
+										Unit
+									</label>
+									<input
+										type="text"
+										value={newIngredient.unit}
+										onChange={(e) =>
+											setNewIngredient({ ...newIngredient, unit: e.target.value })
+										}
+										placeholder="kg, g, L, pcs"
+										className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-white placeholder:text-white/35 focus:border-white/30 focus:outline-none"
+									/>
+								</div>
+								<div>
+									<label className="mb-1.5 block text-xs font-medium text-white/70">
+										Min level
+									</label>
+									<input
+										type="number"
+										min="0"
+										step="any"
+										value={newIngredient.minStockLevel}
+										onChange={(e) =>
+											setNewIngredient({
+												...newIngredient,
+												minStockLevel: e.target.value
+											})
+										}
+										placeholder="0"
+										className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-white placeholder:text-white/35 focus:border-white/30 focus:outline-none"
+									/>
+								</div>
+								<div>
+									<label className="mb-1.5 block text-xs font-medium text-white/70">
+										Max level
+									</label>
+									<input
+										type="number"
+										min="0"
+										step="any"
+										value={newIngredient.maxStockLevel}
+										onChange={(e) =>
+											setNewIngredient({
+												...newIngredient,
+												maxStockLevel: e.target.value
+											})
+										}
+										placeholder="—"
+										className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-white placeholder:text-white/35 focus:border-white/30 focus:outline-none"
+									/>
+								</div>
+							</div>
+						</div>
+						
+						<div className="mt-6 flex justify-end gap-2">
+							<Button
+								variant="ghost"
+								onClick={() => setShowAddForm(false)}
+								disabled={savingIngredient}
+								className="border border-white/15"
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={handleCreateIngredient}
+								disabled={savingIngredient || !newIngredient.name.trim()}
+							>
+								{savingIngredient ? (
+									<>
+										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+										Saving…
+									</>
+								) : (
+									<>
+										<Plus className="mr-2 h-4 w-4" />
+										Add Ingredient
+									</>
+								)}
+							</Button>
+						</div>
+					</motion.div>
+				</div>
 			)}
 		</div>
 	)
