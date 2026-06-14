@@ -1,19 +1,13 @@
-import { redirect } from 'next/navigation'
-import { createSupabaseServerComponentClient } from '@/lib/supabase/server'
+'use client'
+
+import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Plus, Users, Star } from 'lucide-react'
-
-type TenantRecord = {
-	id: string
-	name: string
-	settings: Record<string, unknown> | null
-}
-
-type ProfileTenantRow = {
-	tenant_id: string
-	tenant: TenantRecord | null
-}
+import { Plus, Users, Star, Edit, Search, Loader2 } from 'lucide-react'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/toast'
+import { CustomerFormModal } from '@/components/customers/customer-form-modal'
 
 type CustomerRow = {
 	id: string
@@ -27,56 +21,100 @@ type CustomerRow = {
 	}>
 }
 
-export default async function CustomersPage() {
-	const supabase = await createSupabaseServerComponentClient()
-	const {
-		data: { user }
-	} = await supabase.auth.getUser()
+export default function CustomersPage() {
+	const router = useRouter()
+	const { error: showError } = useToast()
+	const [tenantId, setTenantId] = useState('')
+	const [loading, setLoading] = useState(true)
+	const [customers, setCustomers] = useState<CustomerRow[]>([])
+	const [searchQuery, setSearchQuery] = useState('')
 
-	if (!user) {
-		redirect('/login')
-	}
+	// Modals
+	const [showModal, setShowModal] = useState(false)
+	const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null)
 
-	const { data: tenantRow, error } = await supabase
-		.from('profile_tenants')
-		.select(
-			`
-        tenant_id,
-        tenant:tenant_id (
-          id,
-          name,
-          settings
-        )
-      `
+	useEffect(() => {
+		const checkUser = async () => {
+			const supabase = createSupabaseBrowserClient()
+			const { data: { user } } = await supabase.auth.getUser()
+			if (!user) {
+				router.push('/login')
+				return
+			}
+
+			const { data: pt } = await supabase
+				.from('profile_tenants')
+				.select('tenant_id')
+				.eq('profile_id', user.id)
+				.single()
+
+			if (!pt) {
+				router.push('/onboarding')
+				return
+			}
+
+			setTenantId(pt.tenant_id)
+		}
+		checkUser()
+	}, [router])
+
+	const loadCustomers = useCallback(async () => {
+		if (!tenantId) return
+		try {
+			const supabase = createSupabaseBrowserClient()
+			const { data, error } = await supabase
+				.from('customers')
+				.select(
+					`
+					id,
+					full_name,
+					phone,
+					email,
+					tags,
+					loyalty_profiles (
+						points_balance,
+						loyalty_tiers:tier_id ( name )
+					)
+					`
+				)
+				.eq('tenant_id', tenantId)
+				.order('full_name', { ascending: true })
+
+			if (error) throw new Error(error.message)
+			setCustomers((data as unknown as CustomerRow[]) || [])
+		} catch (err: any) {
+			showError(err.message || 'Failed to load customers')
+		} finally {
+			setLoading(false)
+		}
+	}, [tenantId, showError])
+
+	useEffect(() => {
+		if (tenantId) loadCustomers()
+	}, [tenantId, loadCustomers])
+
+	// Filter customers locally based on search query
+	const filteredCustomers = customers.filter((customer) => {
+		const query = searchQuery.toLowerCase().trim()
+		if (!query) return true
+
+		const nameMatch = customer.full_name?.toLowerCase().includes(query)
+		const phoneMatch = customer.phone?.toLowerCase().includes(query)
+		const emailMatch = customer.email?.toLowerCase().includes(query)
+		return nameMatch || phoneMatch || emailMatch
+	})
+
+	if (loading) {
+		return (
+			<div className="flex flex-col gap-8 py-6">
+				<div className="space-y-3">
+					<div className="h-6 w-32 rounded-full bg-white/10 animate-pulse" />
+					<div className="h-10 w-64 rounded-xl bg-white/10 animate-pulse" />
+				</div>
+				<div className="h-64 rounded-[32px] border border-white/10 bg-white/5 animate-pulse" />
+			</div>
 		)
-		.eq('profile_id', user.id)
-		.single<ProfileTenantRow>()
-
-	const tenant = tenantRow?.tenant ?? null
-
-	if (error || !tenant) {
-		redirect('/tenant')
 	}
-
-	const { data: customers } = await supabase
-		.from('customers')
-		.select(
-			`
-        id,
-        full_name,
-        phone,
-        email,
-        tags,
-        loyalty_profiles (
-          points_balance,
-          loyalty_tiers:tier_id ( name )
-        )
-      `
-		)
-		.eq('tenant_id', tenant.id)
-		.order('full_name', { ascending: true })
-
-	const rows = (customers as CustomerRow[]) || []
 
 	return (
 		<div className="flex flex-col gap-8 py-6">
@@ -98,7 +136,7 @@ export default async function CustomersPage() {
 						<Star className="mr-2 h-4 w-4" />
 						View tiers
 					</Button>
-					<Button>
+					<Button onClick={() => { setSelectedCustomer(null); setShowModal(true) }}>
 						<Plus className="mr-2 h-4 w-4" />
 						New customer
 					</Button>
@@ -106,76 +144,100 @@ export default async function CustomersPage() {
 			</header>
 
 			<section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-2xl">
-				<div className="mb-4 flex items-center justify-between">
+				<div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
 					<div className="flex items-center gap-2">
 						<Users className="h-4 w-4 text-white/60" />
 						<p className="text-sm text-white/70">
-							{rows.length} customer{rows.length === 1 ? '' : 's'} tracked
+							{filteredCustomers.length} customer{filteredCustomers.length === 1 ? '' : 's'} found
 						</p>
 					</div>
+
+					<div className="relative w-full max-w-xs">
+						<Search className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
+						<input
+							type="text"
+							value={searchQuery}
+							onChange={(e) => setSearchQuery(e.target.value)}
+							className="w-full rounded-xl border border-white/10 bg-black/30 pl-9 pr-4 py-2 text-sm text-white placeholder-white/30 focus:border-white/30 focus:outline-none transition-colors"
+							placeholder="Search by name, phone or email..."
+						/>
+					</div>
 				</div>
-				<div className="overflow-hidden rounded-2xl border border-white/10 bg-[#070A1C]/60">
-					<table className="min-w-full text-sm text-white/80">
-						<thead className="bg-white/5 text-xs uppercase tracking-[0.25em] text-white/50">
+
+				<div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#070A1C]/60">
+					<table className="min-w-full text-sm text-white/80 text-left">
+						<thead className="bg-white/5 text-xs uppercase tracking-[0.25em] text-white/50 border-b border-white/10">
 							<tr>
-								<th className="px-4 py-3 text-left">Name</th>
-								<th className="px-4 py-3 text-left">Contact</th>
-								<th className="px-4 py-3 text-left">Tags</th>
-								<th className="px-4 py-3 text-right">Points</th>
-								<th className="px-4 py-3 text-right">Tier</th>
+								<th className="px-5 py-3.5">Name</th>
+								<th className="px-5 py-3.5">Contact</th>
+								<th className="px-5 py-3.5">Tags</th>
+								<th className="px-5 py-3.5 text-right">Points</th>
+								<th className="px-5 py-3.5 text-right">Tier</th>
+								<th className="px-5 py-3.5 text-right">Action</th>
 							</tr>
 						</thead>
-						<tbody>
-							{rows.map((customer) => {
+						<tbody className="divide-y divide-white/5">
+							{filteredCustomers.map((customer) => {
 								const loyalty = customer.loyalty_profiles?.[0] ?? null
 								const points = loyalty?.points_balance ?? 0
 								const tierName = loyalty?.loyalty_tiers?.[0]?.name ?? '—'
 								return (
 									<tr
 										key={customer.id}
-										className="border-t border-white/5 hover:bg-white/5"
+										className="hover:bg-white/[0.02] transition-colors"
 									>
-										<td className="px-4 py-3">
+										<td className="px-5 py-4">
 											<div className="flex flex-col">
-												<span className="font-medium text-white">
+												<span className="font-semibold text-white">
 													{customer.full_name}
 												</span>
 											</div>
 										</td>
-										<td className="px-4 py-3">
+										<td className="px-5 py-4">
 											<div className="flex flex-col text-xs text-white/60">
 												{customer.phone && <span>{customer.phone}</span>}
 												{customer.email && <span>{customer.email}</span>}
 											</div>
 										</td>
-										<td className="px-4 py-3">
+										<td className="px-5 py-4">
 											<div className="flex flex-wrap gap-1">
 												{customer.tags?.map((tag) => (
 													<span
 														key={tag}
-														className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-white/60"
+														className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-white/60"
 													>
 														{tag}
 													</span>
 												))}
 											</div>
 										</td>
-										<td className="px-4 py-3 text-right text-white">
+										<td className="px-5 py-4 text-right font-medium text-white">
 											{points}
 										</td>
-										<td className="px-4 py-3 text-right text-white/80">
+										<td className="px-5 py-4 text-right text-white/85">
 											{tierName}
+										</td>
+										<td className="px-5 py-4 text-right">
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => { setSelectedCustomer(customer); setShowModal(true) }}
+												className="h-8 border border-white/10 hover:bg-white/10 text-xs text-white/80"
+											>
+												<Edit className="mr-1 h-3.5 w-3.5" />
+												Edit
+											</Button>
 										</td>
 									</tr>
 								)
 							})}
-							{rows.length === 0 && (
+							{filteredCustomers.length === 0 && (
 								<tr>
 									<td
-										colSpan={5}
-										className="px-4 py-10 text-center text-sm text-white/60"
+										colSpan={6}
+										className="px-5 py-12 text-center text-sm text-white/60"
 									>
-										No customers yet. Start by attaching guests to orders from
+										No customers found. Start by attaching guests to orders from
 										the POS or creating them here.
 									</td>
 								</tr>
@@ -184,8 +246,15 @@ export default async function CustomersPage() {
 					</table>
 				</div>
 			</section>
+
+			{showModal && (
+				<CustomerFormModal
+					tenantId={tenantId}
+					customer={selectedCustomer}
+					onClose={() => setShowModal(false)}
+					onSave={loadCustomers}
+				/>
+			)}
 		</div>
 	)
 }
-
-
