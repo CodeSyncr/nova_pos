@@ -1,202 +1,758 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Save, Flame, Database, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import {
+	Save,
+	Database,
+	RefreshCw,
+	CheckCircle2,
+	AlertCircle
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useToast } from '@/components/ui/toast'
+import {
+	syncOrdersFromFirebaseClient,
+	syncMenuItemsFromFirebaseClient,
+	syncCustomersFromFirebaseClient,
+	checkSyncedOrders,
+	checkSyncedCustomers
+} from '@/app/actions/firebase-sync'
 import { updateTenantSettings } from '@/app/actions/settings'
-
-type Tenant = {
-	id: string
-	name: string
-	settings: Record<string, unknown> | null
-}
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app'
+import {
+	getFirestore,
+	collection,
+	query,
+	where,
+	getDocs,
+	Timestamp
+} from 'firebase/firestore'
+import { FirebaseSyncSelectionModal } from './firebase-sync-selection-modal'
+import { useToast } from '@/components/ui/toast'
 
 type FirebaseSyncTabProps = {
-	tenant: Tenant
+	tenantId: string
 	onRefresh: () => void
 }
 
-type FirebaseConfig = {
-	apiKey: string
-	authDomain: string
-	projectId: string
-	storageBucket: string
-	messagingSenderId: string
-	appId: string
-	ordersCollection: string
-	menuItemsCollection: string
-	customersCollection: string
-}
-
-export function FirebaseSyncTab({ tenant, onRefresh }: FirebaseSyncTabProps) {
-	const settings = tenant.settings || {}
-	const existing = (settings.firebaseConfig as Partial<FirebaseConfig>) ?? {}
-
-	const [formData, setFormData] = useState<FirebaseConfig>({
-		apiKey: existing.apiKey || '',
-		authDomain: existing.authDomain || '',
-		projectId: existing.projectId || '',
-		storageBucket: existing.storageBucket || '',
-		messagingSenderId: existing.messagingSenderId || '',
-		appId: existing.appId || '',
-		ordersCollection: existing.ordersCollection || 'orders',
-		menuItemsCollection: existing.menuItemsCollection || 'menuItems',
-		customersCollection: existing.customersCollection || 'customers'
+export function FirebaseSyncTab({ tenantId, onRefresh }: FirebaseSyncTabProps) {
+	const [formData, setFormData] = useState({
+		apiKey: '',
+		authDomain: '',
+		projectId: '',
+		storageBucket: '',
+		messagingSenderId: '',
+		appId: '',
+		ordersCollection: 'orders', // Default collection name
+		menuItemsCollection: 'menuItems', // Default collection name
+		customersCollection: 'customers', // Default collection name
+		dateFrom: '',
+		dateTo: ''
 	})
-
 	const [saving, setSaving] = useState(false)
-	const [showApiKey, setShowApiKey] = useState(false)
-	const [showAppId, setShowAppId] = useState(false)
-	const { success, error: showError } = useToast()
+	const { success, error: showError, warning, info } = useToast()
+	const [syncResult, setSyncResult] = useState<{
+		success: boolean
+		message: string
+		ordersSynced?: number
+	} | null>(null)
+	const [menuItemsSyncResult, setMenuItemsSyncResult] = useState<{
+		success: boolean
+		message: string
+		itemsSynced?: number
+		categoriesSynced?: number
+	} | null>(null)
+	const [customersSyncResult, setCustomersSyncResult] = useState<{
+		success: boolean
+		message: string
+		customersSynced?: number
+	} | null>(null)
 
-	const isConfigured =
-		!!existing.apiKey && !!existing.projectId && !!existing.ordersCollection
+	// Selection modal state
+	const [showOrdersModal, setShowOrdersModal] = useState(false)
+	const [showMenuItemsModal, setShowMenuItemsModal] = useState(false)
+	const [showCustomersModal, setShowCustomersModal] = useState(false)
+	const [fetchedOrders, setFetchedOrders] = useState<any[]>([])
+	const [fetchedMenuItems, setFetchedMenuItems] = useState<any[]>([])
+	const [fetchedCustomers, setFetchedCustomers] = useState<any[]>([])
+	const [loadingItems, setLoadingItems] = useState(false)
 
-	const handleChange = (field: keyof FirebaseConfig, value: string) => {
-		setFormData((prev) => ({ ...prev, [field]: value }))
-	}
-
-	const handleSubmit = async (e: React.FormEvent) => {
+	const handleSaveConfig = async (e: React.FormEvent) => {
 		e.preventDefault()
 		setSaving(true)
 
 		try {
-			await updateTenantSettings(tenant.id, {
+			// Get current tenant settings first
+			const supabase = createSupabaseBrowserClient()
+			const { data: tenant } = await supabase
+				.from('tenants')
+				.select('settings')
+				.eq('id', tenantId)
+				.single()
+
+			const currentSettings =
+				(tenant?.settings as Record<string, unknown>) || {}
+
+			// Save to tenant settings, preserving existing values
+			await updateTenantSettings(tenantId, {
+				currency: (currentSettings.currency as string) || 'INR',
+				currencySymbol: (currentSettings.currencySymbol as string) || '₹',
+				locale: (currentSettings.locale as string) || 'en-IN',
+				timezone: (currentSettings.timezone as string) || 'Asia/Kolkata',
+				taxRate: (currentSettings.taxRate as number) || 0,
+				monthStartDay: (currentSettings.monthStartDay as number) || 1,
+				monthEndDay: (currentSettings.monthEndDay as number) || 0,
 				firebaseConfig: {
-					...formData,
-					ordersCollection: formData.ordersCollection || 'orders'
+					apiKey: formData.apiKey,
+					authDomain: formData.authDomain,
+					projectId: formData.projectId,
+					storageBucket: formData.storageBucket,
+					messagingSenderId: formData.messagingSenderId,
+					appId: formData.appId,
+					ordersCollection: formData.ordersCollection,
+					menuItemsCollection: formData.menuItemsCollection,
+					customersCollection: formData.customersCollection
 				}
 			})
-			success('Firebase sync settings saved!')
+
+			// Also save to localStorage as backup
+			localStorage.setItem('firebase_config', JSON.stringify(formData))
+			success('Firebase configuration saved!')
 			onRefresh()
-		} catch (err) {
-			console.error('Error saving Firebase config:', err)
-			showError('Failed to save Firebase settings')
+		} catch (error) {
+			console.error('Error saving Firebase config:', error)
+			showError('Failed to save Firebase configuration')
 		} finally {
 			setSaving(false)
 		}
 	}
 
-	const inputClass =
-		'w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-white placeholder:text-white/30 focus:border-white/30 focus:outline-none transition-colors font-mono text-sm'
+	const fetchOrdersFromFirebase = async () => {
+		if (!formData.apiKey || !formData.projectId) {
+			warning('Please configure Firebase connection first')
+			return
+		}
+
+		setLoadingItems(true)
+
+		try {
+			// Initialize Firebase app
+			let app: FirebaseApp
+			const existingApp = getApps().find(
+				(a) => a.options.projectId === formData.projectId
+			)
+
+			if (existingApp) {
+				app = existingApp
+			} else {
+				app = initializeApp({
+					apiKey: formData.apiKey,
+					authDomain: formData.authDomain,
+					projectId: formData.projectId,
+					storageBucket: formData.storageBucket,
+					messagingSenderId: formData.messagingSenderId,
+					appId: formData.appId
+				})
+			}
+
+			const db = getFirestore(app)
+			const ordersRef = collection(db, formData.ordersCollection)
+
+			// Build query with date filters if provided
+			let q = query(ordersRef)
+
+			if (formData.dateFrom || formData.dateTo) {
+				if (formData.dateFrom && !formData.dateTo) {
+					q = query(
+						ordersRef,
+						where(
+							'createdAt',
+							'>=',
+							Timestamp.fromDate(new Date(formData.dateFrom))
+						)
+					)
+				} else if (!formData.dateFrom && formData.dateTo) {
+					const endDate = new Date(formData.dateTo)
+					endDate.setHours(23, 59, 59, 999)
+					q = query(
+						ordersRef,
+						where('createdAt', '<=', Timestamp.fromDate(endDate))
+					)
+				} else if (formData.dateFrom) {
+					q = query(
+						ordersRef,
+						where(
+							'createdAt',
+							'>=',
+							Timestamp.fromDate(new Date(formData.dateFrom))
+						)
+					)
+				}
+			}
+
+			// Fetch orders from Firebase
+			const snapshot = await getDocs(q)
+			const firebaseOrders: any[] = []
+
+			snapshot.forEach((doc) => {
+				const data = doc.data()
+				// Filter by date range in memory if both dates provided
+				if (formData.dateFrom && formData.dateTo) {
+					const orderDate =
+						data.createdAt?.toDate?.() ||
+						data.timestamp?.toDate?.() ||
+						data.date
+					if (orderDate) {
+						const date =
+							orderDate instanceof Date ? orderDate : new Date(orderDate)
+						const fromDate = new Date(formData.dateFrom)
+						const toDate = new Date(formData.dateTo)
+						toDate.setHours(23, 59, 59, 999)
+						if (date < fromDate || date > toDate) {
+							return // Skip this order
+						}
+					}
+				}
+				firebaseOrders.push({
+					id: doc.id,
+					...data
+				})
+			})
+
+			if (firebaseOrders.length === 0) {
+				info('No orders found in Firebase for the specified criteria')
+				setLoadingItems(false)
+				return
+			}
+
+			// Check which orders are already synced
+			const orderIds = firebaseOrders
+				.map((order) => order.id)
+				.filter((id): id is string => !!id)
+			
+			if (orderIds.length === 0) {
+				warning('No valid order IDs found in Firebase orders')
+				setLoadingItems(false)
+				return
+			}
+
+			const syncedOrderIds = await checkSyncedOrders(tenantId, orderIds)
+
+			// Filter out already synced orders - only keep orders that are NOT in the synced set
+			const unsyncedOrders = firebaseOrders.filter((order) => {
+				if (!order.id) return false // Skip orders without IDs
+				return !syncedOrderIds.has(order.id) // Keep only if NOT synced
+			})
+
+			if (unsyncedOrders.length === 0) {
+				info(
+					`All ${firebaseOrders.length} orders have already been synced. No new orders to sync.`
+				)
+				setLoadingItems(false)
+				return
+			}
+
+			setFetchedOrders(unsyncedOrders)
+			setShowOrdersModal(true)
+		} catch (error) {
+			console.error('Error fetching orders:', error)
+			showError(
+				error instanceof Error
+					? error.message
+					: 'Failed to fetch orders from Firebase'
+			)
+		} finally {
+			setLoadingItems(false)
+		}
+	}
+
+	const handleSyncSelectedOrders = async (selectedOrders: any[]) => {
+		// Helper function to recursively convert Firestore Timestamps to plain objects
+		const convertTimestamps = (obj: any): any => {
+			if (obj === null || obj === undefined) {
+				return obj
+			}
+
+			// Check if it's a Firestore Timestamp
+			if (typeof obj === 'object' && typeof obj.toDate === 'function') {
+				const date = obj.toDate()
+				return {
+					seconds: Math.floor(date.getTime() / 1000),
+					nanoseconds: (date.getTime() % 1000) * 1000000
+				}
+			}
+
+			// Check if it's a Date object
+			if (obj instanceof Date) {
+				return obj.toISOString()
+			}
+
+			// If it's an array, convert each element
+			if (Array.isArray(obj)) {
+				return obj.map(convertTimestamps)
+			}
+
+			// If it's a plain object, convert all properties
+			if (typeof obj === 'object' && obj.constructor === Object) {
+				const converted: any = {}
+				for (const key in obj) {
+					if (Object.prototype.hasOwnProperty.call(obj, key)) {
+						converted[key] = convertTimestamps(obj[key])
+					}
+				}
+				return converted
+			}
+
+			// Return primitive values as-is
+			return obj
+		}
+
+		// Convert Firestore timestamps to plain objects for server action
+		const ordersToSync = selectedOrders.map((order) => {
+			return convertTimestamps(order)
+		})
+
+		// Log orders being sent to sync
+		console.log('=== CLIENT: Sending orders to sync ===')
+		console.log(`Number of orders: ${ordersToSync.length}`)
+		console.log('Orders JSON:', JSON.stringify(ordersToSync, null, 2))
+
+		// Send to server action
+		const result = await syncOrdersFromFirebaseClient(tenantId, ordersToSync)
+		
+		console.log('=== CLIENT: Sync result ===')
+		console.log('Result:', JSON.stringify(result, null, 2))
+
+		setSyncResult({
+			success: result.success,
+			message: result.message,
+			ordersSynced: result.ordersSynced
+		})
+
+		return result
+	}
+
+	const fetchMenuItemsFromFirebase = async () => {
+		if (!formData.apiKey || !formData.projectId) {
+			warning('Please configure Firebase connection first')
+			return
+		}
+
+		setLoadingItems(true)
+
+		try {
+			// Initialize Firebase app
+			let app: FirebaseApp
+			const existingApp = getApps().find(
+				(a) => a.options.projectId === formData.projectId
+			)
+
+			if (existingApp) {
+				app = existingApp
+			} else {
+				app = initializeApp({
+					apiKey: formData.apiKey,
+					authDomain: formData.authDomain,
+					projectId: formData.projectId,
+					storageBucket: formData.storageBucket,
+					messagingSenderId: formData.messagingSenderId,
+					appId: formData.appId
+				})
+			}
+
+			const db = getFirestore(app)
+			const menuItemsRef = collection(db, formData.menuItemsCollection)
+
+			// Fetch menu items from Firebase
+			const snapshot = await getDocs(menuItemsRef)
+			const firebaseMenuItems: any[] = []
+
+			snapshot.forEach((doc) => {
+				firebaseMenuItems.push({
+					id: doc.id,
+					...doc.data()
+				})
+			})
+
+			if (firebaseMenuItems.length === 0) {
+				info('No menu items found in Firebase for the specified collection')
+				setLoadingItems(false)
+				return
+			}
+
+			setFetchedMenuItems(firebaseMenuItems)
+			setShowMenuItemsModal(true)
+		} catch (error) {
+			console.error('Error fetching menu items:', error)
+			showError(
+				error instanceof Error
+					? error.message
+					: 'Failed to fetch menu items from Firebase'
+			)
+		} finally {
+			setLoadingItems(false)
+		}
+	}
+
+	const handleSyncSelectedMenuItems = async (selectedMenuItems: any[]) => {
+		// Helper function to recursively convert Firestore Timestamps to plain objects
+		const convertTimestamps = (obj: any): any => {
+			if (obj === null || obj === undefined) {
+				return obj
+			}
+
+			// Check if it's a Firestore Timestamp
+			if (typeof obj === 'object' && typeof obj.toDate === 'function') {
+				const date = obj.toDate()
+				return {
+					seconds: Math.floor(date.getTime() / 1000),
+					nanoseconds: (date.getTime() % 1000) * 1000000
+				}
+			}
+
+			// Check if it's a Date object
+			if (obj instanceof Date) {
+				return obj.toISOString()
+			}
+
+			// If it's an array, convert each element
+			if (Array.isArray(obj)) {
+				return obj.map(convertTimestamps)
+			}
+
+			// If it's a plain object, convert all properties
+			if (typeof obj === 'object' && obj.constructor === Object) {
+				const converted: any = {}
+				for (const key in obj) {
+					if (Object.prototype.hasOwnProperty.call(obj, key)) {
+						converted[key] = convertTimestamps(obj[key])
+					}
+				}
+				return converted
+			}
+
+			// Return primitive values as-is
+			return obj
+		}
+
+		// Convert Firestore timestamps to plain objects for server action
+		const menuItemsToSync = selectedMenuItems.map((item) => {
+			return convertTimestamps(item)
+		})
+
+		// Send to server action
+		const result = await syncMenuItemsFromFirebaseClient(
+			tenantId,
+			menuItemsToSync
+		)
+
+		setMenuItemsSyncResult({
+			success: result.success,
+			message: result.message,
+			itemsSynced: result.itemsSynced,
+			categoriesSynced: result.categoriesSynced
+		})
+
+		return result
+	}
+
+	const fetchCustomersFromFirebase = async () => {
+		if (!formData.apiKey || !formData.projectId) {
+			warning('Please configure Firebase connection first')
+			return
+		}
+
+		setLoadingItems(true)
+
+		try {
+			// Initialize Firebase app
+			let app: FirebaseApp
+			const existingApp = getApps().find(
+				(a) => a.options.projectId === formData.projectId
+			)
+
+			if (existingApp) {
+				app = existingApp
+			} else {
+				app = initializeApp({
+					apiKey: formData.apiKey,
+					authDomain: formData.authDomain,
+					projectId: formData.projectId,
+					storageBucket: formData.storageBucket,
+					messagingSenderId: formData.messagingSenderId,
+					appId: formData.appId
+				})
+			}
+
+			const db = getFirestore(app)
+			const customersRef = collection(db, formData.customersCollection)
+
+			// Fetch customers from Firebase
+			const snapshot = await getDocs(customersRef)
+			const firebaseCustomers: any[] = []
+
+			snapshot.forEach((doc) => {
+				firebaseCustomers.push({
+					id: doc.id,
+					...doc.data()
+				})
+			})
+
+			if (firebaseCustomers.length === 0) {
+				info('No customers found in Firebase for the specified collection')
+				setLoadingItems(false)
+				return
+			}
+
+			// Check which customers are already synced
+			const customerIds = firebaseCustomers
+				.map((c) => c.id)
+				.filter((id): id is string => !!id)
+
+			if (customerIds.length === 0) {
+				warning('No valid customer IDs found in Firebase')
+				setLoadingItems(false)
+				return
+			}
+
+			const syncedCustomerIds = await checkSyncedCustomers(tenantId, customerIds)
+
+			// Filter out already synced customers
+			const unsyncedCustomers = firebaseCustomers.filter((customer) => {
+				if (!customer.id) return false
+				return !syncedCustomerIds.has(customer.id)
+			})
+
+			if (unsyncedCustomers.length === 0) {
+				info(
+					`All ${firebaseCustomers.length} customers have already been synced. No new customers to sync.`
+				)
+				setLoadingItems(false)
+				return
+			}
+
+			setFetchedCustomers(unsyncedCustomers)
+			setShowCustomersModal(true)
+		} catch (error) {
+			console.error('Error fetching customers:', error)
+			showError(
+				error instanceof Error
+					? error.message
+					: 'Failed to fetch customers from Firebase'
+			)
+		} finally {
+			setLoadingItems(false)
+		}
+	}
+
+	const handleSyncSelectedCustomers = async (selectedCustomers: any[]) => {
+		// Helper function to recursively convert Firestore Timestamps to plain objects
+		const convertTimestamps = (obj: any): any => {
+			if (obj === null || obj === undefined) {
+				return obj
+			}
+
+			if (typeof obj === 'object' && typeof obj.toDate === 'function') {
+				const date = obj.toDate()
+				return {
+					seconds: Math.floor(date.getTime() / 1000),
+					nanoseconds: (date.getTime() % 1000) * 1000000
+				}
+			}
+
+			if (obj instanceof Date) {
+				return obj.toISOString()
+			}
+
+			if (Array.isArray(obj)) {
+				return obj.map(convertTimestamps)
+			}
+
+			if (typeof obj === 'object' && obj.constructor === Object) {
+				const converted: any = {}
+				for (const key in obj) {
+					if (Object.prototype.hasOwnProperty.call(obj, key)) {
+						converted[key] = convertTimestamps(obj[key])
+					}
+				}
+				return converted
+			}
+
+			return obj
+		}
+
+		const customersToSync = selectedCustomers.map((customer) => {
+			return convertTimestamps(customer)
+		})
+
+		const result = await syncCustomersFromFirebaseClient(tenantId, customersToSync)
+
+		setCustomersSyncResult({
+			success: result.success,
+			message: result.message,
+			customersSynced: result.customersSynced
+		})
+
+		return result
+	}
+
+	// Load saved config on mount
+	useEffect(() => {
+		const loadConfig = async () => {
+			try {
+				// Try to load from tenant settings first
+				const supabase = createSupabaseBrowserClient()
+				const { data: tenant } = await supabase
+					.from('tenants')
+					.select('settings')
+					.eq('id', tenantId)
+					.single()
+
+				const settings = (tenant?.settings as Record<string, unknown>) || {}
+				const firebaseConfig = settings.firebaseConfig as
+					| {
+							apiKey?: string
+							authDomain?: string
+							projectId?: string
+							storageBucket?: string
+							messagingSenderId?: string
+							appId?: string
+							ordersCollection?: string
+					  }
+					| undefined
+
+				if (firebaseConfig) {
+					setFormData((prev) => ({
+						...prev,
+						apiKey: firebaseConfig.apiKey || '',
+						authDomain: firebaseConfig.authDomain || '',
+						projectId: firebaseConfig.projectId || '',
+						storageBucket: firebaseConfig.storageBucket || '',
+						messagingSenderId: firebaseConfig.messagingSenderId || '',
+						appId: firebaseConfig.appId || '',
+						ordersCollection: firebaseConfig.ordersCollection || 'orders',
+						menuItemsCollection:
+							(firebaseConfig as { menuItemsCollection?: string })
+								.menuItemsCollection || 'menuItems',
+						customersCollection:
+							(firebaseConfig as { customersCollection?: string })
+								.customersCollection || 'customers'
+					}))
+				} else {
+					// Fallback to localStorage
+					const saved = localStorage.getItem('firebase_config')
+					if (saved) {
+						try {
+							const config = JSON.parse(saved)
+							setFormData((prev) => ({ ...prev, ...config }))
+						} catch (e) {
+							console.error('Error loading Firebase config:', e)
+						}
+					}
+				}
+			} catch (error) {
+				console.error('Error loading Firebase config from tenant:', error)
+				// Fallback to localStorage
+				const saved = localStorage.getItem('firebase_config')
+				if (saved) {
+					try {
+						const config = JSON.parse(saved)
+						setFormData((prev) => ({ ...prev, ...config }))
+					} catch (e) {
+						console.error('Error loading Firebase config:', e)
+					}
+				}
+			}
+		}
+
+		loadConfig()
+	}, [tenantId])
 
 	return (
-		<div className="space-y-8">
-			{/* Header */}
-			<div className="flex items-start justify-between">
-				<div>
-					<h2 className="text-xl font-semibold text-white">Firebase Sync</h2>
-					<p className="mt-1 text-sm text-white/60">
-						Connect your Firebase project to sync orders, menu items, and customers in real-time
-					</p>
-				</div>
-
-				{/* Status badge */}
-				<div
-					className={`flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium ${
-						isConfigured
-							? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-							: 'border-white/10 bg-white/5 text-white/50'
-					}`}
-				>
-					{isConfigured ? (
-						<>
-							<CheckCircle className="h-4 w-4" />
-							Connected
-						</>
-					) : (
-						<>
-							<AlertCircle className="h-4 w-4" />
-							Not configured
-						</>
-					)}
-				</div>
+		<div className="space-y-6">
+			<div>
+				<h2 className="text-xl font-semibold text-white">
+					Firebase Order Sync
+				</h2>
+				<p className="text-sm text-white/60">
+					Import orders from your previous POS system that used Firebase
+				</p>
 			</div>
 
-			<form onSubmit={handleSubmit} className="space-y-6">
-				{/* Firebase Project Credentials */}
-				<motion.div
-					initial={{ opacity: 0, y: 10 }}
-					animate={{ opacity: 1, y: 0 }}
-					className="rounded-2xl border border-white/10 bg-black/20 p-6 space-y-5"
-				>
-					<div className="flex items-center gap-3 mb-2">
-						<div className="rounded-xl bg-orange-500/20 p-2.5">
-							<Flame className="h-5 w-5 text-orange-400" />
-						</div>
-						<div>
-							<h3 className="font-semibold text-white">Project Credentials</h3>
-							<p className="text-xs text-white/50">
-								From your Firebase console → Project settings → Your apps
-							</p>
-						</div>
-					</div>
-
+			{/* Firebase Configuration */}
+			<motion.div
+				initial={{ opacity: 0, y: 10 }}
+				animate={{ opacity: 1, y: 0 }}
+				className="rounded-xl border border-white/10 bg-black/20 p-6"
+			>
+				<div className="mb-4 flex items-center gap-3">
+					<Database className="h-5 w-5 text-blue-400" />
+					<h3 className="text-lg font-semibold text-white">
+						Firebase Configuration
+					</h3>
+				</div>
+				<form onSubmit={handleSaveConfig} className="space-y-4">
 					<div className="grid gap-4 md:grid-cols-2">
-						{/* API Key */}
-						<div className="md:col-span-2">
-							<label className="mb-2 block text-sm font-medium text-white">
-								API Key <span className="text-[#E0342A]">*</span>
-							</label>
-							<div className="relative">
-								<input
-									type={showApiKey ? 'text' : 'password'}
-									value={formData.apiKey}
-									onChange={(e) => handleChange('apiKey', e.target.value)}
-									className={inputClass + ' pr-10'}
-									placeholder="AIzaSy..."
-								/>
-								<button
-									type="button"
-									onClick={() => setShowApiKey((v) => !v)}
-									className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
-								>
-									{showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-								</button>
-							</div>
-						</div>
-
-						{/* Auth Domain */}
 						<div>
-							<label className="mb-2 block text-sm font-medium text-white">Auth Domain</label>
+							<label className="mb-2 block text-sm font-medium text-white">
+								API Key *
+							</label>
+							<input
+								type="text"
+								value={formData.apiKey}
+								onChange={(e) =>
+									setFormData({ ...formData, apiKey: e.target.value })
+								}
+								className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+								placeholder="AIza..."
+								required
+							/>
+						</div>
+						<div>
+							<label className="mb-2 block text-sm font-medium text-white">
+								Auth Domain *
+							</label>
 							<input
 								type="text"
 								value={formData.authDomain}
-								onChange={(e) => handleChange('authDomain', e.target.value)}
-								className={inputClass}
+								onChange={(e) =>
+									setFormData({ ...formData, authDomain: e.target.value })
+								}
+								className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
 								placeholder="your-project.firebaseapp.com"
+								required
 							/>
 						</div>
-
-						{/* Project ID */}
 						<div>
 							<label className="mb-2 block text-sm font-medium text-white">
-								Project ID <span className="text-[#E0342A]">*</span>
+								Project ID *
 							</label>
 							<input
 								type="text"
 								value={formData.projectId}
-								onChange={(e) => handleChange('projectId', e.target.value)}
-								className={inputClass}
+								onChange={(e) =>
+									setFormData({ ...formData, projectId: e.target.value })
+								}
+								className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
 								placeholder="your-project-id"
+								required
 							/>
 						</div>
-
-						{/* Storage Bucket */}
 						<div>
-							<label className="mb-2 block text-sm font-medium text-white">Storage Bucket</label>
+							<label className="mb-2 block text-sm font-medium text-white">
+								Storage Bucket
+							</label>
 							<input
 								type="text"
 								value={formData.storageBucket}
-								onChange={(e) => handleChange('storageBucket', e.target.value)}
-								className={inputClass}
+								onChange={(e) =>
+									setFormData({ ...formData, storageBucket: e.target.value })
+								}
+								className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
 								placeholder="your-project.appspot.com"
 							/>
 						</div>
-
-						{/* Messaging Sender ID */}
 						<div>
 							<label className="mb-2 block text-sm font-medium text-white">
 								Messaging Sender ID
@@ -204,113 +760,414 @@ export function FirebaseSyncTab({ tenant, onRefresh }: FirebaseSyncTabProps) {
 							<input
 								type="text"
 								value={formData.messagingSenderId}
-								onChange={(e) => handleChange('messagingSenderId', e.target.value)}
-								className={inputClass}
-								placeholder="123456789012"
+								onChange={(e) =>
+									setFormData({
+										...formData,
+										messagingSenderId: e.target.value
+									})
+								}
+								className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+								placeholder="123456789"
 							/>
 						</div>
-
-						{/* App ID */}
-						<div className="md:col-span-2">
-							<label className="mb-2 block text-sm font-medium text-white">App ID</label>
-							<div className="relative">
-								<input
-									type={showAppId ? 'text' : 'password'}
-									value={formData.appId}
-									onChange={(e) => handleChange('appId', e.target.value)}
-									className={inputClass + ' pr-10'}
-									placeholder="1:123456789012:web:abc123..."
-								/>
-								<button
-									type="button"
-									onClick={() => setShowAppId((v) => !v)}
-									className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
-								>
-									{showAppId ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-								</button>
-							</div>
-						</div>
-					</div>
-				</motion.div>
-
-				{/* Firestore Collections */}
-				<motion.div
-					initial={{ opacity: 0, y: 10 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ delay: 0.1 }}
-					className="rounded-2xl border border-white/10 bg-black/20 p-6 space-y-5"
-				>
-					<div className="flex items-center gap-3 mb-2">
-						<div className="rounded-xl bg-blue-500/20 p-2.5">
-							<Database className="h-5 w-5 text-blue-400" />
-						</div>
 						<div>
-							<h3 className="font-semibold text-white">Firestore Collections</h3>
-							<p className="text-xs text-white/50">
-								Specify the Firestore collection names to sync with
-							</p>
+							<label className="mb-2 block text-sm font-medium text-white">
+								App ID
+							</label>
+							<input
+								type="text"
+								value={formData.appId}
+								onChange={(e) =>
+									setFormData({ ...formData, appId: e.target.value })
+								}
+								className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+								placeholder="1:123456789:web:abc123"
+							/>
 						</div>
 					</div>
-
 					<div className="grid gap-4 md:grid-cols-3">
 						<div>
 							<label className="mb-2 block text-sm font-medium text-white">
-								Orders Collection <span className="text-[#E0342A]">*</span>
+								Orders Collection Name
 							</label>
 							<input
 								type="text"
 								value={formData.ordersCollection}
-								onChange={(e) => handleChange('ordersCollection', e.target.value)}
-								className={inputClass}
+								onChange={(e) =>
+									setFormData({ ...formData, ordersCollection: e.target.value })
+								}
+								className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
 								placeholder="orders"
 							/>
-							<p className="mt-1 text-xs text-white/40">Real-time order sync</p>
+							<p className="mt-1 text-xs text-white/60">
+								Name of the collection in Firebase where orders are stored
+							</p>
 						</div>
-
 						<div>
 							<label className="mb-2 block text-sm font-medium text-white">
-								Menu Items Collection
+								Menu Items Collection Name
 							</label>
 							<input
 								type="text"
 								value={formData.menuItemsCollection}
-								onChange={(e) => handleChange('menuItemsCollection', e.target.value)}
-								className={inputClass}
+								onChange={(e) =>
+									setFormData({
+										...formData,
+										menuItemsCollection: e.target.value
+									})
+								}
+								className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
 								placeholder="menuItems"
 							/>
-							<p className="mt-1 text-xs text-white/40">Menu catalogue sync</p>
+							<p className="mt-1 text-xs text-white/60">
+								Name of the collection in Firebase where menu items are stored
+							</p>
 						</div>
-
 						<div>
 							<label className="mb-2 block text-sm font-medium text-white">
-								Customers Collection
+								Customers Collection Name
 							</label>
 							<input
 								type="text"
 								value={formData.customersCollection}
-								onChange={(e) => handleChange('customersCollection', e.target.value)}
-								className={inputClass}
+								onChange={(e) =>
+									setFormData({
+										...formData,
+										customersCollection: e.target.value
+									})
+								}
+								className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
 								placeholder="customers"
 							/>
-							<p className="mt-1 text-xs text-white/40">Customer data sync</p>
+							<p className="mt-1 text-xs text-white/60">
+								Name of the collection in Firebase where customers are stored
+							</p>
 						</div>
 					</div>
-				</motion.div>
+					<div className="flex justify-end">
+						<Button type="submit" disabled={saving} size="lg">
+							<Save className="mr-2 h-4 w-4" />
+							{saving ? 'Saving...' : 'Save Configuration'}
+						</Button>
+					</div>
+				</form>
+			</motion.div>
 
-				{/* Info banner */}
-				<div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/60">
-					<span className="font-medium text-white/80">Tip:</span> Your Firebase credentials are
-					stored securely in your tenant settings. You can find them in the Firebase console under{' '}
-					<span className="font-mono text-white/80">Project Settings → General → Your apps</span>.
+			{/* Sync Options */}
+			<motion.div
+				initial={{ opacity: 0, y: 10 }}
+				animate={{ opacity: 1, y: 0 }}
+				className="rounded-xl border border-white/10 bg-black/20 p-6"
+			>
+				<div className="mb-4 flex items-center gap-3">
+					<RefreshCw className="h-5 w-5 text-emerald-400" />
+					<h3 className="text-lg font-semibold text-white">Sync Orders</h3>
 				</div>
+				<div className="space-y-4">
+					<div className="grid gap-4 md:grid-cols-2">
+						<div>
+							<label className="mb-2 block text-sm font-medium text-white">
+								Date From (Optional)
+							</label>
+							<input
+								type="date"
+								value={formData.dateFrom}
+								onChange={(e) =>
+									setFormData({ ...formData, dateFrom: e.target.value })
+								}
+								className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+							/>
+							<p className="mt-1 text-xs text-white/60">
+								Leave empty to sync all orders
+							</p>
+						</div>
+						<div>
+							<label className="mb-2 block text-sm font-medium text-white">
+								Date To (Optional)
+							</label>
+							<input
+								type="date"
+								value={formData.dateTo}
+								onChange={(e) =>
+									setFormData({ ...formData, dateTo: e.target.value })
+								}
+								className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+							/>
+							<p className="mt-1 text-xs text-white/60">
+								Leave empty to sync all orders
+							</p>
+						</div>
+					</div>
+					<div className="flex items-center gap-4">
+						<Button
+							type="button"
+							onClick={fetchOrdersFromFirebase}
+							disabled={loadingItems || !formData.apiKey || !formData.projectId}
+							size="lg"
+							className="bg-emerald-600 hover:bg-emerald-700"
+						>
+							<RefreshCw
+								className={`mr-2 h-4 w-4 ${loadingItems ? 'animate-spin' : ''}`}
+							/>
+							{loadingItems ? 'Loading...' : 'Sync Orders from Firebase'}
+						</Button>
+					</div>
+					{syncResult && (
+						<motion.div
+							initial={{ opacity: 0, y: 10 }}
+							animate={{ opacity: 1, y: 0 }}
+							className={`mt-4 rounded-xl border p-4 ${
+								syncResult.success
+									? 'border-emerald-500/50 bg-emerald-500/10'
+									: 'border-red-500/50 bg-red-500/10'
+							}`}
+						>
+							<div className="flex items-start gap-3">
+								{syncResult.success ? (
+									<CheckCircle2 className="h-5 w-5 text-emerald-400" />
+								) : (
+									<AlertCircle className="h-5 w-5 text-red-400" />
+								)}
+								<div className="flex-1">
+									<p
+										className={`font-medium ${
+											syncResult.success ? 'text-emerald-300' : 'text-red-300'
+										}`}
+									>
+										{syncResult.message}
+									</p>
+									{syncResult.success &&
+										syncResult.ordersSynced !== undefined && (
+											<p className="mt-1 text-sm text-white/70">
+												{syncResult.ordersSynced} orders synced successfully
+											</p>
+										)}
+								</div>
+							</div>
+						</motion.div>
+					)}
+				</div>
+			</motion.div>
 
-				<div className="flex justify-end">
-					<Button type="submit" disabled={saving} size="lg">
-						<Save className="mr-2 h-4 w-4" />
-						{saving ? 'Saving...' : 'Save Firebase Config'}
-					</Button>
+			{/* Menu Items Sync */}
+			<motion.div
+				initial={{ opacity: 0, y: 10 }}
+				animate={{ opacity: 1, y: 0 }}
+				className="rounded-xl border border-white/10 bg-black/20 p-6"
+			>
+				<div className="mb-4 flex items-center gap-3">
+					<RefreshCw className="h-5 w-5 text-purple-400" />
+					<h3 className="text-lg font-semibold text-white">Sync Menu Items</h3>
 				</div>
-			</form>
+				<div className="space-y-4">
+					<p className="text-sm text-white/70">
+						Import menu items, categories, variants, toppings, and ingredients
+						from Firebase
+					</p>
+					<div className="flex items-center gap-4">
+						<Button
+							type="button"
+							onClick={fetchMenuItemsFromFirebase}
+							disabled={loadingItems || !formData.apiKey || !formData.projectId}
+							size="lg"
+							className="bg-purple-600 hover:bg-purple-700"
+						>
+							<RefreshCw
+								className={`mr-2 h-4 w-4 ${loadingItems ? 'animate-spin' : ''}`}
+							/>
+							{loadingItems ? 'Loading...' : 'Sync Menu Items from Firebase'}
+						</Button>
+					</div>
+					{menuItemsSyncResult && (
+						<motion.div
+							initial={{ opacity: 0, y: 10 }}
+							animate={{ opacity: 1, y: 0 }}
+							className={`mt-4 rounded-xl border p-4 ${
+								menuItemsSyncResult.success
+									? 'border-emerald-500/50 bg-emerald-500/10'
+									: 'border-red-500/50 bg-red-500/10'
+							}`}
+						>
+							<div className="flex items-start gap-3">
+								{menuItemsSyncResult.success ? (
+									<CheckCircle2 className="h-5 w-5 text-emerald-400" />
+								) : (
+									<AlertCircle className="h-5 w-5 text-red-400" />
+								)}
+								<div className="flex-1">
+									<p
+										className={`font-medium ${
+											menuItemsSyncResult.success
+												? 'text-emerald-300'
+												: 'text-red-300'
+										}`}
+									>
+										{menuItemsSyncResult.message}
+									</p>
+									{menuItemsSyncResult.success &&
+										(menuItemsSyncResult.itemsSynced !== undefined ||
+											menuItemsSyncResult.categoriesSynced !== undefined) && (
+											<p className="mt-1 text-sm text-white/70">
+												{menuItemsSyncResult.itemsSynced || 0} menu items
+												synced, {menuItemsSyncResult.categoriesSynced || 0}{' '}
+												categories synced
+											</p>
+										)}
+								</div>
+							</div>
+						</motion.div>
+					)}
+				</div>
+			</motion.div>
+
+			{/* Sync Customers */}
+			<motion.div
+				initial={{ opacity: 0, y: 10 }}
+				animate={{ opacity: 1, y: 0 }}
+				className="rounded-xl border border-white/10 bg-black/20 p-6"
+			>
+				<div className="mb-4 flex items-center gap-3">
+					<RefreshCw className="h-5 w-5 text-cyan-400" />
+					<h3 className="text-lg font-semibold text-white">Sync Customers</h3>
+				</div>
+				<div className="space-y-4">
+					<p className="text-sm text-white/70">
+						Import customers from Firebase including their names, contact info, and loyalty points
+					</p>
+					<div className="flex items-center gap-4">
+						<Button
+							type="button"
+							onClick={fetchCustomersFromFirebase}
+							disabled={loadingItems || !formData.apiKey || !formData.projectId}
+							size="lg"
+							className="bg-cyan-600 hover:bg-cyan-700"
+						>
+							<RefreshCw
+								className={`mr-2 h-4 w-4 ${loadingItems ? 'animate-spin' : ''}`}
+							/>
+							{loadingItems ? 'Loading...' : 'Sync Customers from Firebase'}
+						</Button>
+					</div>
+					{customersSyncResult && (
+						<motion.div
+							initial={{ opacity: 0, y: 10 }}
+							animate={{ opacity: 1, y: 0 }}
+							className={`mt-4 rounded-xl border p-4 ${
+								customersSyncResult.success
+									? 'border-emerald-500/50 bg-emerald-500/10'
+									: 'border-red-500/50 bg-red-500/10'
+							}`}
+						>
+							<div className="flex items-start gap-3">
+								{customersSyncResult.success ? (
+									<CheckCircle2 className="h-5 w-5 text-emerald-400" />
+								) : (
+									<AlertCircle className="h-5 w-5 text-red-400" />
+								)}
+								<div className="flex-1">
+									<p
+										className={`font-medium ${
+											customersSyncResult.success
+												? 'text-emerald-300'
+												: 'text-red-300'
+										}`}
+									>
+										{customersSyncResult.message}
+									</p>
+									{customersSyncResult.success &&
+										customersSyncResult.customersSynced !== undefined && (
+											<p className="mt-1 text-sm text-white/70">
+												{customersSyncResult.customersSynced} customers synced
+												successfully
+											</p>
+										)}
+								</div>
+							</div>
+						</motion.div>
+					)}
+				</div>
+			</motion.div>
+
+			{/* Instructions */}
+			<motion.div
+				initial={{ opacity: 0, y: 10 }}
+				animate={{ opacity: 1, y: 0 }}
+				className="rounded-xl border border-white/10 bg-blue-500/10 p-6"
+			>
+				<h3 className="mb-3 text-lg font-semibold text-white">How to Sync</h3>
+				<ol className="list-decimal space-y-2 pl-5 text-sm text-white/70">
+					<li>
+						Get your Firebase configuration from Firebase Console → Project
+						Settings → General → Your apps
+					</li>
+					<li>Enter your Firebase configuration details above</li>
+					<li>
+						Specify the collection name where orders are stored (default:
+						"orders")
+					</li>
+					<li>
+						Optionally set a date range to sync only specific orders, or leave
+						empty to sync all
+					</li>
+					<li>Click "Sync Orders from Firebase" to import orders</li>
+				</ol>
+				<p className="mt-4 text-xs text-white/60">
+					Note: Orders will be imported with status "completed" and linked to
+					your current tenant. Duplicate orders (based on timestamp and total)
+					will be skipped. Menu items will create categories, items, variants,
+					toppings, and ingredients as needed. Customers will be imported with their
+					loyalty points and deduplicated by phone number or Firebase ID.
+				</p>
+			</motion.div>
+
+			{/* Selection Modals */}
+			<FirebaseSyncSelectionModal
+				isOpen={showOrdersModal}
+				onClose={() => setShowOrdersModal(false)}
+				items={fetchedOrders}
+				type="orders"
+				onSync={handleSyncSelectedOrders}
+				onSuccess={() => {
+					onRefresh()
+					setSyncResult({
+						success: true,
+						message: 'Orders synced successfully',
+						ordersSynced: fetchedOrders.length
+					})
+				}}
+			/>
+
+			<FirebaseSyncSelectionModal
+				isOpen={showMenuItemsModal}
+				onClose={() => setShowMenuItemsModal(false)}
+				items={fetchedMenuItems}
+				type="menuItems"
+				onSync={handleSyncSelectedMenuItems}
+				onSuccess={() => {
+					onRefresh()
+					setMenuItemsSyncResult({
+						success: true,
+						message: 'Menu items synced successfully',
+						itemsSynced: fetchedMenuItems.length
+					})
+				}}
+			/>
+
+			<FirebaseSyncSelectionModal
+				isOpen={showCustomersModal}
+				onClose={() => setShowCustomersModal(false)}
+				items={fetchedCustomers}
+				type="customers"
+				onSync={handleSyncSelectedCustomers}
+				onSuccess={() => {
+					onRefresh()
+					setCustomersSyncResult({
+						success: true,
+						message: 'Customers synced successfully',
+						customersSynced: fetchedCustomers.length
+					})
+				}}
+			/>
 		</div>
 	)
 }

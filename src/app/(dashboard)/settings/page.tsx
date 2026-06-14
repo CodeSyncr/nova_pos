@@ -388,7 +388,7 @@ export default function SettingsPage() {
 						)}
 
 						{activeTab === 'firebase-sync' && (
-							<FirebaseSyncTab tenant={tenant} onRefresh={loadTenant} />
+							<FirebaseSyncTab tenantId={tenant.id} onRefresh={loadTenant} />
 						)}
 					</motion.div>
 				</AnimatePresence>

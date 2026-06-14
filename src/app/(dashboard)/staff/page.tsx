@@ -215,8 +215,22 @@ export default function StaffPage() {
 		return { present, half, absent, leave }
 	}
 
+	// Attendance-based salary calculation
+	// Per-day rate = monthlySalary / daysInMonth
+	// Earned = monthlySalary - absentDeduction - halfDeduction
+	// Absent days deduct a full day's rate, half day deducts half day's rate.
+	const calcEarnedSalary = (profileId: string, monthlySalary: number) => {
+		if (monthlySalary <= 0) return 0
+		const perDay = monthlySalary / daysInMonth
+		const { absent, half } = getSummary(profileId)
+		const absentDeduction = perDay * absent
+		const halfDeduction = perDay * half * 0.5
+		return Math.round(monthlySalary - absentDeduction - halfDeduction)
+	}
+
 	const totalSalary = staff.reduce((s, m) => s + m.monthlySalary, 0)
 	const totalAdvances = advances.reduce((s, a) => s + a.amount, 0)
+	const totalEarned = staff.reduce((s, m) => s + calcEarnedSalary(m.id, m.monthlySalary), 0)
 
 	if (loading) {
 		return (
@@ -265,7 +279,7 @@ export default function StaffPage() {
 				<StatCard icon={<Users className="h-5 w-5" />} label="Team Members" value={staff.length.toString()} color="from-blue-500/20 to-cyan-500/20" />
 				<StatCard icon={<Wallet className="h-5 w-5" />} label="Monthly Payroll" value={fmt(totalSalary)} color="from-emerald-500/20 to-green-500/20" />
 				<StatCard icon={<Banknote className="h-5 w-5" />} label="Advances Given" value={fmt(totalAdvances)} color="from-amber-500/20 to-orange-500/20" />
-				<StatCard icon={<IndianRupee className="h-5 w-5" />} label="Net Payable" value={fmt(Math.max(0, totalSalary - totalAdvances))} color="from-purple-500/20 to-pink-500/20" />
+				<StatCard icon={<IndianRupee className="h-5 w-5" />} label="Net Payable" value={fmt(Math.max(0, totalEarned - totalAdvances))} color="from-purple-500/20 to-pink-500/20" />
 			</div>
 
 			{/* Tabs */}
@@ -296,7 +310,11 @@ export default function StaffPage() {
 							{staff.map((member) => {
 								const memberAdvances = advances.filter((a) => a.profileId === member.id).reduce((s, a) => s + a.amount, 0)
 								const summary = getSummary(member.id)
-								const net = member.monthlySalary - memberAdvances
+								const perDay = member.monthlySalary > 0 ? member.monthlySalary / daysInMonth : 0
+								const earned = calcEarnedSalary(member.id, member.monthlySalary)
+								const absentDeduction = Math.round(perDay * summary.absent)
+								const halfDeduction = Math.round(perDay * summary.half * 0.5)
+								const net = Math.max(0, earned - memberAdvances)
 								return (
 									<motion.div
 										key={member.id}
@@ -310,27 +328,46 @@ export default function StaffPage() {
 											</div>
 											<div className="min-w-0 flex-1">
 												<h3 className="font-semibold text-white truncate">{member.fullName || member.email}</h3>
-												<p className="text-xs text-white/40 truncate">{member.roleName || 'No role'}</p>
+												<p className="text-xs text-white/40 truncate">{member.roleName || 'No role'} · {fmt(Math.round(perDay))}/day</p>
 											</div>
 										</div>
 
-										<div className="grid grid-cols-2 gap-2">
-											<div className="rounded-xl bg-black/20 border border-white/5 p-3">
-												<p className="text-[10px] uppercase tracking-wider text-white/40">Salary</p>
-												<p className="text-base font-semibold text-white">{member.monthlySalary > 0 ? fmt(member.monthlySalary) : '—'}</p>
+										{/* Salary breakdown */}
+										<div className="rounded-xl bg-black/30 border border-white/5 p-3 space-y-1.5 text-xs">
+											<div className="flex justify-between text-white/50">
+												<span>Monthly salary</span>
+												<span className="text-white">{member.monthlySalary > 0 ? fmt(member.monthlySalary) : '—'}</span>
 											</div>
-											<div className="rounded-xl bg-black/20 border border-white/5 p-3">
-												<p className="text-[10px] uppercase tracking-wider text-white/40">Net Payable</p>
-												<p className="text-base font-semibold text-emerald-300">{fmt(Math.max(0, net))}</p>
+											{summary.absent > 0 && (
+												<div className="flex justify-between text-red-300/80">
+													<span>Absent ({summary.absent}d)</span>
+													<span>− {fmt(absentDeduction)}</span>
+												</div>
+											)}
+											{summary.half > 0 && (
+												<div className="flex justify-between text-amber-300/80">
+													<span>Half day ({summary.half}d)</span>
+													<span>− {fmt(halfDeduction)}</span>
+												</div>
+											)}
+											{memberAdvances > 0 && (
+												<div className="flex justify-between text-amber-300/80">
+													<span>Advances</span>
+													<span>− {fmt(memberAdvances)}</span>
+												</div>
+											)}
+											<div className="flex justify-between border-t border-white/10 pt-1.5 font-semibold">
+												<span className="text-white/70">Net Payable</span>
+												<span className="text-emerald-300">{fmt(net)}</span>
 											</div>
 										</div>
 
 										{/* Mini attendance summary */}
 										<div className="flex items-center gap-3 text-xs">
-											<span className="flex items-center gap-1 text-emerald-300"><span className="h-2 w-2 rounded-full bg-emerald-400" />{summary.present}</span>
-											<span className="flex items-center gap-1 text-amber-300"><span className="h-2 w-2 rounded-full bg-amber-400" />{summary.half}</span>
-											<span className="flex items-center gap-1 text-red-300"><span className="h-2 w-2 rounded-full bg-red-400" />{summary.absent}</span>
-											<span className="flex items-center gap-1 text-blue-300"><span className="h-2 w-2 rounded-full bg-blue-400" />{summary.leave}</span>
+											<span className="flex items-center gap-1 text-emerald-300"><span className="h-2 w-2 rounded-full bg-emerald-400" />{summary.present}P</span>
+											<span className="flex items-center gap-1 text-amber-300"><span className="h-2 w-2 rounded-full bg-amber-400" />{summary.half}H</span>
+											<span className="flex items-center gap-1 text-red-300"><span className="h-2 w-2 rounded-full bg-red-400" />{summary.absent}A</span>
+											<span className="flex items-center gap-1 text-blue-300"><span className="h-2 w-2 rounded-full bg-blue-400" />{summary.leave}L</span>
 										</div>
 
 										<div className="flex gap-2">

@@ -632,7 +632,6 @@ async function StaffDashboard({
 		.order('advance_date', { ascending: false })
 
 	const totalAdvances = (advances || []).reduce((sum, a) => sum + (a.amount || 0), 0)
-	const netSalary = monthlySalary - totalAdvances
 
 	// Get attendance this month
 	const { data: attendanceRecords } = await supabase
@@ -648,6 +647,12 @@ async function StaffDashboard({
 	const halfDays = (attendanceRecords || []).filter((r) => r.status === 'half_day').length
 	const absentDays = (attendanceRecords || []).filter((r) => r.status === 'absent').length
 	const leaveDays = (attendanceRecords || []).filter((r) => r.status === 'leave').length
+
+	const perDay = monthlySalary > 0 ? monthlySalary / lastDay : 0
+	const absentDeduction = perDay * absentDays
+	const halfDeduction = perDay * halfDays * 0.5
+	const earnedSalary = Math.round(monthlySalary - absentDeduction - halfDeduction)
+	const netSalary = Math.max(0, earnedSalary - totalAdvances)
 
 	// Today's attendance
 	const todayAttendance = (attendanceRecords || []).find((r) => r.date === today)
