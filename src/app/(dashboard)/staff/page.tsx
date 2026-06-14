@@ -306,83 +306,73 @@ export default function StaffPage() {
 				<>
 					{/* ─── Overview Tab ─────────────────────────────────────── */}
 					{activeTab === 'overview' && (
-						<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-							{staff.map((member) => {
-								const memberAdvances = advances.filter((a) => a.profileId === member.id).reduce((s, a) => s + a.amount, 0)
-								const summary = getSummary(member.id)
-								const perDay = member.monthlySalary > 0 ? member.monthlySalary / daysInMonth : 0
-								const earned = calcEarnedSalary(member.id, member.monthlySalary)
-								const absentDeduction = Math.round(perDay * summary.absent)
-								const halfDeduction = Math.round(perDay * summary.half * 0.5)
-								const net = Math.max(0, earned - memberAdvances)
-								return (
-									<motion.div
-										key={member.id}
-										initial={{ opacity: 0, y: 10 }}
-										animate={{ opacity: 1, y: 0 }}
-										className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-5 space-y-4"
-									>
-										<div className="flex items-start gap-3">
-											<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#E0342A]/30 to-[#E0342A]/10 text-sm font-bold text-white">
-												{(member.fullName || member.email).charAt(0).toUpperCase()}
-											</div>
-											<div className="min-w-0 flex-1">
-												<h3 className="font-semibold text-white truncate">{member.fullName || member.email}</h3>
-												<p className="text-xs text-white/40 truncate">{member.roleName || 'No role'} · {fmt(Math.round(perDay))}/day</p>
-											</div>
-										</div>
-
-										{/* Salary breakdown */}
-										<div className="rounded-xl bg-black/30 border border-white/5 p-3 space-y-1.5 text-xs">
-											<div className="flex justify-between text-white/50">
-												<span>Monthly salary</span>
-												<span className="text-white">{member.monthlySalary > 0 ? fmt(member.monthlySalary) : '—'}</span>
-											</div>
-											{summary.absent > 0 && (
-												<div className="flex justify-between text-red-300/80">
-													<span>Absent ({summary.absent}d)</span>
-													<span>− {fmt(absentDeduction)}</span>
-												</div>
-											)}
-											{summary.half > 0 && (
-												<div className="flex justify-between text-amber-300/80">
-													<span>Half day ({summary.half}d)</span>
-													<span>− {fmt(halfDeduction)}</span>
-												</div>
-											)}
-											{memberAdvances > 0 && (
-												<div className="flex justify-between text-amber-300/80">
-													<span>Advances</span>
-													<span>− {fmt(memberAdvances)}</span>
-												</div>
-											)}
-											<div className="flex justify-between border-t border-white/10 pt-1.5 font-semibold">
-												<span className="text-white/70">Net Payable</span>
-												<span className="text-emerald-300">{fmt(net)}</span>
-											</div>
-										</div>
-
-										{/* Mini attendance summary */}
-										<div className="flex items-center gap-3 text-xs">
-											<span className="flex items-center gap-1 text-emerald-300"><span className="h-2 w-2 rounded-full bg-emerald-400" />{summary.present}P</span>
-											<span className="flex items-center gap-1 text-amber-300"><span className="h-2 w-2 rounded-full bg-amber-400" />{summary.half}H</span>
-											<span className="flex items-center gap-1 text-red-300"><span className="h-2 w-2 rounded-full bg-red-400" />{summary.absent}A</span>
-											<span className="flex items-center gap-1 text-blue-300"><span className="h-2 w-2 rounded-full bg-blue-400" />{summary.leave}L</span>
-										</div>
-
-										<div className="flex gap-2">
-											<Button size="sm" variant="ghost" className="flex-1 border border-white/10 text-xs"
-												onClick={() => { setSelectedStaff(member); setSalaryInput(member.monthlySalary.toString()); setShowSalaryForm(true) }}>
-												<IndianRupee className="mr-1 h-3 w-3" /> Salary
-											</Button>
-											<Button size="sm" variant="ghost" className="flex-1 border border-white/10 text-xs"
-												onClick={() => { setSelectedStaff(member); setShowAdvanceForm(true) }}>
-												<Banknote className="mr-1 h-3 w-3" /> Advance
-											</Button>
-										</div>
-									</motion.div>
-								)
-							})}
+						<div className="rounded-2xl border border-white/10 bg-white/5 overflow-x-auto">
+							<table className="w-full text-sm text-left">
+								<thead>
+									<tr className="border-b border-white/10 bg-white/5">
+										<th className="px-5 py-3 text-white/60 font-medium">Staff Member</th>
+										<th className="px-5 py-3 text-white/60 font-medium">Monthly Salary</th>
+										<th className="px-5 py-3 text-white/60 font-medium">Absent Deductions</th>
+										<th className="px-5 py-3 text-white/60 font-medium">Half-day Deductions</th>
+										<th className="px-5 py-3 text-white/60 font-medium">Advances</th>
+										<th className="px-5 py-3 text-white/60 font-medium">Net Payable</th>
+										<th className="px-5 py-3 text-right text-white/60 font-medium">Actions</th>
+									</tr>
+								</thead>
+								<tbody className="divide-y divide-white/5">
+									{staff.map((member) => {
+										const memberAdvances = advances.filter((a) => a.profileId === member.id).reduce((s, a) => s + a.amount, 0)
+										const summary = getSummary(member.id)
+										const perDay = member.monthlySalary > 0 ? member.monthlySalary / daysInMonth : 0
+										const earned = calcEarnedSalary(member.id, member.monthlySalary)
+										const absentDeduction = Math.round(perDay * summary.absent)
+										const halfDeduction = Math.round(perDay * summary.half * 0.5)
+										const net = Math.max(0, earned - memberAdvances)
+										return (
+											<tr key={member.id} className="hover:bg-white/[0.02] transition-colors">
+												<td className="px-5 py-4">
+													<div className="flex items-center gap-3">
+														<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#E0342A]/30 to-[#E0342A]/10 text-sm font-bold text-white">
+															{(member.fullName || member.email).charAt(0).toUpperCase()}
+														</div>
+														<div className="min-w-0">
+															<p className="font-semibold text-white truncate">{member.fullName || member.email}</p>
+															<p className="text-xs text-white/40 truncate">{member.roleName || 'No role'} · {fmt(Math.round(perDay))}/day</p>
+														</div>
+													</div>
+												</td>
+												<td className="px-5 py-4 text-white">
+													{member.monthlySalary > 0 ? fmt(member.monthlySalary) : '—'}
+												</td>
+												<td className="px-5 py-4 text-red-400">
+													{absentDeduction > 0 ? `- ${fmt(absentDeduction)} (${summary.absent}d)` : '—'}
+												</td>
+												<td className="px-5 py-4 text-amber-400">
+													{halfDeduction > 0 ? `- ${fmt(halfDeduction)} (${summary.half}d)` : '—'}
+												</td>
+												<td className="px-5 py-4 text-amber-400">
+													{memberAdvances > 0 ? `- ${fmt(memberAdvances)}` : '—'}
+												</td>
+												<td className="px-5 py-4 font-semibold text-emerald-400">
+													{fmt(net)}
+												</td>
+												<td className="px-5 py-4 text-right">
+													<div className="flex gap-2 justify-end">
+														<Button size="sm" variant="ghost" className="border border-white/10 hover:bg-white/10 text-xs h-8"
+															onClick={() => { setSelectedStaff(member); setSalaryInput(member.monthlySalary.toString()); setShowSalaryForm(true) }}>
+															<IndianRupee className="mr-1 h-3 w-3" /> Salary
+														</Button>
+														<Button size="sm" variant="ghost" className="border border-white/10 hover:bg-white/10 text-xs h-8"
+															onClick={() => { setSelectedStaff(member); setShowAdvanceForm(true) }}>
+															<Banknote className="mr-1 h-3 w-3" /> Advance
+														</Button>
+													</div>
+												</td>
+											</tr>
+										)
+									})}
+								</tbody>
+							</table>
 						</div>
 					)}
 
