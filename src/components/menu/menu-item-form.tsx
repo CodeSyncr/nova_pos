@@ -61,6 +61,7 @@ type MenuItemFormProps = {
 		image_url: string | null
 		category_id: string
 		is_active: boolean
+		is_vegan: boolean
 		prep_time_minutes: number | null
 		allergen_info: string | null
 		nutrition: {
@@ -120,6 +121,7 @@ export function MenuItemForm({
 		item?.prep_time_minutes?.toString() || ''
 	)
 	const [allergenInfo, setAllergenInfo] = useState(item?.allergen_info || '')
+	const [isVegan, setIsVegan] = useState(item?.is_vegan ?? false)
 
 	const [protein, setProtein] = useState(
 		item?.nutrition?.protein?.toString() || '0'
@@ -219,6 +221,7 @@ export function MenuItemForm({
 			description,
 			basePrice: parseFloat(basePrice) || 0,
 			isActive,
+			isVegan,
 			discountPrice:
 				discountPrice.trim() === '' ? null : parseFloat(discountPrice),
 			imageUrl: imageUrl.trim() || null,
@@ -534,7 +537,7 @@ export function MenuItemForm({
 							/>
 						</div>
 
-						<div className="flex items-center gap-2">
+						<div className="flex items-center gap-6">
 							<label className="flex items-center gap-2 cursor-pointer">
 								<input
 									type="checkbox"
@@ -544,6 +547,17 @@ export function MenuItemForm({
 								/>
 								<span className="text-sm text-white/70">
 									Active (visible in POS)
+								</span>
+							</label>
+							<label className="flex items-center gap-2 cursor-pointer">
+								<input
+									type="checkbox"
+									checked={isVegan}
+									onChange={(e) => setIsVegan(e.target.checked)}
+									className="h-5 w-5 rounded border-white/20 bg-white/5 text-green-500 focus:ring-2 focus:ring-green-500/50"
+								/>
+								<span className="text-sm text-white/70">
+									🌱 Vegan
 								</span>
 							</label>
 						</div>

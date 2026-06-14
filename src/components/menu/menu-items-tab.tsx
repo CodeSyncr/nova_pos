@@ -41,6 +41,7 @@ type MenuItem = {
 	discount_price: number | null
 	image_url: string | null
 	is_active: boolean
+	is_vegan: boolean
 	category_id: string
 	prep_time_minutes: number | null
 	allergen_info: string | null
@@ -282,6 +283,11 @@ export function MenuItemsTab({
 																			>
 																				{item.is_active ? 'Live' : 'Draft'}
 																			</Badge>
+																			{item.is_vegan && (
+																				<Badge className="border-green-500/30 bg-green-500/15 text-green-400 flex-shrink-0">
+																					🌱 Vegan
+																				</Badge>
+																			)}
 																		</div>
 																		{item.description && (
 																			<p className="text-sm text-white/60 line-clamp-1 mb-2">

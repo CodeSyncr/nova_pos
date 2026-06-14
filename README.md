@@ -12,6 +12,8 @@ It serves as the backend database controller, onboarding engine, and central web
 - **🌐 Custom Domain & Subdomain Routing**: Dynamic domain resolution through middleware mapping custom user-specific subdomains to their active POS billing portals (integrated with Cloudflare).
 - **🛒 Dynamic Point of Sale (POS)**: Interactive sales panel featuring categories selection, search queries, real-time variant/topping modification sheets, and transaction processing.
 - **🧾 Transaction & Order Management**: Detailed analytics for transaction histories, status lifecycles (Pending -> Preparing -> Ready -> Completed), and invoice template generator (HTML to PDF/Image).
+- **👥 Customer Directory & CRM**: Advanced customer catalog featuring in-memory search and filtering, loyalty profiles tracking, and interactive modals for creating/editing guest details.
+- **📅 Staff Attendance & Salary Management**: Automated payroll calculations based on daily rates, absence deductions, and half-day records, managed through a premium redesigned dark-themed staff portal.
 - **💳 Payment Gateway Integration**: Integrated with Razorpay for secure digital payment checkouts.
 - **🔔 Real-Time Notifications**: Firebase Cloud Messaging and Web Push Notifications for staff reminders and preparation alerts.
 - **🛡️ Secure Authorization**: Supabase SSR Auth providing secure session logins, signup registers, onboarding checklists, and role-based permissions (Admin, Cashier, Kitchen).

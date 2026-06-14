@@ -35,6 +35,7 @@ type MenuItem = {
 	discount_price: number | null
 	image_url: string | null
 	is_active: boolean
+	is_vegan?: boolean
 	category_id: string
 	prep_time_minutes: number | null
 	allergen_info: string | null

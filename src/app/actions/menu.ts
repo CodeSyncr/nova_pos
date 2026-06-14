@@ -122,6 +122,7 @@ export async function createMenuItem(
 		basePrice: number
 		slug?: string
 		isActive?: boolean
+		isVegan?: boolean
 		discountPrice?: number | null
 		imageUrl?: string | null
 		prepTime?: number | null
@@ -159,7 +160,8 @@ export async function createMenuItem(
 				carbs: 0
 			},
 			slug,
-			is_active: data.isActive ?? true
+			is_active: data.isActive ?? true,
+			is_vegan: data.isVegan ?? false
 		})
 		.select()
 		.single()
@@ -188,6 +190,7 @@ export async function updateMenuItem(
 		basePrice?: number
 		categoryId?: string
 		isActive?: boolean
+		isVegan?: boolean
 		discountPrice?: number | null
 		imageUrl?: string | null
 		prepTime?: number | null
@@ -206,6 +209,7 @@ export async function updateMenuItem(
 	if (data.basePrice !== undefined) updateData.base_price = data.basePrice
 	if (data.categoryId) updateData.category_id = data.categoryId
 	if (data.isActive !== undefined) updateData.is_active = data.isActive
+	if (data.isVegan !== undefined) updateData.is_vegan = data.isVegan
 	if (data.discountPrice !== undefined)
 		updateData.discount_price = data.discountPrice
 	if (data.imageUrl !== undefined) updateData.image_url = data.imageUrl
