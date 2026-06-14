@@ -13,7 +13,8 @@ import {
 	Users,
 	Shield,
 	LayoutGrid,
-	FileText
+	FileText,
+	Flame
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
@@ -27,6 +28,7 @@ import { RolesPermissionsTab } from '@/components/settings/roles-permissions-tab
 import { SuppliersTab } from '@/components/settings/suppliers-tab'
 import { UsersTab } from '@/components/settings/users-tab'
 import { TablesSettingsTab } from '@/components/settings/tables-settings-tab'
+import { FirebaseSyncTab } from '@/components/settings/firebase-sync-tab'
 
 type Tenant = {
 	id: string
@@ -112,6 +114,13 @@ const tabs = [
 		icon: Building2,
 		color: 'from-[#E0342A]/20 to-[#E0342A]/5',
 		description: 'Manage suppliers & vendors'
+	},
+	{
+		id: 'firebase-sync',
+		label: 'Firebase Sync',
+		icon: Flame,
+		color: 'from-orange-500/20 to-orange-500/5',
+		description: 'Real-time Firebase integration'
 	}
 ]
 
@@ -376,6 +385,10 @@ export default function SettingsPage() {
 
 						{activeTab === 'suppliers' && (
 							<SuppliersTab tenantId={tenant.id} onRefresh={loadTenant} />
+						)}
+
+						{activeTab === 'firebase-sync' && (
+							<FirebaseSyncTab tenant={tenant} onRefresh={loadTenant} />
 						)}
 					</motion.div>
 				</AnimatePresence>

@@ -15,7 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
-import { getInventory, getLowStockItems, updateInventoryLevels } from '@/app/actions/inventory'
+import { getInventory, getLowStockItems } from '@/app/actions/inventory'
 import { createIngredient } from '@/app/actions/menu'
 import { useToast } from '@/components/ui/toast'
 import { StockAdjustmentForm } from '@/components/inventory/stock-adjustment-form'
@@ -49,9 +49,7 @@ export default function InventoryPage() {
 	const [savingIngredient, setSavingIngredient] = useState(false)
 	const [newIngredient, setNewIngredient] = useState({
 		name: '',
-		unit: 'pieces',
-		minStockLevel: '',
-		maxStockLevel: ''
+		unit: 'pieces'
 	})
 	const { success, error: showError } = useToast()
 
@@ -182,31 +180,17 @@ export default function InventoryPage() {
 		}
 		setSavingIngredient(true)
 		try {
-			// 1. Create the ingredient. The action also seeds an `inventory`
-			//    row at zero stock with the unit we pass in.
-			const ing = await createIngredient(tenantId, {
+			// `createIngredient` also seeds an `inventory` row at zero stock
+			// using the unit we pass in. The user can set min/max stock
+			// levels right after via the row's "Edit levels" button.
+			await createIngredient(tenantId, {
 				name,
 				unit: newIngredient.unit.trim() || 'pieces'
 			})
 			
-			// 2. If the user typed min/max stock, set them on the new
-			//    inventory row that the action just created.
-			const minLevel = parseFloat(newIngredient.minStockLevel)
-			const maxLevel = parseFloat(newIngredient.maxStockLevel)
-			if (ing && (Number.isFinite(minLevel) || Number.isFinite(maxLevel))) {
-				await updateInventoryLevels(
-					tenantId,
-					ing.id,
-					{
-						minStockLevel: Number.isFinite(minLevel) ? minLevel : 0,
-						maxStockLevel: Number.isFinite(maxLevel) ? maxLevel : null
-					}
-				)
-			}
-			
 			success('Ingredient added.')
 			setShowAddForm(false)
-			setNewIngredient({ name: '', unit: 'pieces', minStockLevel: '', maxStockLevel: '' })
+			setNewIngredient({ name: '', unit: 'pieces' })
 			handleRefresh()
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : 'Failed to add ingredient.'
