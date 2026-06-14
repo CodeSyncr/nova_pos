@@ -49,7 +49,9 @@ export default function InventoryPage() {
 	const [savingIngredient, setSavingIngredient] = useState(false)
 	const [newIngredient, setNewIngredient] = useState({
 		name: '',
-		unit: 'pieces'
+		unit: 'pieces',
+		minStockLevel: '',
+		maxStockLevel: ''
 	})
 	const { success, error: showError } = useToast()
 
@@ -190,7 +192,7 @@ export default function InventoryPage() {
 			
 			success('Ingredient added.')
 			setShowAddForm(false)
-			setNewIngredient({ name: '', unit: 'pieces' })
+			setNewIngredient({ name: '', unit: 'pieces', minStockLevel: '', maxStockLevel: '' })
 			handleRefresh()
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : 'Failed to add ingredient.'
