@@ -28,8 +28,23 @@ export async function OPTIONS() {
 
 export async function POST(request: NextRequest) {
 	try {
+		const origin = request.headers.get('origin') || '';
+		const referer = request.headers.get('referer') || '';
+
+		const isAllowed = 
+			origin.includes('pizzeriada.cafe') || 
+			referer.includes('pizzeriada.cafe') ||
+			origin.includes('localhost') || 
+			referer.includes('localhost') ||
+			origin.includes('127.0.0.1') ||
+			referer.includes('127.0.0.1');
+
+		if (!isAllowed) {
+			return corsResponse({ error: 'Unauthorized origin.' }, 403)
+		}
+
 		const body = await request.json()
-		const { message, tenantId, history } = body
+		const { message, tenantId, history, tableId } = body
 
 		if (!message || !tenantId) {
 			return corsResponse({ error: 'Both message and tenantId are required in the request body.' }, 400)
@@ -162,6 +177,21 @@ export async function POST(request: NextRequest) {
 		});
 
 		// 4. Construct System Instructions with Strict Scope Guard
+		let orderRule = '';
+		if (tableId) {
+			orderRule = `9. ORDER PLACEMENT CAPABILITY:
+Since the customer is seated at a physical table (Table number/name: "${tableId}"), you ARE allowed to take their order.
+However, before confirming or placing the order, you MUST verify that you have collected their (a) Name and (b) Phone Number. If they have not provided them yet in this conversation, you MUST ask them: "Before I place your order for Table ${tableId}, could I please get your Name and Phone Number?"
+Once you have (1) the dishes they want to order, (2) their Name, and (3) their Phone Number, you must confirm the order and append this exact tag at the very end of your response:
+ORDER_TRIGGER: {"customerName": "NAME_HERE", "customerPhone": "PHONE_HERE", "items": [{"name": "EXACT_DISH_NAME_1", "quantity": 1}, {"name": "EXACT_DISH_NAME_2", "quantity": 2}]}
+
+Example response format:
+"Perfect! I've placed the order for your Margherita. It will be served to Table ${tableId} shortly.
+ORDER_TRIGGER: {\"customerName\": \"John Doe\", \"customerPhone\": \"+1234567890\", \"items\": [{\"name\": \"Margherita\", \"quantity\": 1}]}"`;
+		} else {
+			orderRule = `9. IMPORTANT: You are ONLY an informational assistant for suggestions, advice, and recommendations. You CANNOT take orders, record orders, modify their cart, or process payments. If a customer says they want to order or add something, politely guide them to add the items to their cart directly on the page, or ask a human waiter. NEVER say "I will place your order", "Your order is complete", or "I will bring it out to you".`;
+		}
+
 		const systemInstruction = `You are the AI Waiter for the restaurant "${tenantData.name}".
 Your task is to assist customers with questions about our menu, recommend dishes, suggest pairings (e.g. drinks or sides to match a pizza), and help them make a dining selection.
 
@@ -177,7 +207,7 @@ SCOPE GUARD RULES:
 6. IMPORTANT: Do not expose raw numbers, sales counts, statistics, or exact rankings to the customer. For example, say "Our Margherita Pizza is a best seller and highly recommended!" instead of "We sold 50 Margherita Pizzas" or "Margherita Pizza is ranked number 1". Keep sales figures and stats completely private.
 7. Be slightly biased toward recommending higher-value/premium menu items (e.g., dishes tagged as "[Chef's Special Signature / Premium]" or higher-priced pizzas and pastas). Recommend them as our premium, chef-crafted signature options.
 8. NEVER suggest, recommend, or mention "Temph Pizza" or any dish containing "Temph" under any circumstances.
-9. IMPORTANT: You are ONLY an informational assistant for suggestions, advice, and recommendations. You CANNOT take orders, record orders, modify their cart, or process payments. If a customer says they want to order or add something, politely guide them to add the items to their cart directly on the page, or ask a human waiter. NEVER say "I will place your order", "Your order is complete", or "I will bring it out to you".`;
+${orderRule}`;
 
 		// 4. Call Cloudflare Workers AI API
 		const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -233,7 +263,88 @@ SCOPE GUARD RULES:
 		const resData = await cfResponse.json();
 		const aiText = resData.result?.response || "I apologize, I am unable to answer that right now. Please try again. Grazie!";
 
-		return corsResponse({ reply: aiText.trim() });
+		let finalAiText = aiText;
+		const triggerMatch = aiText.match(/ORDER_TRIGGER:\s*(\{[\s\S]*\})/);
+		if (triggerMatch && tableId) {
+			try {
+				const orderPayload = JSON.parse(triggerMatch[1]);
+				const { customerName, customerPhone, items } = orderPayload;
+
+				if (customerName && customerPhone && Array.isArray(items) && items.length > 0) {
+					// 1. Resolve menu item IDs from names
+					const { data: menuItems } = await supabase
+						.from('menu_items')
+						.select('id, name, base_price')
+						.eq('tenant_id', tenantId)
+						.eq('is_active', true);
+
+					if (menuItems) {
+						let subtotal = 0;
+						const orderItemsToInsert: any[] = [];
+
+						items.forEach((item: any) => {
+							const matchedItem = menuItems.find(
+								(mi) =>
+									mi.name.toLowerCase() === item.name.toLowerCase() ||
+									mi.name.toLowerCase().includes(item.name.toLowerCase())
+							);
+							if (matchedItem) {
+								const qty = parseInt(item.quantity) || 1;
+								const price = matchedItem.base_price;
+								const total = price * qty;
+								subtotal += total;
+
+								orderItemsToInsert.push({
+									menu_item_id: matchedItem.id,
+									name: matchedItem.name,
+									quantity: qty,
+									unit_price: price,
+									total_price: total
+								});
+							}
+						});
+
+						if (orderItemsToInsert.length > 0) {
+							// 2. Insert order
+							const { data: order, error: orderErr } = await supabase
+								.from('orders')
+								.insert({
+									tenant_id: tenantId,
+									table_number: String(tableId),
+									status: 'pending',
+									order_type: 'dine_in',
+									customer_name: customerName,
+									customer_phone: customerPhone,
+									subtotal: subtotal,
+									total: subtotal,
+									tax: 0
+								})
+								.select()
+								.single();
+
+							if (order && !orderErr) {
+								// 3. Insert order items
+								const itemsWithOrderId = orderItemsToInsert.map((oi) => ({
+									...oi,
+									order_id: order.id
+								}));
+								await supabase.from('order_items').insert(itemsWithOrderId);
+
+								// Clean up response text (strip out trigger tag)
+								finalAiText = aiText.replace(/ORDER_TRIGGER:\s*(\{[\s\S]*\})/g, '').trim();
+								finalAiText += "\n\nGrazie! I have successfully placed your order for Table " + tableId + ". Your food is being prepared! 🍕";
+							} else {
+								console.error('[Order creation error]:', orderErr);
+							}
+						}
+					}
+				}
+			} catch (e) {
+				console.error('[Failed to parse ORDER_TRIGGER]:', e);
+			}
+		}
+
+		return corsResponse({ reply: finalAiText.trim() });
 	} catch (err) {
 		const msg = err instanceof Error ? err.message : 'Internal Server Error';
 		console.error('[Chat API handler error]:', err);
