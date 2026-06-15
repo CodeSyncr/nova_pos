@@ -215,6 +215,7 @@ export default function MenuPage() {
         discount_price,
         image_url,
         is_active,
+        is_vegan,
         prep_time_minutes,
         allergen_info,
         nutrition,

@@ -61,7 +61,7 @@ type MenuItemFormProps = {
 		image_url: string | null
 		category_id: string
 		is_active: boolean
-		is_vegan: boolean
+		is_vegan?: boolean
 		prep_time_minutes: number | null
 		allergen_info: string | null
 		nutrition: {
