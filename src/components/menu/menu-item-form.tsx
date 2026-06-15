@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { X, Save, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { CustomSelect } from '@/components/ui/select'
 import {
@@ -172,8 +173,44 @@ export function MenuItemForm({
 	)
 
 	const [isSubmitting, setIsSubmitting] = useState(false)
+	const [isUploading, setIsUploading] = useState(false)
 
 	const [ingredientSearch, setIngredientSearch] = useState('')
+
+	const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0]
+		if (!file) return
+
+		setIsUploading(true)
+		const supabase = createSupabaseBrowserClient()
+
+		const fileExt = file.name.split('.').pop()
+		const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${fileExt}`
+		const filePath = `${tenantId}/${fileName}`
+
+		try {
+			const { error: uploadError } = await supabase.storage
+				.from('menu-items')
+				.upload(filePath, file, {
+					cacheControl: '3600',
+					upsert: true
+				})
+
+			if (uploadError) {
+				throw uploadError
+			}
+
+			const { data } = supabase.storage.from('menu-items').getPublicUrl(filePath)
+			if (data?.publicUrl) {
+				setImageUrl(data.publicUrl)
+			}
+		} catch (error) {
+			console.error('Image upload failed:', error)
+			alert(error instanceof Error ? error.message : 'Failed to upload image')
+		} finally {
+			setIsUploading(false)
+		}
+	}
 	const [toppingSearch, setToppingSearch] = useState('')
 
 	const categorySpecificToppings = useMemo(() => {
@@ -476,22 +513,41 @@ export function MenuItemForm({
 						<div className="grid gap-4 md:grid-cols-2">
 							<div>
 								<label className="block text-sm font-medium text-white/70 mb-2">
-									Image URL
+									Image URL or File Upload
 								</label>
-								<input
-									type="url"
-									value={imageUrl}
-									onChange={(e) => setImageUrl(e.target.value)}
-									className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
-									placeholder="https://..."
-								/>
+								<div className="flex gap-2">
+									<input
+										type="url"
+										value={imageUrl}
+										onChange={(e) => setImageUrl(e.target.value)}
+										className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+										placeholder="https://..."
+									/>
+									<label className="relative flex items-center justify-center rounded-xl border border-white/10 bg-white/10 hover:bg-white/15 px-4 text-white text-sm font-medium cursor-pointer transition whitespace-nowrap min-w-[100px]">
+										{isUploading ? 'Uploading...' : 'Upload File'}
+										<input
+											type="file"
+											accept="image/*"
+											onChange={handleImageUpload}
+											disabled={isUploading}
+											className="hidden"
+										/>
+									</label>
+								</div>
 								{imageUrl.trim() && (
-									<div className="mt-3 overflow-hidden rounded-xl border border-white/10">
+									<div className="mt-3 overflow-hidden rounded-xl border border-white/10 relative">
 										<img
 											src={imageUrl}
 											alt={name || 'Preview'}
 											className="h-40 w-full object-cover"
 										/>
+										<button
+											type="button"
+											onClick={() => setImageUrl('')}
+											className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition"
+										>
+											<Trash2 className="h-4 w-4" />
+										</button>
 									</div>
 								)}
 							</div>
