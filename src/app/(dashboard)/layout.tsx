@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { canAccessRoute } from '@/lib/permissions'
 import { OrderNotifications } from '@/components/order-notifications'
+import { PasskeyEnrollModal } from '@/components/auth/passkey-enroll-modal'
 
 const navItems = [
 	{ href: '/dashboard', label: 'Home', icon: LayoutDashboard },
@@ -321,6 +322,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 					</div>
 				</main>
 				<OrderNotifications />
+				<PasskeyEnrollModal />
 			</div>
 		</div>
 	)

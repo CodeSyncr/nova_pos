@@ -13,5 +13,11 @@ assertSupabaseEnv(supabaseUrl, 'NEXT_PUBLIC_SUPABASE_URL')
 assertSupabaseEnv(supabaseAnonKey, 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY')
 
 export function createSupabaseBrowserClient() {
-	return createBrowserClient(supabaseUrl as string, supabaseAnonKey as string)
+	return createBrowserClient(supabaseUrl as string, supabaseAnonKey as string, {
+		auth: {
+			experimental: {
+				passkey: true
+			}
+		} as any
+	})
 }

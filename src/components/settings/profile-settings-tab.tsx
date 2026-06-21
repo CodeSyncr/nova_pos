@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Save, User, Camera } from 'lucide-react'
+import { Save, User, Camera, Fingerprint, Trash2, Plus, Loader2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { updateUserProfile } from '@/app/actions/settings'
@@ -24,6 +24,64 @@ export function ProfileSettingsTab({
 	})
 	const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
 	const [saving, setSaving] = useState(false)
+
+	// Passkey state
+	const [passkeys, setPasskeys] = useState<any[]>([])
+	const [loadingPasskeys, setLoadingPasskeys] = useState(true)
+	const [registeringPasskey, setRegisteringPasskey] = useState(false)
+	const [deletingPasskeyId, setDeletingPasskeyId] = useState<string | null>(null)
+	const [passkeyError, setPasskeyError] = useState<string | null>(null)
+
+	const supabase = createSupabaseBrowserClient()
+
+	const loadPasskeys = async () => {
+		setLoadingPasskeys(true)
+		setPasskeyError(null)
+		try {
+			const { data, error } = await (supabase.auth as any).passkey.list()
+			if (error) throw error
+			setPasskeys(data || [])
+		} catch (err: any) {
+			console.error('Error loading passkeys:', err)
+			setPasskeyError(err.message || 'Failed to retrieve passkeys.')
+		} finally {
+			setLoadingPasskeys(false)
+		}
+	}
+
+	useEffect(() => {
+		loadPasskeys()
+	}, [])
+
+	const handleAddPasskey = async () => {
+		setRegisteringPasskey(true)
+		setPasskeyError(null)
+		try {
+			const { error } = await (supabase.auth as any).registerPasskey()
+			if (error) throw error
+			await loadPasskeys()
+		} catch (err: any) {
+			console.error('Error registering passkey:', err)
+			setPasskeyError(err.message || 'Registration was cancelled or failed.')
+		} finally {
+			setRegisteringPasskey(false)
+		}
+	}
+
+	const handleDeletePasskey = async (passkeyId: string) => {
+		setDeletingPasskeyId(passkeyId)
+		setPasskeyError(null)
+		try {
+			const { error } = await (supabase.auth as any).passkey.delete({ passkeyId })
+			if (error) throw error
+			await loadPasskeys()
+		} catch (err: any) {
+			console.error('Error deleting passkey:', err)
+			setPasskeyError(err.message || 'Failed to delete passkey.')
+		} finally {
+			setDeletingPasskeyId(null)
+		}
+	}
 
 	useEffect(() => {
 		const loadProfile = async () => {
@@ -213,6 +271,102 @@ export function ProfileSettingsTab({
 					</Button>
 				</div>
 			</form>
+
+			{/* Biometric Authentication Section */}
+			<motion.div
+				initial={{ opacity: 0, y: 10 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ delay: 0.2 }}
+				className="rounded-xl border border-white/10 bg-black/20 p-6 space-y-6"
+			>
+				<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+					<div className="flex items-center gap-3">
+						<Fingerprint className="h-5 w-5 text-[#E0342A]" />
+						<div className="text-left">
+							<h4 className="text-lg font-semibold text-white">
+								Biometric Authentication (Passkeys)
+							</h4>
+							<p className="text-sm text-white/60">
+								Manage security keys and biometrics for passwordless sign-in
+							</p>
+						</div>
+					</div>
+					<Button
+						type="button"
+						variant="ghost"
+						onClick={handleAddPasskey}
+						disabled={registeringPasskey}
+						className="sm:self-center border border-white/10 hover:bg-white/5 text-xs uppercase"
+					>
+						{registeringPasskey ? (
+							<>
+								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+								Registering...
+							</>
+						) : (
+							<>
+								<Plus className="mr-2 h-4 w-4" />
+								Add Passkey
+							</>
+						)}
+					</Button>
+				</div>
+
+				{passkeyError && (
+					<div className="flex items-start gap-2.5 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-300 text-left">
+						<AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+						<span>{passkeyError}</span>
+					</div>
+				)}
+
+				<div className="space-y-3">
+					{loadingPasskeys ? (
+						<div className="flex items-center justify-center py-6 text-white/50 text-sm gap-2">
+							<Loader2 className="h-4 w-4 animate-spin text-[#E0342A]" />
+							Loading registered biometrics...
+						</div>
+					) : passkeys.length === 0 ? (
+						<div className="rounded-xl border border-dashed border-white/10 p-8 text-center text-white/40 text-sm">
+							No biometric credentials registered yet. Add a passkey to enable Face ID or Touch ID logins.
+						</div>
+					) : (
+						passkeys.map((pk) => (
+							<div
+								key={pk.id}
+								className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-white/10 transition-colors"
+							>
+								<div className="flex items-center gap-3 text-left">
+									<div className="rounded-lg bg-white/5 p-2">
+										<Fingerprint className="h-5 w-5 text-white/70" />
+									</div>
+									<div>
+										<p className="text-sm font-semibold text-white">
+											{pk.friendly_name || `Passkey (${pk.id.slice(0, 8)}...)`}
+										</p>
+										<p className="text-xs text-white/40">
+											Registered on {new Date(pk.created_at).toLocaleDateString()}
+										</p>
+									</div>
+								</div>
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => handleDeletePasskey(pk.id)}
+									disabled={deletingPasskeyId === pk.id}
+									className="h-9 w-9 p-0 text-white/40 hover:text-red-400 hover:bg-red-500/10 border border-transparent"
+									title="Remove Passkey"
+								>
+									{deletingPasskeyId === pk.id ? (
+										<Loader2 className="h-4 w-4 animate-spin" />
+									) : (
+										<Trash2 className="h-4 w-4" />
+									)}
+								</Button>
+							</div>
+						))
+					)}
+				</div>
+			</motion.div>
 		</div>
 	)
 }
