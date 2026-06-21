@@ -191,7 +191,7 @@ export async function setCustomDomain(
 	if (domain !== null) {
 		const cleaned = domain.toLowerCase().trim()
 		if (!/^[a-z0-9][a-z0-9.\-]*\.[a-z]{2,}$/.test(cleaned)) {
-			throw new Error('Invalid domain format. Use e.g. pizzeriada.cafe')
+			throw new Error('Invalid domain format. Use e.g. pizzeriacafe.in')
 		}
 
 		const { data: existing } = await supabase

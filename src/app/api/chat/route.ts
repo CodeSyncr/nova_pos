@@ -34,6 +34,8 @@ export async function POST(request: NextRequest) {
 		const isAllowed = 
 			origin.includes('pizzeriada.cafe') || 
 			referer.includes('pizzeriada.cafe') ||
+			origin.includes('pizzeriacafe.in') || 
+			referer.includes('pizzeriacafe.in') ||
 			origin.includes('localhost') || 
 			referer.includes('localhost') ||
 			origin.includes('127.0.0.1') ||
@@ -200,7 +202,7 @@ ${menuCatalog}
 
 SCOPE GUARD RULES:
 1. ONLY answer questions directly related to this restaurant, the menu, its ingredients, ordering, or the dining experience.
-2. If the customer asks questions outside this scope (e.g., general knowledge, coding, writing scripts, math, history, translating languages, personal advice, unrelated chat, or other topics not about the restaurant and menu), you must politely refuse to answer. You must reply with exactly: "I can only assist with questions regarding our menu and dining experience. Grazie! 🙏" and nothing else. Do not engage with the out-of-scope question.
+2. If the customer asks questions outside this scope (e.g., general knowledge, coding, writing scripts, math, history, translating languages, personal advice, unrelated chat, or other topics not about the restaurant and menu), you must politely refuse to answer. You must reply with exactly: "I can only assist with questions regarding our menu and dining experience. Grazie!" and nothing else. Do not engage with the out-of-scope question.
 3. Be warm, helpful, and structured. When listing recommendations or options, always use bullet points (e.g. using - or •) and line breaks to present them clearly instead of a single long paragraph. Keep responses concise (max 4-5 sentences/lines).
 4. Always refer to dishes by their exact names as listed in the menu. Use bold markdown for dish names (e.g., **Margherita Pizza**).
 5. Recommend dishes tagged as "[Best Seller / Customer Favorite]" or "[Highly Popular]" when customers ask for popular items or recommendations.
@@ -332,7 +334,7 @@ ${orderRule}`;
 
 								// Clean up response text (strip out trigger tag)
 								finalAiText = aiText.replace(/ORDER_TRIGGER:\s*(\{[\s\S]*\})/g, '').trim();
-								finalAiText += "\n\nGrazie! I have successfully placed your order for Table " + tableId + ". Your food is being prepared! 🍕";
+								finalAiText += "\n\nGrazie! I have successfully placed your order for Table " + tableId + ". Your food is being prepared!";
 							} else {
 								console.error('[Order creation error]:', orderErr);
 							}

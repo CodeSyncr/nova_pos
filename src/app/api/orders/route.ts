@@ -34,6 +34,8 @@ export async function GET(request: NextRequest) {
 		const isAllowed = 
 			origin.includes('pizzeriada.cafe') || 
 			referer.includes('pizzeriada.cafe') ||
+			origin.includes('pizzeriacafe.in') || 
+			referer.includes('pizzeriacafe.in') ||
 			origin.includes('localhost') || 
 			referer.includes('localhost') ||
 			origin.includes('127.0.0.1') ||
@@ -96,6 +98,8 @@ export async function POST(request: NextRequest) {
 		const isAllowed = 
 			origin.includes('pizzeriada.cafe') || 
 			referer.includes('pizzeriada.cafe') ||
+			origin.includes('pizzeriacafe.in') || 
+			referer.includes('pizzeriacafe.in') ||
 			origin.includes('localhost') || 
 			referer.includes('localhost') ||
 			origin.includes('127.0.0.1') ||
