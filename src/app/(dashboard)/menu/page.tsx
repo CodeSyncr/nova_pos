@@ -60,6 +60,7 @@ type Topping = {
 	price: number
 	description: string | null
 	category: string | null // stores comma-separated category ids
+	image_url: string | null
 }
 
 type Ingredient = {
@@ -230,7 +231,7 @@ export default function MenuPage() {
 		// Load toppings
 		const { data: toppingsData } = await supabase
 			.from('toppings')
-			.select('id, name, price, description, category')
+			.select('id, name, price, description, category, image_url')
 			.eq('tenant_id', tenantData.id)
 
 		// Load ingredients

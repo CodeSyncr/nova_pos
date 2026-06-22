@@ -23,6 +23,7 @@ type Topping = {
 	description: string | null
 	price: number
 	category: string | null // comma-separated category ids or null
+	image_url: string | null
 }
 
 type Category = {
@@ -124,6 +125,15 @@ export function ToppingsTab({
 										>
 											<div className="flex items-start justify-between">
 												<div className="flex-1">
+													{topping.image_url && (
+														<div className="mb-3 overflow-hidden rounded-xl border border-white/10 bg-white/5 p-2 flex items-center justify-center">
+															<img
+																src={topping.image_url}
+																alt={topping.name}
+																className="h-16 w-16 object-contain"
+															/>
+														</div>
+													)}
 													<h4 className="text-lg font-semibold text-white">
 														{topping.name}
 													</h4>

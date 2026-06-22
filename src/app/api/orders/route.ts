@@ -125,37 +125,106 @@ export async function POST(request: NextRequest) {
 
 		const supabase = createClient(supabaseUrl, supabaseKey)
 
-		// 1. Resolve menu item IDs and compute total
+		// 1. Fetch menu items and toppings for validation
 		const { data: menuItems } = await supabase
 			.from('menu_items')
 			.select('id, name, base_price')
 			.eq('tenant_id', tenantId)
 			.eq('is_active', true);
 
+		const { data: dbToppings } = await supabase
+			.from('toppings')
+			.select('id, name, price')
+			.eq('tenant_id', tenantId);
+
 		if (!menuItems) {
 			return corsResponse({ error: 'Failed to retrieve menu items.' }, 500);
 		}
 
+		const toppingsMap = new Map((dbToppings || []).map((t) => [t.id, t]));
+
 		let computedSubtotal = 0;
 		const orderItemsToInsert: any[] = [];
+		const customToppingsToInsert: Array<{ itemIndex: number; toppingId: string; name: string; price: number }> = [];
 
-		items.forEach((item: any) => {
-			const matchedItem = menuItems.find(
-				(mi) => mi.id === item.id || mi.name.toLowerCase() === item.name.toLowerCase()
-			);
-			if (matchedItem) {
-				const qty = parseInt(item.quantity) || 1;
-				const price = parseFloat(item.price || matchedItem.base_price);
-				const total_item_price = price * qty;
+		items.forEach((item: any, itemIndex: number) => {
+			const qty = parseInt(item.quantity) || 1;
+
+			if (item.isCustom || item.id === 'custom' || item.name.toLowerCase().includes('custom pizza')) {
+				// Handle Custom Pizza Base Pizza (Tomato Base - 450, Alfredo Base - 500)
+				const isAlfredo = item.baseType === 'alfredo';
+				const saucePremium = isAlfredo ? 50 : 0;
+
+				let toppingsCount = 0;
+				const itemToppingsDetail: string[] = [];
+
+				if (item.toppings && Array.isArray(item.toppings)) {
+					item.toppings.forEach((t: any) => {
+						const matchedTopping = toppingsMap.get(t.id);
+						if (matchedTopping) {
+							toppingsCount++;
+							const halfLabel = t.half === 'whole' ? 'Whole' : (t.half === 'left' ? 'Left Half' : 'Right Half');
+							itemToppingsDetail.push(`${matchedTopping.name} (${halfLabel})`);
+
+							customToppingsToInsert.push({
+								itemIndex,
+								toppingId: matchedTopping.id,
+								name: matchedTopping.name,
+								price: 0 // toppings are included in package price
+							});
+						}
+					});
+				}
+
+				let basePrice = 450;
+				let tierName = 'Up to 2 Toppings';
+				if (toppingsCount >= 3 && toppingsCount <= 4) {
+					basePrice = 650;
+					tierName = 'Up to 4 Toppings';
+				} else if (toppingsCount >= 5) {
+					basePrice = 800;
+					tierName = 'Unlimited Toppings';
+				}
+
+				const unitPrice = basePrice + saucePremium;
+				const name = isAlfredo 
+					? `Custom Pizza (${tierName}, Alfredo Base)`
+					: `Custom Pizza (${tierName}, Tomato Base)`;
+
+				const total_item_price = unitPrice * qty;
 				computedSubtotal += total_item_price;
 
+				const notes = itemToppingsDetail.length > 0
+					? `Toppings: ${itemToppingsDetail.join(', ')}`
+					: 'No extra toppings';
+
 				orderItemsToInsert.push({
-					menu_item_id: matchedItem.id,
-					name: matchedItem.name,
+					menu_item_id: null,
+					name,
 					quantity: qty,
-					unit_price: price,
-					total_price: total_item_price
+					unit_price: unitPrice,
+					total_price: total_item_price,
+					notes
 				});
+			} else {
+				// Handle Standard Menu Item
+				const matchedItem = menuItems.find(
+					(mi) => mi.id === item.id || mi.name.toLowerCase() === item.name.toLowerCase()
+				);
+				if (matchedItem) {
+					const price = parseFloat(item.price || matchedItem.base_price);
+					const total_item_price = price * qty;
+					computedSubtotal += total_item_price;
+
+					orderItemsToInsert.push({
+						menu_item_id: matchedItem.id,
+						name: matchedItem.name,
+						quantity: qty,
+						unit_price: price,
+						total_price: total_item_price,
+						notes: item.notes || null
+					});
+				}
 			}
 		});
 
@@ -191,14 +260,36 @@ export async function POST(request: NextRequest) {
 			order_id: order.id
 		}));
 
-		const { error: itemsErr } = await supabase
+		const { data: insertedItems, error: itemsErr } = await supabase
 			.from('order_items')
-			.insert(itemsWithOrderId);
+			.insert(itemsWithOrderId)
+			.select('id, name');
 
-		if (itemsErr) {
+		if (itemsErr || !insertedItems) {
 			// Clean up order on fail
 			await supabase.from('orders').delete().eq('id', order.id);
-			return corsResponse({ error: itemsErr.message }, 500);
+			return corsResponse({ error: itemsErr?.message || 'Failed to insert order items.' }, 500);
+		}
+
+		// 4. Insert custom toppings links if any
+		if (customToppingsToInsert.length > 0) {
+			const toppingsToInsert = customToppingsToInsert.map((t) => {
+				const insertedItem = insertedItems[t.itemIndex];
+				return {
+					order_item_id: insertedItem.id,
+					topping_id: t.toppingId,
+					name: t.name,
+					price: t.price
+				};
+			});
+
+			const { error: toppingsInsertErr } = await supabase
+				.from('order_item_toppings')
+				.insert(toppingsToInsert);
+
+			if (toppingsInsertErr) {
+				console.error('Error inserting order item toppings:', toppingsInsertErr);
+			}
 		}
 
 		// Send push notification to POS dashboard

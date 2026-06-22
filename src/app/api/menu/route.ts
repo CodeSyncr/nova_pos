@@ -103,6 +103,16 @@ export async function GET(request: NextRequest) {
 			}
 		}).filter((cat: any) => cat.items.length > 0)
 
+		// 3. Fetch Toppings for the Visual Builder
+		const { data: toppingsData, error: toppingsErr } = await supabase
+			.from('toppings')
+			.select('id, name, price, category, image_url')
+			.eq('tenant_id', tenantId)
+
+		if (toppingsErr) {
+			console.error('Error fetching toppings for menu API:', toppingsErr)
+		}
+
 		return corsResponse({
 			tenant: {
 				id: tenantData.id,
@@ -114,7 +124,8 @@ export async function GET(request: NextRequest) {
 				section: activeTable.section || 'Main',
 				isValid: true
 			} : null,
-			categories: processedCategories
+			categories: processedCategories,
+			toppings: toppingsData || []
 		})
 	} catch (err) {
 		const message = err instanceof Error ? err.message : 'Internal Server Error'

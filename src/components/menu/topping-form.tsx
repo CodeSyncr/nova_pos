@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { X, Save } from 'lucide-react'
+import { X, Save, Trash2, ImagePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createTopping, updateTopping } from '@/app/actions/menu'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 type Topping = {
 	id: string
@@ -12,6 +13,7 @@ type Topping = {
 	description: string | null
 	price: number
 	category: string | null
+	image_url: string | null
 }
 
 type Category = {
@@ -39,6 +41,7 @@ export function ToppingForm({
 	const [name, setName] = useState(topping?.name || '')
 	const [description, setDescription] = useState(topping?.description || '')
 	const [price, setPrice] = useState(topping?.price.toString() || '0')
+	const [imageUrl, setImageUrl] = useState(topping?.image_url || '')
 	const [categoryIds, setCategoryIds] = useState<string[]>(
 		topping?.category
 			? topping.category
@@ -48,6 +51,7 @@ export function ToppingForm({
 			: []
 	)
 	const [isSubmitting, setIsSubmitting] = useState(false)
+	const [isUploading, setIsUploading] = useState(false)
 
 	const [categorySearch, setCategorySearch] = useState('')
 
@@ -65,6 +69,41 @@ export function ToppingForm({
 		[categories, categoryIds]
 	)
 
+	const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0]
+		if (!file) return
+
+		setIsUploading(true)
+		const supabase = createSupabaseBrowserClient()
+
+		const fileExt = file.name.split('.').pop()
+		const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${fileExt}`
+		const filePath = `${tenantId}/${fileName}`
+
+		try {
+			const { error: uploadError } = await supabase.storage
+				.from('toppings')
+				.upload(filePath, file, {
+					cacheControl: '3600',
+					upsert: true
+				})
+
+			if (uploadError) {
+				throw uploadError
+			}
+
+			const { data } = supabase.storage.from('toppings').getPublicUrl(filePath)
+			if (data?.publicUrl) {
+				setImageUrl(data.publicUrl)
+			}
+		} catch (error) {
+			console.error('Image upload failed:', error)
+			alert(error instanceof Error ? error.message : 'Failed to upload image')
+		} finally {
+			setIsUploading(false)
+		}
+	}
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
 		setIsSubmitting(true)
@@ -75,14 +114,16 @@ export function ToppingForm({
 					name,
 					description,
 					price: parseFloat(price),
-					category: categoryIds.length ? categoryIds.join(',') : undefined
+					category: categoryIds.length ? categoryIds.join(',') : undefined,
+					imageUrl: imageUrl.trim() || null
 				})
 			} else {
 				await createTopping(tenantId, {
 					name,
 					description,
 					price: parseFloat(price),
-					category: categoryIds.length ? categoryIds.join(',') : undefined
+					category: categoryIds.length ? categoryIds.join(',') : undefined,
+					imageUrl: imageUrl.trim() || null
 				})
 			}
 			onSuccess()
@@ -110,7 +151,7 @@ export function ToppingForm({
 				<div className="flex items-center justify-between mb-6">
 					<div>
 						<p className="text-xs uppercase tracking-[0.3em] text-white/50">
-							Add‑ons
+							Add&#x2011;ons
 						</p>
 						<h2 className="mt-1 text-2xl font-semibold text-white">
 							{topping ? 'Edit add on' : 'New add on'}
@@ -164,6 +205,55 @@ export function ToppingForm({
 						/>
 					</div>
 
+					{/* Topping Image */}
+					<section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-xs uppercase tracking-[0.3em] text-white/50">
+									Topping Image
+								</p>
+								<p className="text-xs text-white/40 mt-1">
+									PNG image used on the pizza builder
+								</p>
+							</div>
+							<label className="relative flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/10 hover:bg-white/15 px-3 py-2 text-white text-xs font-medium cursor-pointer transition whitespace-nowrap">
+								<ImagePlus className="h-3.5 w-3.5" />
+								{isUploading ? 'Uploading...' : 'Upload'}
+								<input
+									type="file"
+									accept="image/png,image/webp,image/svg+xml"
+									onChange={handleImageUpload}
+									disabled={isUploading}
+									className="hidden"
+								/>
+							</label>
+						</div>
+						<input
+							type="url"
+							value={imageUrl}
+							onChange={(e) => setImageUrl(e.target.value)}
+							className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+							placeholder="https://... or upload a file"
+						/>
+						{imageUrl.trim() && (
+							<div className="relative overflow-hidden rounded-xl border border-white/10 bg-white/5 p-3 flex items-center justify-center">
+								<img
+									src={imageUrl}
+									alt={name || 'Topping preview'}
+									className="h-24 w-24 object-contain"
+									style={{ imageRendering: 'auto' }}
+								/>
+								<button
+									type="button"
+									onClick={() => setImageUrl('')}
+									className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition"
+								>
+									<Trash2 className="h-3.5 w-3.5" />
+								</button>
+							</div>
+						)}
+					</section>
+
 					<section className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4">
 						<div className="flex items-start justify-between gap-3">
 							<div className="flex-1 min-w-0">
@@ -175,8 +265,8 @@ export function ToppingForm({
 								</p>
 								<p className="mt-1 text-xs text-white/50 line-clamp-2">
 									{selectedCategoryNames.length
-										? `Visible in: ${selectedCategoryNames.join(' • ')}`
-										: 'Not linked to any category — this add on will not appear on menu items.'}
+										? `Visible in: ${selectedCategoryNames.join(' \u2022 ')}`
+										: 'Not linked to any category \u2014 this add on will not appear on menu items.'}
 								</p>
 							</div>
 							{categories.length > 0 && (
@@ -223,7 +313,7 @@ export function ToppingForm({
 								)}
 								{categories.length > 0 && filteredCategories.length === 0 && (
 									<p className="text-xs text-white/50">
-										No categories match “{categorySearch}”.
+										No categories match &ldquo;{categorySearch}&rdquo;.
 									</p>
 								)}
 							</div>

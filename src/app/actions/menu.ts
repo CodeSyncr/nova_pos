@@ -392,7 +392,7 @@ export async function deleteVariant(variantId: string) {
 // Topping Actions
 export async function createTopping(
 	tenantId: string,
-	data: { name: string; description?: string; price: number; category?: string }
+	data: { name: string; description?: string; price: number; category?: string; imageUrl?: string | null }
 ) {
 	const supabase = await createSupabaseServerClient()
 
@@ -403,7 +403,8 @@ export async function createTopping(
 			name: data.name,
 			description: data.description || null,
 			price: data.price,
-			category: data.category || null
+			category: data.category || null,
+			image_url: data.imageUrl ?? null
 		})
 		.select()
 		.single()
@@ -423,6 +424,7 @@ export async function updateTopping(
 		description?: string
 		price?: number
 		category?: string
+		imageUrl?: string | null
 	}
 ) {
 	const supabase = await createSupabaseServerClient()
@@ -433,6 +435,7 @@ export async function updateTopping(
 		updateData.description = data.description || null
 	if (data.price !== undefined) updateData.price = data.price
 	if (data.category !== undefined) updateData.category = data.category || null
+	if (data.imageUrl !== undefined) updateData.image_url = data.imageUrl
 
 	const { error } = await supabase
 		.from('toppings')
