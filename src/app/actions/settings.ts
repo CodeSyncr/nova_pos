@@ -12,6 +12,7 @@ export async function updateLoyaltySettings(
 		min_redeem_points: number
 		expiry_days: number | null
 		auto_enroll: boolean
+		rules: string[]
 	}
 ) {
 	const supabase = await createSupabaseServerClient()

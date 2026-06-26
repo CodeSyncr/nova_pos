@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import { X } from 'lucide-react'
+import { X, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { updateLoyaltySettings } from '@/app/actions/settings'
 
@@ -15,6 +15,7 @@ type LoyaltySettings = {
 	min_redeem_points: number
 	expiry_days: number | null
 	auto_enroll: boolean
+	rules: string[]
 }
 
 type LoyaltySettingsFormProps = {
@@ -34,7 +35,8 @@ export function LoyaltySettingsForm({
 		redeem_rate: settings.redeem_rate,
 		min_redeem_points: settings.min_redeem_points,
 		expiry_days: settings.expiry_days || '',
-		auto_enroll: settings.auto_enroll
+		auto_enroll: settings.auto_enroll,
+		rules: settings.rules || []
 	})
 	const [saving, setSaving] = useState(false)
 	const [mounted, setMounted] = useState(false)
@@ -209,6 +211,66 @@ export function LoyaltySettingsForm({
 						<p className="mt-1 text-xs text-white/60">
 							Number of days before points expire (leave empty for no expiry)
 						</p>
+					</div>
+
+					<div className="space-y-2">
+						<div className="flex items-center justify-between">
+							<div>
+								<label className="text-sm font-medium text-white">
+									Custom Membership Card Rules (T&C)
+								</label>
+								<p className="text-xs text-white/60">
+									Add terms and conditions to display on the card page
+								</p>
+							</div>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								className="text-xs text-white/60 hover:text-white border border-white/10"
+								onClick={() =>
+									setFormData({
+										...formData,
+										rules: [...formData.rules, '']
+									})
+								}
+							>
+								<Plus className="mr-1 h-3.5 w-3.5" />
+								Add Rule
+							</Button>
+						</div>
+						<div className="space-y-2">
+							{formData.rules.map((rule, idx) => (
+								<div key={idx} className="flex items-center gap-2">
+									<input
+										type="text"
+										value={rule}
+										onChange={(e) => {
+											const newRules = [...formData.rules]
+											newRules[idx] = e.target.value
+											setFormData({ ...formData, rules: newRules })
+										}}
+										className="flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+										placeholder="e.g. Points cannot be redeemed for cash."
+									/>
+									<button
+										type="button"
+										onClick={() => {
+											const newRules = formData.rules.filter((_, i) => i !== idx)
+											setFormData({ ...formData, rules: newRules })
+										}}
+										className="rounded-xl border border-white/10 bg-white/5 p-2.5 text-white/60 transition hover:bg-[#E0342A]/20 hover:text-[#E0342A]"
+									>
+										<Trash2 className="h-4 w-4" />
+									</button>
+								</div>
+							))}
+							{formData.rules.length === 0 && (
+								<p className="text-xs text-white/40 italic">
+									No custom rules added. Default earning/redemption rules will be displayed on the membership card page.
+								</p>
+							)}
+						</div>
 					</div>
 
 					<div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-4">

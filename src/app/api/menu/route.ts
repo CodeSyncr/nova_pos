@@ -116,7 +116,8 @@ export async function GET(request: NextRequest) {
 		return corsResponse({
 			tenant: {
 				id: tenantData.id,
-				name: tenantData.name
+				name: tenantData.name,
+				settings: tenantData.settings || {}
 			},
 			table: activeTable ? {
 				id: activeTable.id,

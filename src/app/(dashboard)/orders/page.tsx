@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CustomSelect, SelectOption } from '@/components/ui/select'
@@ -35,7 +35,8 @@ import {
 	Table,
 	Loader2,
 	Printer,
-	Bluetooth
+	Bluetooth,
+	Gift
 } from 'lucide-react'
 import {
 	updateOrderStatus,
@@ -43,6 +44,7 @@ import {
 	completeOrderWithPayment,
 	updateOrder
 } from '@/app/actions/orders'
+import { createMembershipCard } from '@/app/actions/customers'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/ui/toast'
 import { generateAndUploadBill, getOrGenerateBillUrl, openWhatsApp, printBluetoothBill } from '@/lib/bill-generator'
@@ -191,6 +193,19 @@ export default function OrdersPage() {
 	const [statusFilter, setStatusFilter] = useState<string | null>(null)
 	const [searchQuery, setSearchQuery] = useState('')
 	const [completingOrder, setCompletingOrder] = useState<Order | null>(null)
+	const [completingOrderCustomerId, setCompletingOrderCustomerId] = useState<string | null>(null)
+	const [completingOrderHasCard, setCompletingOrderHasCard] = useState(true)
+	const [completingOrderCustomerTier, setCompletingOrderCustomerTier] = useState<{
+		name: string
+		benefits: {
+			points_multiplier?: number
+			earn_rate_override?: number
+			redeem_rate_override?: number
+			baseline_discount_pct?: number
+			amount_discounts?: Array<{ min_amount: number; discount_pct: number }>
+		}
+	} | null>(null)
+	const [creatingCardInModal, setCreatingCardInModal] = useState(false)
 	const [editingOrder, setEditingOrder] = useState<Order | null>(null)
 	const [editedItems, setEditedItems] = useState<
 		Array<{
@@ -608,11 +623,83 @@ export default function OrdersPage() {
 		}
 	}
 
-	const handleCompleteClick = (order: Order) => {
+	const calculateTierDiscount = useCallback((
+		subtotal: number,
+		tax: number,
+		benefits: any
+	) => {
+		if (!benefits) return 0
+		const totalBeforeDiscount = subtotal + tax
+
+		// 1. Check amount-based discounts
+		if (Array.isArray(benefits.amount_discounts) && benefits.amount_discounts.length > 0) {
+			// Sort from highest threshold to lowest
+			const sortedRules = [...benefits.amount_discounts].sort((a, b) => b.min_amount - a.min_amount)
+			for (const rule of sortedRules) {
+				if (totalBeforeDiscount >= rule.min_amount) {
+					return rule.discount_pct // Return percentage
+				}
+			}
+		}
+
+		// 2. Fall back to baseline discount
+		if (typeof benefits.baseline_discount_pct === 'number' && benefits.baseline_discount_pct > 0) {
+			return benefits.baseline_discount_pct
+		}
+
+		return 0
+	}, [])
+
+	const handleCompleteClick = async (order: Order) => {
 		setCompletingOrder(order)
 		setDiscountType(order.discount_type as 'percent' | 'fixed' | null)
 		setDiscountValue(order.discount_value?.toString() || '')
 		setPaymentMethod(order.payment_method || '')
+
+		// Check if the order's customer has a membership card
+		setCompletingOrderCustomerId(null)
+		setCompletingOrderHasCard(true) // default to true to not show banner
+		setCompletingOrderCustomerTier(null)
+
+		if (order.customer_phone && tenantId) {
+			try {
+				const supabase = createSupabaseBrowserClient()
+				const phone = order.customer_phone.replace(/[^\d]/g, '')
+				const last10 = phone.length >= 10 ? phone.slice(-10) : phone
+
+				const { data: custData } = await supabase
+					.from('customers')
+					.select('id, loyalty_profiles(id, tier_id, loyalty_tiers(id, name, benefits))')
+					.eq('tenant_id', tenantId)
+					.or(`phone.eq.${last10},phone.eq.+91${last10},phone.eq.+91 ${last10},phone.ilike.%${last10}`)
+					.limit(1)
+
+				const matchedCustomer = custData?.[0]
+				if (matchedCustomer) {
+					setCompletingOrderCustomerId(matchedCustomer.id)
+					const profiles = (matchedCustomer as any).loyalty_profiles || []
+					setCompletingOrderHasCard(profiles.length > 0)
+
+					const activeProfile = profiles[0]
+					if (activeProfile && activeProfile.loyalty_tiers) {
+						const tierInfo = {
+							name: (activeProfile.loyalty_tiers as any).name,
+							benefits: (activeProfile.loyalty_tiers as any).benefits || {}
+						}
+						setCompletingOrderCustomerTier(tierInfo)
+
+						// Automatically calculate and pre-fill discount if configured
+						const pct = calculateTierDiscount(order.subtotal, order.tax, tierInfo.benefits)
+						if (pct > 0) {
+							setDiscountType('percent')
+							setDiscountValue(pct.toString())
+						}
+					}
+				}
+			} catch (err) {
+				// Non-critical; silently ignore
+			}
+		}
 	}
 
 	const handleCompleteOrder = async () => {
@@ -2018,6 +2105,72 @@ export default function OrdersPage() {
 								</div>
 							</div>
 
+							{/* Membership Card Prompt */}
+							{completingOrderCustomerId && !completingOrderHasCard && (
+								<div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+									<div className="flex items-start gap-3">
+										<CreditCard className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+										<div className="flex-1">
+											<p className="text-sm font-medium text-amber-200">
+												No membership card
+											</p>
+											<p className="text-xs text-white/50 mt-0.5">
+												This customer doesn&apos;t have a loyalty card yet.
+											</p>
+											<Button
+												size="sm"
+												disabled={creatingCardInModal}
+												onClick={async () => {
+													setCreatingCardInModal(true)
+													try {
+														const result = await createMembershipCard(completingOrderCustomerId!, tenantId)
+														if (result.alreadyExists) {
+															toast.success('Customer already has a membership card')
+														} else {
+															toast.success(`Membership card created! Tier: ${result.tierName}`)
+														}
+														setCompletingOrderHasCard(true)
+
+														// Re-query starting tier benefits and pre-fill automatic starting discount
+														const supabase = createSupabaseBrowserClient()
+														const { data: profileData } = await supabase
+															.from('loyalty_profiles')
+															.select('tier_id, loyalty_tiers(id, name, benefits)')
+															.eq('customer_id', completingOrderCustomerId!)
+															.maybeSingle()
+
+														if (profileData && profileData.loyalty_tiers) {
+															const tierInfo = {
+																name: (profileData.loyalty_tiers as any).name,
+																benefits: (profileData.loyalty_tiers as any).benefits || {}
+															}
+															setCompletingOrderCustomerTier(tierInfo)
+															const pct = calculateTierDiscount(completingOrder!.subtotal, completingOrder!.tax, tierInfo.benefits)
+															if (pct > 0) {
+																setDiscountType('percent')
+																setDiscountValue(pct.toString())
+															}
+														}
+													} catch (err: any) {
+														toast.error(err.message || 'Failed to create card')
+													} finally {
+														setCreatingCardInModal(false)
+													}
+												}}
+												className="mt-2 h-7 border border-amber-500/20 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 text-xs"
+											>
+												{creatingCardInModal ? (
+													<Loader2 className="mr-1 h-3 w-3 animate-spin" />
+												) : (
+													<Plus className="mr-1 h-3 w-3" />
+												)}
+												Create Membership Card
+											</Button>
+										</div>
+									</div>
+								</div>
+							)}
+
 							{/* Discount Section */}
 							<div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
 								<div className="flex items-center justify-between">
@@ -2065,6 +2218,30 @@ export default function OrdersPage() {
 										)}
 									</div>
 								</div>
+								{completingOrderCustomerTier && (
+									<div className="rounded-xl bg-[#E0342A]/10 border border-[#E0342A]/20 px-3 py-2 flex items-start gap-2">
+										<Gift className="h-4 w-4 text-[#E0342A] flex-shrink-0 mt-0.5" />
+										<div>
+											<p className="text-xs font-semibold text-white/95">
+												{completingOrderCustomerTier.name} Member Benefit Applied
+											</p>
+											<p className="text-[11px] text-white/60 mt-0.5">
+												{(() => {
+													const pct = calculateTierDiscount(
+														completingOrder!.subtotal,
+														completingOrder!.tax,
+														completingOrderCustomerTier.benefits
+													)
+													if (pct > 0) {
+														return `${pct}% tier discount calculated for order amount.`
+													}
+													return `No amount threshold met. Baseline is applied if configured.`
+												})()}
+											</p>
+										</div>
+									</div>
+								)}
+
 								{discountType && (
 									<input
 										type="number"

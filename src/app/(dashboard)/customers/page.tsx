@@ -4,10 +4,11 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Plus, Users, Star, Edit, Search, Loader2 } from 'lucide-react'
+import { Plus, Users, Star, Edit, Search, Loader2, CreditCard, Copy } from 'lucide-react'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/toast'
 import { CustomerFormModal } from '@/components/customers/customer-form-modal'
+import { createMembershipCard } from '@/app/actions/customers'
 
 type CustomerRow = {
 	id: string
@@ -23,7 +24,7 @@ type CustomerRow = {
 
 export default function CustomersPage() {
 	const router = useRouter()
-	const { error: showError } = useToast()
+	const { success, error: showError } = useToast()
 	const [tenantId, setTenantId] = useState('')
 	const [loading, setLoading] = useState(true)
 	const [customers, setCustomers] = useState<CustomerRow[]>([])
@@ -32,6 +33,7 @@ export default function CustomersPage() {
 	// Modals
 	const [showModal, setShowModal] = useState(false)
 	const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null)
+	const [creatingCardForId, setCreatingCardForId] = useState<string | null>(null)
 
 	useEffect(() => {
 		const checkUser = async () => {
@@ -171,6 +173,7 @@ export default function CustomersPage() {
 								<th className="px-5 py-3.5">Name</th>
 								<th className="px-5 py-3.5">Contact</th>
 								<th className="px-5 py-3.5">Tags</th>
+								<th className="px-5 py-3.5 text-center">Card</th>
 								<th className="px-5 py-3.5 text-right">Points</th>
 								<th className="px-5 py-3.5 text-right">Tier</th>
 								<th className="px-5 py-3.5 text-right">Action</th>
@@ -179,6 +182,7 @@ export default function CustomersPage() {
 						<tbody className="divide-y divide-white/5">
 							{filteredCustomers.map((customer) => {
 								const loyalty = customer.loyalty_profiles?.[0] ?? null
+								const hasCard = !!loyalty
 								const points = loyalty?.points_balance ?? 0
 								const tierName = loyalty?.loyalty_tiers?.[0]?.name ?? '—'
 								return (
@@ -211,6 +215,42 @@ export default function CustomersPage() {
 												))}
 											</div>
 										</td>
+										<td className="px-5 py-4 text-center">
+											{hasCard ? (
+												<span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+													<CreditCard className="h-2.5 w-2.5" />
+													Member
+												</span>
+											) : (
+												<div className="flex items-center justify-center gap-1.5">
+													<span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+														No Card
+													</span>
+													<button
+														disabled={creatingCardForId === customer.id}
+														onClick={async () => {
+															setCreatingCardForId(customer.id)
+															try {
+																const result = await createMembershipCard(customer.id, tenantId)
+																if (result.alreadyExists) {
+																	success('Customer already has a membership card')
+																} else {
+																	success(`Membership card created! Tier: ${result.tierName}`)
+																}
+																await loadCustomers()
+															} catch (err: any) {
+																showError(err.message || 'Failed to create card')
+															} finally {
+																setCreatingCardForId(null)
+															}
+														}}
+														className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors disabled:opacity-40"
+													>
+														{creatingCardForId === customer.id ? '...' : '+ Create'}
+													</button>
+												</div>
+											)}
+										</td>
 										<td className="px-5 py-4 text-right font-medium text-white">
 											{points}
 										</td>
@@ -218,15 +258,53 @@ export default function CustomersPage() {
 											{tierName}
 										</td>
 										<td className="px-5 py-4 text-right">
-											<Button
-												variant="ghost"
-												size="sm"
-												onClick={() => { setSelectedCustomer(customer); setShowModal(true) }}
-												className="h-8 border border-white/10 hover:bg-white/10 text-xs text-white/80"
-											>
-												<Edit className="mr-1 h-3.5 w-3.5" />
-												Edit
-											</Button>
+											<div className="flex justify-end items-center gap-2">
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() => {
+														const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+														const base = isLocal ? 'http://localhost:8000' : 'https://pizzeriacafe.in'
+														const url = `${base}/membership.html?id=${customer.id}`
+														navigator.clipboard.writeText(url)
+														success('Card link copied to clipboard!')
+													}}
+													className="h-8 w-8 p-0 border border-white/10 hover:bg-white/10 text-white/80"
+													title="Copy Membership Card Link"
+												>
+													<Copy className="h-3.5 w-3.5" />
+												</Button>
+
+												<Button
+													asChild
+													variant="ghost"
+													size="sm"
+													className="h-8 w-8 p-0 border border-white/10 hover:bg-white/10 text-white/80"
+													title="View Digital Card"
+												>
+													<a 
+														href={(() => {
+															const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+															const base = isLocal ? 'http://localhost:8000' : 'https://pizzeriacafe.in'
+															return `${base}/membership.html?id=${customer.id}`
+														})()} 
+														target="_blank" 
+														rel="noreferrer"
+													>
+														<CreditCard className="h-3.5 w-3.5" />
+													</a>
+												</Button>
+
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() => { setSelectedCustomer(customer); setShowModal(true) }}
+													className="h-8 border border-white/10 hover:bg-white/10 text-xs text-white/80"
+												>
+													<Edit className="mr-1 h-3.5 w-3.5" />
+													Edit
+												</Button>
+											</div>
 										</td>
 									</tr>
 								)
@@ -234,7 +312,7 @@ export default function CustomersPage() {
 							{filteredCustomers.length === 0 && (
 								<tr>
 									<td
-										colSpan={6}
+										colSpan={7}
 										className="px-5 py-12 text-center text-sm text-white/60"
 									>
 										No customers found. Start by attaching guests to orders from

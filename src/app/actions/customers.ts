@@ -133,4 +133,50 @@ export async function adjustLoyaltyPoints(options: {
 	return { success: true }
 }
 
+/**
+ * Create a membership card (loyalty profile) for an existing customer
+ * who doesn't already have one.
+ */
+export async function createMembershipCard(customerId: string, tenantId: string) {
+	const supabase = await createSupabaseServerClient()
 
+	// Check if loyalty profile already exists
+	const { data: existing } = await supabase
+		.from('loyalty_profiles')
+		.select('id')
+		.eq('customer_id', customerId)
+		.eq('tenant_id', tenantId)
+		.maybeSingle()
+
+	if (existing) {
+		// Already has a card — nothing to do
+		return { success: true, alreadyExists: true }
+	}
+
+	// Find the lowest tier (starter tier) for this tenant
+	const { data: lowestTier } = await supabase
+		.from('loyalty_tiers')
+		.select('id, name, min_points')
+		.eq('tenant_id', tenantId)
+		.order('min_points', { ascending: true })
+		.limit(1)
+		.maybeSingle()
+
+	// Create the loyalty profile
+	const { error } = await supabase
+		.from('loyalty_profiles')
+		.insert({
+			tenant_id: tenantId,
+			customer_id: customerId,
+			points_balance: 0,
+			tier_id: lowestTier?.id || null
+		})
+
+	if (error) {
+		throw new Error(error.message)
+	}
+
+	revalidatePath('/customers')
+	revalidatePath('/orders')
+	return { success: true, alreadyExists: false, tierName: lowestTier?.name || 'Classic' }
+}

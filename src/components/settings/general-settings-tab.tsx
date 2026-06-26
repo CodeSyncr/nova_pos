@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Save, Globe, Percent } from 'lucide-react'
+import { Save, Globe, Percent, ChefHat } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { updateTenantSettings } from '@/app/actions/settings'
@@ -28,7 +28,8 @@ export function GeneralSettingsTab({
 		currencySymbol: (settings.currencySymbol as string) || '₹',
 		locale: (settings.locale as string) || 'en-IN',
 		timezone: (settings.timezone as string) || 'Asia/Kolkata',
-		taxRate: (settings.taxRate as number) || 0
+		taxRate: (settings.taxRate as number) || 0,
+		enableCustomPizza: settings.enableCustomPizza !== false
 	})
 	const [saving, setSaving] = useState(false)
 	const { success, error: showError } = useToast()
@@ -59,7 +60,7 @@ export function GeneralSettingsTab({
 			</div>
 
 			<form onSubmit={handleSubmit} className="space-y-6">
-				<div className="grid gap-6 md:grid-cols-2">
+				<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 					<motion.div
 						initial={{ opacity: 0, y: 10 }}
 						animate={{ opacity: 1, y: 0 }}
@@ -135,6 +136,37 @@ export function GeneralSettingsTab({
 							<p className="mt-1 text-xs text-white/60">
 								Default tax rate applied to orders
 							</p>
+						</div>
+					</motion.div>
+
+					<motion.div
+						initial={{ opacity: 0, y: 10 }}
+						animate={{ opacity: 1, y: 0 }}
+						className="rounded-xl border border-white/10 bg-black/20 p-6"
+					>
+						<div className="mb-4 flex items-center gap-3">
+							<ChefHat className="h-5 w-5 text-[#E0342A]" />
+							<h3 className="text-lg font-semibold text-white">Menu Customization</h3>
+						</div>
+						<div className="space-y-4">
+							<div className="flex items-center justify-between">
+								<div className="space-y-1">
+									<label className="block text-sm font-medium text-white">
+										Enable Custom Pizza Builder
+									</label>
+									<p className="text-xs text-white/60">
+										Allow customers to build custom pizzas visually on the menu page
+									</p>
+								</div>
+								<input
+									type="checkbox"
+									checked={formData.enableCustomPizza}
+									onChange={(e) =>
+										setFormData({ ...formData, enableCustomPizza: e.target.checked })
+									}
+									className="h-5 w-5 rounded border-white/10 bg-black/30 text-[#E0342A] focus:ring-0 focus:ring-offset-0 accent-[#E0342A] cursor-pointer"
+								/>
+							</div>
 						</div>
 					</motion.div>
 

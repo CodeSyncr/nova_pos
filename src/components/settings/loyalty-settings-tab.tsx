@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Edit2, Trash2, Gift, TrendingUp, Users } from 'lucide-react'
+import { Plus, Edit2, Trash2, Gift, TrendingUp, Users, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
@@ -27,6 +27,7 @@ type LoyaltySettings = {
 	min_redeem_points: number
 	expiry_days: number | null
 	auto_enroll: boolean
+	rules: string[]
 }
 
 type LoyaltyTier = {
@@ -39,6 +40,51 @@ type LoyaltyTier = {
 type LoyaltySettingsTabProps = {
 	tenantId: string
 	onRefresh: () => void
+}
+
+function renderBenefitsSummary(benefits: any) {
+	if (!benefits || Object.keys(benefits).length === 0) {
+		return <p className="mt-1 text-xs text-white/40 italic">No custom benefits</p>
+	}
+
+	const parts: string[] = []
+
+	if (benefits.points_multiplier && benefits.points_multiplier !== 1) {
+		parts.push(`⚡ ${benefits.points_multiplier}x Points Booster`)
+	}
+
+	if (benefits.earn_rate_override) {
+		parts.push(`🪙 Earn: ${benefits.earn_rate_override} pts/₹`)
+	}
+
+	if (benefits.redeem_rate_override) {
+		parts.push(`💵 Redeem: ₹${benefits.redeem_rate_override}/pt`)
+	}
+
+	if (benefits.baseline_discount_pct) {
+		parts.push(`🏷️ ${benefits.baseline_discount_pct}% Off Baseline`)
+	}
+
+	if (Array.isArray(benefits.amount_discounts) && benefits.amount_discounts.length > 0) {
+		const rulesStr = benefits.amount_discounts
+			.map((r: any) => `₹${r.min_amount}➔${r.discount_pct}%`)
+			.join(', ')
+		parts.push(`📈 Amount: [${rulesStr}]`)
+	}
+
+	if (parts.length === 0) {
+		return <p className="mt-1 text-xs text-white/40 italic">No custom benefits configured</p>
+	}
+
+	return (
+		<div className="mt-2 flex flex-wrap gap-1.5">
+			{parts.map((p, idx) => (
+				<Badge key={idx} className="border border-white/10 bg-white/5 text-[11px] px-2 py-0.5 text-white/70">
+					{p}
+				</Badge>
+			))}
+		</div>
+	)
 }
 
 export function LoyaltySettingsTab({
@@ -65,7 +111,10 @@ export function LoyaltySettingsTab({
 				.single()
 
 			if (settingsData) {
-				setSettings(settingsData as LoyaltySettings)
+				setSettings({
+					...(settingsData as LoyaltySettings),
+					rules: (settingsData as any).rules || []
+				})
 			} else {
 				// Create default settings
 				const { data: newSettings } = await supabase
@@ -76,13 +125,17 @@ export function LoyaltySettingsTab({
 						earn_rate: 1.0,
 						redeem_rate: 1.0,
 						min_redeem_points: 100,
-						auto_enroll: true
+						auto_enroll: true,
+						rules: []
 					})
 					.select()
 					.single()
 
 				if (newSettings) {
-					setSettings(newSettings as LoyaltySettings)
+					setSettings({
+						...(newSettings as LoyaltySettings),
+						rules: (newSettings as any).rules || []
+					})
 				}
 			}
 
@@ -209,6 +262,26 @@ export function LoyaltySettingsTab({
 								{settings.min_redeem_points} points
 							</p>
 						</div>
+
+						<div className="md:col-span-2 rounded-xl border border-white/10 bg-black/20 p-4">
+							<div className="mb-3 flex items-center gap-2">
+								<FileText className="h-4 w-4 text-[#E0342A]" />
+								<span className="text-sm font-medium text-white/70">
+									Custom Membership Card Rules (T&C)
+								</span>
+							</div>
+							{settings.rules && settings.rules.length > 0 ? (
+								<ul className="list-disc pl-5 space-y-1.5 text-sm text-white/80">
+									{settings.rules.map((rule, idx) => (
+										<li key={idx}>{rule}</li>
+									))}
+								</ul>
+							) : (
+								<p className="text-sm text-white/40 italic">
+									No custom rules added. Default earning/redemption rules will be displayed on the membership card page.
+								</p>
+							)}
+						</div>
 					</div>
 				)}
 			</div>
@@ -259,11 +332,7 @@ export function LoyaltySettingsTab({
 											{tier.min_points.toLocaleString()} points
 										</Badge>
 									</div>
-									{tier.benefits && Object.keys(tier.benefits).length > 0 && (
-										<p className="mt-1 text-sm text-white/60">
-											Benefits: {JSON.stringify(tier.benefits)}
-										</p>
-									)}
+									{renderBenefitsSummary(tier.benefits)}
 								</div>
 								<div className="flex gap-2">
 									<Button
