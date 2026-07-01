@@ -26,36 +26,70 @@ export async function GET(
 
 		const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
+		let fileBlob: Blob | null = null
+		let orderTenantId: string | undefined = undefined
+		let orderBillGeneratedAt: string | undefined = undefined
+		const oid = id.slice(0, 8)
+
+
 		const { data: order, error: orderError } = await supabase
 			.from('orders')
 			.select('tenant_id, id, bill_generated_at')
 			.eq('id', id)
 			.single()
 
-		if (orderError || !order) {
-			console.error('[Bill Proxy] Order not found:', orderError)
-			return new NextResponse('Order not found', { status: 404 })
-		}
+		if (!orderError && order) {
+			orderTenantId = order.tenant_id
+			orderBillGeneratedAt = order.bill_generated_at
+			const stablePath = `${orderTenantId}/Bill_ORD-${oid}.pdf`
 
-		const tenantId = order.tenant_id
-		const oid = order.id.slice(0, 8)
-		const stablePath = `${tenantId}/Bill_ORD-${oid}.pdf`
-
-		// 1. Try the stable filename first.
-		let fileBlob: Blob | null = null
-		const direct = await supabase.storage.from('bills').download(stablePath)
-		if (!direct.error && direct.data) {
-			fileBlob = direct.data
+			// 1. Try the stable filename first.
+			const direct = await supabase.storage.from('bills').download(stablePath)
+			if (!direct.error && direct.data) {
+				fileBlob = direct.data
+			} else {
+				// 2. Legacy fallback: list and match by ORD-<id> substring.
+				const { data: files } = await supabase.storage.from('bills').list(orderTenantId)
+				const targetPrefix = `ord-${oid}`.toLowerCase()
+				const billFile = files?.find((f) => f.name.toLowerCase().includes(targetPrefix))
+				if (billFile) {
+					const { data: legacyData, error: legacyErr } = await supabase.storage
+						.from('bills')
+						.download(`${orderTenantId}/${billFile.name}`)
+					if (!legacyErr && legacyData) fileBlob = legacyData
+				}
+			}
 		} else {
-			// 2. Legacy fallback: list and match by ORD-<id> substring.
-			const { data: files } = await supabase.storage.from('bills').list(tenantId)
-			const targetPrefix = `ord-${oid}`.toLowerCase()
-			const billFile = files?.find((f) => f.name.toLowerCase().includes(targetPrefix))
-			if (billFile) {
-				const { data: legacyData, error: legacyErr } = await supabase.storage
-					.from('bills')
-					.download(`${tenantId}/${billFile.name}`)
-				if (!legacyErr && legacyData) fileBlob = legacyData
+			// Order deleted or not found in DB. Fallback to scanning storage.
+			console.log(`[Bill Proxy] Order ${oid} not found in DB. Scanning storage bucket for cached bill...`)
+			const { data: rootFolders, error: rootError } = await supabase.storage
+				.from('bills')
+				.list('', { limit: 100 })
+
+			if (!rootError && rootFolders) {
+				for (const item of rootFolders) {
+					if (!item.id) { // Folder
+						const { data: files, error: filesError } = await supabase.storage
+							.from('bills')
+							.list(item.name, { limit: 100 })
+
+						if (!filesError && files) {
+							const targetPrefix = `ord-${oid}`.toLowerCase()
+							const billFile = files.find((f) => f.name.toLowerCase().includes(targetPrefix))
+							if (billFile) {
+								const downloadRes = await supabase.storage
+									.from('bills')
+									.download(`${item.name}/${billFile.name}`)
+								if (!downloadRes.error && downloadRes.data) {
+									fileBlob = downloadRes.data
+									orderTenantId = item.name
+									orderBillGeneratedAt = billFile.updated_at || billFile.created_at || new Date().toISOString()
+									break
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 
@@ -68,7 +102,7 @@ export async function GET(
 		// Tie the cache key to bill_generated_at so a freshly regenerated
 		// bill replaces the cached copy quickly. Browsers and CDNs will
 		// re-fetch on every order edit.
-		const etag = `"${order.bill_generated_at || 'unknown'}"`
+		const etag = `"${orderBillGeneratedAt || 'unknown'}"`
 		const ifNoneMatch = request.headers.get('if-none-match')
 		if (ifNoneMatch === etag) {
 			return new NextResponse(null, { status: 304, headers: { ETag: etag } })
