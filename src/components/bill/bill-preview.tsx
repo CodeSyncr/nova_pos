@@ -192,6 +192,12 @@ export function BillPreview({ template: t, order, tenantName, currencySymbol, re
 						<span>{fmt(order.tax, currencySymbol)}</span>
 					</div>
 				)}
+				{(order.space_rental_amount ?? 0) > 0 && (
+					<div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+						<span style={{ color: t.mutedColor }}>Space Rental</span>
+						<span>{fmt(order.space_rental_amount!, currencySymbol)}</span>
+					</div>
+				)}
 				{(order.discount_amount ?? 0) > 0 && (
 					<div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
 						<span style={{ color: '#10B981' }}>Discount</span>

@@ -16,6 +16,7 @@ export type BillOrderData = {
 	subtotal: number
 	tax: number
 	discount_amount?: number
+	space_rental_amount?: number
 	total: number
 	payment_method?: string | null
 	status?: string
@@ -279,6 +280,7 @@ export async function generateBillPDF(config: BillConfig): Promise<any> {
 	estimatedH += order.order_items.length * itemRowH + 6 // items + divider
 	estimatedH += (order.tax > 0) ? 4 : 0 // subtotal (only when tax line exists)
 	estimatedH += (t.showTaxLine && order.tax > 0) ? 4 : 0
+	estimatedH += (order.space_rental_amount && order.space_rental_amount > 0) ? 4 : 0
 	estimatedH += (order.discount_amount && order.discount_amount > 0) ? 4 : 0
 	estimatedH += 12 // total line + grand total
 	estimatedH += 4 // divider
@@ -495,6 +497,16 @@ export async function generateBillPDF(config: BillConfig): Promise<any> {
 			doc.text(fmtAmt(order.tax), pad + cw, y, { align: 'right' })
 			y += 4
 		}
+	}
+
+	// Space Rental
+	if (order.space_rental_amount && order.space_rental_amount > 0) {
+		doc.setFont(font, 'normal')
+		doc.setTextColor(...mutRgb)
+		doc.text('Space Rental', pad, y)
+		doc.setTextColor(...txtRgb)
+		doc.text(fmtAmt(order.space_rental_amount), pad + cw, y, { align: 'right' })
+		y += 4
 	}
 
 	// Discount
@@ -887,6 +899,9 @@ export async function printBluetoothBill(config: BillConfig): Promise<void> {
 
 	// Totals
 	if (t.showTaxLine && order.tax > 0) encoder.row('Tax', formatAmt(order.tax), charWidth)
+	if (order.space_rental_amount && order.space_rental_amount > 0) {
+		encoder.row('Space Rental', formatAmt(order.space_rental_amount), charWidth)
+	}
 	if (order.discount_amount && order.discount_amount > 0) {
 		encoder.row('Discount', `-${formatAmt(order.discount_amount)}`, charWidth)
 	}

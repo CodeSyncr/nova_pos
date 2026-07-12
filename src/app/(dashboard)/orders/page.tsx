@@ -137,6 +137,7 @@ type Order = {
 	discount_amount?: number
 	discount_type?: string | null
 	discount_value?: number | null
+	space_rental_amount?: number | null
 	payment_method?: string | null
 	total: number
 	created_at: string
@@ -336,6 +337,7 @@ export default function OrdersPage() {
 		null
 	)
 	const [discountValue, setDiscountValue] = useState('')
+	const [spaceRentalAmount, setSpaceRentalAmount] = useState('')
 	const [paymentMethod, setPaymentMethod] = useState('')
 	const [currencySymbol, setCurrencySymbol] = useState('₹')
 	const [taxRate, setTaxRate] = useState(0)
@@ -543,6 +545,7 @@ export default function OrdersPage() {
         discount_amount,
         discount_type,
         discount_value,
+        space_rental_amount,
         payment_method,
         total,
         created_at,
@@ -654,6 +657,9 @@ export default function OrdersPage() {
 		setCompletingOrder(order)
 		setDiscountType(order.discount_type as 'percent' | 'fixed' | null)
 		setDiscountValue(order.discount_value?.toString() || '')
+		setSpaceRentalAmount(
+			order.space_rental_amount ? order.space_rental_amount.toString() : ''
+		)
 		setPaymentMethod(order.payment_method || '')
 
 		// Check if the order's customer has a membership card
@@ -713,11 +719,13 @@ export default function OrdersPage() {
 				completingOrder.id,
 				paymentMethod || 'cash',
 				discountType || undefined,
-				discountValue ? parseFloat(discountValue) : undefined
+				discountValue ? parseFloat(discountValue) : undefined,
+				spaceRentalAmount ? parseFloat(spaceRentalAmount) : 0
 			)
 			setCompletingOrder(null)
 			setDiscountType(null)
 			setDiscountValue('')
+			setSpaceRentalAmount('')
 			setPaymentMethod('')
 			loadOrders()
 			toast.success('Order completed successfully')
@@ -763,6 +771,7 @@ export default function OrdersPage() {
 				subtotal: order.subtotal,
 				tax: order.tax,
 				discount_amount: order.discount_amount,
+				space_rental_amount: order.space_rental_amount ?? 0,
 				total: order.total,
 				payment_method: order.payment_method,
 				status: order.status,
@@ -825,6 +834,7 @@ export default function OrdersPage() {
 				subtotal: order.subtotal,
 				tax: order.tax,
 				discount_amount: order.discount_amount,
+				space_rental_amount: order.space_rental_amount ?? 0,
 				total: order.total,
 				payment_method: order.payment_method,
 				status: order.status,
@@ -1031,7 +1041,8 @@ export default function OrdersPage() {
 			}
 		}
 
-		const total = subtotal + tax - discountAmount
+		const spaceRentalAmount = editingOrder.space_rental_amount || 0
+		const total = subtotal + tax - discountAmount + spaceRentalAmount
 
 		try {
 			await updateOrder(editingOrder.id, {
@@ -1048,7 +1059,8 @@ export default function OrdersPage() {
 				discountType: editDiscountType || undefined,
 				discountValue: editDiscountValue
 					? parseFloat(editDiscountValue)
-					: undefined
+					: undefined,
+				spaceRentalAmount
 			})
 			setEditingOrder(null)
 			setEditedItems([])
@@ -1151,12 +1163,16 @@ export default function OrdersPage() {
 		}
 	}, [completingOrder, discountType, discountValue])
 
+	const calculatedSpaceRental = useMemo(() => {
+		return parseFloat(spaceRentalAmount) || 0
+	}, [spaceRentalAmount])
+
 	const calculatedTotal = useMemo(() => {
 		if (!completingOrder) return 0
 		const subtotal = completingOrder.subtotal
 		const tax = completingOrder.tax
-		return subtotal + tax - calculatedDiscount
-	}, [completingOrder, calculatedDiscount])
+		return subtotal + tax - calculatedDiscount + calculatedSpaceRental
+	}, [completingOrder, calculatedDiscount, calculatedSpaceRental])
 
 	if (loading) {
 		return (
@@ -1429,6 +1445,12 @@ export default function OrdersPage() {
 											<span className="tabular-nums">{currencySymbol}{order.tax.toFixed(0)}</span>
 										</div>
 									)}
+									{(order.space_rental_amount ?? 0) > 0 && (
+										<div className="flex items-center justify-between text-xs text-white/40">
+											<span>Space Rental</span>
+											<span className="tabular-nums">{currencySymbol}{order.space_rental_amount?.toFixed(0)}</span>
+										</div>
+									)}
 									{(order.discount_amount ?? 0) > 0 && (
 										<div className="flex items-center justify-between text-xs text-[#E0342A]/85">
 											<span>Discount</span>
@@ -1438,7 +1460,7 @@ export default function OrdersPage() {
 									<div className="flex items-baseline justify-between pt-1 text-white">
 										<span className="text-sm font-semibold">Total</span>
 										<span className="text-xl font-bold text-[#E0342A] tabular-nums">
-											{currencySymbol}{(order.subtotal + order.tax - (order.discount_amount || 0)).toFixed(0)}
+											{currencySymbol}{(order.subtotal + order.tax - (order.discount_amount || 0) + (order.space_rental_amount || 0)).toFixed(0)}
 										</span>
 									</div>
 								</div>
@@ -2027,6 +2049,7 @@ export default function OrdersPage() {
 							setCompletingOrder(null)
 							setDiscountType(null)
 							setDiscountValue('')
+							setSpaceRentalAmount('')
 							setPaymentMethod('')
 						}}
 					/>
@@ -2052,6 +2075,7 @@ export default function OrdersPage() {
 									setCompletingOrder(null)
 									setDiscountType(null)
 									setDiscountValue('')
+									setSpaceRentalAmount('')
 									setPaymentMethod('')
 									setIsPaymentDropdownOpen(false)
 								}}
@@ -2069,6 +2093,15 @@ export default function OrdersPage() {
 										<span>
 											{currencySymbol}
 											{completingOrder.tax.toFixed(2)}
+										</span>
+									</div>
+								)}
+								{calculatedSpaceRental > 0 && (
+									<div className="flex items-center justify-between text-sm text-white/70 mb-2">
+										<span>Space Rental</span>
+										<span>
+											{currencySymbol}
+											{calculatedSpaceRental.toFixed(2)}
 										</span>
 									</div>
 								)}
@@ -2258,6 +2291,22 @@ export default function OrdersPage() {
 								)}
 							</div>
 
+							{/* Space Rental */}
+							<div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+								<span className="text-sm font-medium text-white/70">
+									Space Rental
+								</span>
+								<input
+									type="number"
+									step="0.01"
+									min="0"
+									value={spaceRentalAmount}
+									onChange={(e) => setSpaceRentalAmount(e.target.value)}
+									placeholder="Enter amount"
+									className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+								/>
+							</div>
+
 							{/* Payment Method */}
 							<div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4">
 								<label className="block text-sm font-medium text-white/70">
@@ -2280,6 +2329,7 @@ export default function OrdersPage() {
 										setCompletingOrder(null)
 										setDiscountType(null)
 										setDiscountValue('')
+										setSpaceRentalAmount('')
 										setPaymentMethod('')
 										setIsPaymentDropdownOpen(false)
 									}}

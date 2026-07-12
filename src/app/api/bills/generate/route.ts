@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 			.select(
 				`id, tenant_id, created_at, updated_at, bill_url, bill_generated_at,
 				 order_type, table_number, customer_name, customer_phone,
-				 subtotal, tax, discount_amount, total, payment_method, status,
+				 subtotal, tax, discount_amount, space_rental_amount, total, payment_method, status,
 				 order_items (id, name, quantity, unit_price, total_price)`
 			)
 			.eq('id', orderId)
@@ -119,6 +119,7 @@ export async function POST(request: NextRequest) {
 				subtotal: Number(order.subtotal) || 0,
 				tax: Number(order.tax) || 0,
 				discount_amount: Number(order.discount_amount) || 0,
+				space_rental_amount: Number(order.space_rental_amount) || 0,
 				total: Number(order.total) || 0,
 				payment_method: order.payment_method as string | null,
 				status: order.status as string,

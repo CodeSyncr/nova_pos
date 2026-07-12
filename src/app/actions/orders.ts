@@ -232,14 +232,15 @@ export async function completeOrderWithPayment(
 	orderId: string,
 	paymentMethod: string,
 	discountType?: 'percent' | 'fixed',
-	discountValue?: number
+	discountValue?: number,
+	spaceRentalAmount?: number
 ) {
 	const supabase = await createSupabaseServerClient()
 
 	// Get current order to calculate new total
 	const { data: order, error: fetchError } = await supabase
 		.from('orders')
-		.select('subtotal, tax, discount_amount, total')
+		.select('subtotal, tax, discount_amount, total, space_rental_amount')
 		.eq('id', orderId)
 		.single()
 
@@ -261,13 +262,19 @@ export async function completeOrderWithPayment(
 		}
 	}
 
-	const newTotal = order.subtotal + order.tax - discountAmount
+	const rentalAmount =
+		spaceRentalAmount !== undefined
+			? spaceRentalAmount
+			: order.space_rental_amount || 0
+
+	const newTotal = order.subtotal + order.tax - discountAmount + rentalAmount
 
 	const updateData: {
 		status: string
 		discount_amount?: number
 		discount_type?: string | null
 		discount_value?: number | null
+		space_rental_amount: number
 		payment_method: string
 		total: number
 		completed_at: string
@@ -275,6 +282,7 @@ export async function completeOrderWithPayment(
 	} = {
 		status: 'completed',
 		payment_method: paymentMethod,
+		space_rental_amount: rentalAmount,
 		total: newTotal,
 		completed_at: new Date().toISOString(),
 		updated_at: new Date().toISOString()
@@ -322,6 +330,7 @@ export async function updateOrder(
 		discountAmount?: number
 		discountType?: string | null
 		discountValue?: number | null
+		spaceRentalAmount?: number
 	}
 ): Promise<{ success: boolean }> {
 	const supabase = await createSupabaseServerClient()
@@ -349,6 +358,8 @@ export async function updateOrder(
 		orderUpdateData.discount_type = data.discountType
 	if (data.discountValue !== undefined)
 		orderUpdateData.discount_value = data.discountValue
+	if (data.spaceRentalAmount !== undefined)
+		orderUpdateData.space_rental_amount = data.spaceRentalAmount
 
 	const { error: orderError } = await supabase
 		.from('orders')

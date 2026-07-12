@@ -75,7 +75,7 @@ export async function getAnalytics(
 	const { data: orders, error: ordersError } = await supabase
 		.from('orders')
 		.select(
-			'id, total, subtotal, tax, discount_amount, created_at, completed_at, order_items(name, quantity, unit_price, total_price)'
+			'id, total, subtotal, tax, discount_amount, space_rental_amount, created_at, completed_at, order_items(name, quantity, unit_price, total_price)'
 		)
 		.eq('tenant_id', tenantId)
 		.eq('status', 'completed')
@@ -102,14 +102,15 @@ export async function getAnalytics(
 	}
 
 	// Calculate earnings including discounts (total after discounts)
-	// Recalculate total to ensure accuracy: subtotal + tax - discount_amount
+	// Recalculate total to ensure accuracy: subtotal + tax - discount_amount + space_rental_amount
 	const earningsIncludingDiscounts =
 		orders?.reduce((sum, order) => {
 			const subtotal = order.subtotal || 0
 			const tax = order.tax || 0
 			const discountAmount = order.discount_amount || 0
+			const spaceRentalAmount = order.space_rental_amount || 0
 			// Recalculate total instead of using stored value
-			const calculatedTotal = subtotal + tax - discountAmount
+			const calculatedTotal = subtotal + tax - discountAmount + spaceRentalAmount
 			return sum + calculatedTotal
 		}, 0) || 0
 
@@ -118,7 +119,8 @@ export async function getAnalytics(
 		orders?.reduce((sum, order) => {
 			const subtotal = order.subtotal || 0
 			const tax = order.tax || 0
-			return sum + subtotal + tax
+			const spaceRentalAmount = order.space_rental_amount || 0
+			return sum + subtotal + tax + spaceRentalAmount
 		}, 0) || 0
 
 	// Calculate total discounts
@@ -230,7 +232,8 @@ export async function getAnalytics(
 			const subtotal = order.subtotal || 0
 			const tax = order.tax || 0
 			const discountAmount = order.discount_amount || 0
-			const calculatedTotal = subtotal + tax - discountAmount
+			const spaceRentalAmount = order.space_rental_amount || 0
+			const calculatedTotal = subtotal + tax - discountAmount + spaceRentalAmount
 			dailyMap.set(orderDate, {
 				...existing,
 				sales: existing.sales + calculatedTotal
@@ -335,7 +338,7 @@ export async function getAnalytics(
 		const { data: prevOrders } = await prevSupabase
 			.from('orders')
 			.select(
-				'id, total, subtotal, tax, discount_amount, created_at, order_items(name, quantity, unit_price, total_price)'
+				'id, total, subtotal, tax, discount_amount, space_rental_amount, created_at, order_items(name, quantity, unit_price, total_price)'
 			)
 			.eq('tenant_id', tenantId)
 			.eq('status', 'completed')
@@ -361,15 +364,17 @@ export async function getAnalytics(
 				const subtotal = order.subtotal || 0
 				const tax = order.tax || 0
 				const discountAmount = order.discount_amount || 0
+				const spaceRentalAmount = order.space_rental_amount || 0
 				// Recalculate total instead of using stored value
-				const calculatedTotal = subtotal + tax - discountAmount
+				const calculatedTotal = subtotal + tax - discountAmount + spaceRentalAmount
 				return sum + calculatedTotal
 			}, 0) || 0
 		const prevEarningsExcludingDiscounts =
 			prevOrders?.reduce((sum, order) => {
 				const subtotal = order.subtotal || 0
 				const tax = order.tax || 0
-				return sum + subtotal + tax
+				const spaceRentalAmount = order.space_rental_amount || 0
+				return sum + subtotal + tax + spaceRentalAmount
 			}, 0) || 0
 		const prevTotalDiscounts =
 			prevOrders?.reduce(

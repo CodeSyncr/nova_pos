@@ -438,7 +438,7 @@ export default function InventoryPage() {
 														)}
 													</div>
 												</div>
-												<div className="grid grid-cols-3 gap-4 mt-4 text-sm">
+												<div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 text-sm">
 													<div>
 														<p className="text-white/50">Min Level</p>
 														<p className="text-white font-medium">
@@ -462,6 +462,20 @@ export default function InventoryPage() {
 														<p className="text-white font-medium">
 															{item.location || (
 																<span className="text-white/40">Not set</span>
+															)}
+														</p>
+													</div>
+													<div>
+														<p className="text-white/50">Last Updated</p>
+														<p className="text-white font-medium">
+															{item.last_updated_at ? (
+																new Date(item.last_updated_at).toLocaleDateString('en-IN', {
+																	day: '2-digit',
+																	month: 'short',
+																	year: 'numeric'
+																})
+															) : (
+																<span className="text-white/40">Never</span>
 															)}
 														</p>
 													</div>

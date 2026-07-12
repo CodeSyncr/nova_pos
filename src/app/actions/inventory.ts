@@ -118,6 +118,7 @@ export async function getLowStockItems(tenantId: string) {
       current_stock,
       unit,
       min_stock_level,
+      last_updated_at,
       ingredient:ingredient_id (
         id,
         name,
