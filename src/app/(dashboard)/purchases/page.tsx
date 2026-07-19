@@ -8,7 +8,10 @@ import {
 	Calendar,
 	Trash2,
 	RefreshCw,
-	Loader2
+	Loader2,
+	Search,
+	X,
+	Filter
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -38,6 +41,13 @@ export default function PurchasesPage() {
 	const [tenantId, setTenantId] = useState<string | null>(null)
 	const [currencySymbol, setCurrencySymbol] = useState('₹')
 	const [deletingId, setDeletingId] = useState<string | null>(null)
+
+	// Filter states
+	const [selectedMonth, setSelectedMonth] = useState<string>('all')
+	const [startDate, setStartDate] = useState<string>('')
+	const [endDate, setEndDate] = useState<string>('')
+	const [selectedSupplierId, setSelectedSupplierId] = useState<string>('all')
+	const [searchQuery, setSearchQuery] = useState<string>('')
 
 	useEffect(() => {
 		const loadData = async () => {
@@ -107,8 +117,121 @@ export default function PurchasesPage() {
 		return (purchase.created_by_profile as { full_name: string | null }).full_name || null
 	}
 
+	// Filter handlers to sync Month and Custom Range options
+	const handleMonthChange = (month: string) => {
+		setSelectedMonth(month)
+		if (month !== 'all') {
+			setStartDate('')
+			setEndDate('')
+		}
+	}
+
+	const handleStartDateChange = (date: string) => {
+		setStartDate(date)
+		if (date) {
+			setSelectedMonth('all')
+		}
+	}
+
+	const handleEndDateChange = (date: string) => {
+		setEndDate(date)
+		if (date) {
+			setSelectedMonth('all')
+		}
+	}
+
+	const handleClearFilters = () => {
+		setSelectedMonth('all')
+		setStartDate('')
+		setEndDate('')
+		setSelectedSupplierId('all')
+		setSearchQuery('')
+	}
+
+	const isAnyFilterActive =
+		selectedMonth !== 'all' ||
+		startDate !== '' ||
+		endDate !== '' ||
+		selectedSupplierId !== 'all' ||
+		searchQuery !== ''
+
+	// Extract unique months (YYYY-MM) dynamically from purchases
+	const uniqueMonths = (() => {
+		const monthsMap = new Map<string, string>() // '2026-07' -> 'July 2026'
+		purchases.forEach((p) => {
+			try {
+				const dateObj = new Date(p.purchase_date)
+				if (isNaN(dateObj.getTime())) return
+				const year = dateObj.getFullYear()
+				const month = String(dateObj.getMonth() + 1).padStart(2, '0')
+				const key = `${year}-${month}`
+				const label = dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+				monthsMap.set(key, label)
+			} catch (e) {
+				console.error(e)
+			}
+		})
+		return Array.from(monthsMap.entries()).sort((a, b) => b[0].localeCompare(a[0]))
+	})()
+
+	// Extract unique suppliers dynamically from purchases
+	const uniqueSuppliers = (() => {
+		const suppliersMap = new Map<string, string>() // id -> name
+		purchases.forEach((p) => {
+			const sName = getSupplierName(p)
+			if (p.supplier_id && sName) {
+				suppliersMap.set(p.supplier_id, sName)
+			}
+		})
+		return Array.from(suppliersMap.entries()).map(([id, name]) => ({ id, name }))
+	})()
+
+	// Filter purchases
+	const filteredPurchases = purchases.filter((purchase) => {
+		// 1. Month Filter
+		if (selectedMonth !== 'all') {
+			try {
+				const pDate = new Date(purchase.purchase_date)
+				const year = pDate.getFullYear()
+				const month = String(pDate.getMonth() + 1).padStart(2, '0')
+				if (`${year}-${month}` !== selectedMonth) {
+					return false
+				}
+			} catch {
+				return false
+			}
+		}
+
+		// 2. Date Range Filter
+		if (startDate && purchase.purchase_date < startDate) {
+			return false
+		}
+		if (endDate && purchase.purchase_date > endDate) {
+			return false
+		}
+
+		// 3. Supplier Filter
+		if (selectedSupplierId !== 'all' && purchase.supplier_id !== selectedSupplierId) {
+			return false
+		}
+
+		// 4. Search Query
+		if (searchQuery) {
+			const query = searchQuery.toLowerCase()
+			const notesMatch = purchase.notes?.toLowerCase().includes(query) || false
+			const invoiceMatch = purchase.invoice_number?.toLowerCase().includes(query) || false
+			const supplierName = getSupplierName(purchase)?.toLowerCase() || ''
+			const supplierMatch = supplierName.includes(query)
+			if (!notesMatch && !invoiceMatch && !supplierMatch) {
+				return false
+			}
+		}
+
+		return true
+	})
+
 	// Group purchases by date
-	const groupedByDate = purchases.reduce<Record<string, Purchase[]>>((groups, purchase) => {
+	const groupedByDate = filteredPurchases.reduce<Record<string, Purchase[]>>((groups, purchase) => {
 		const date = purchase.purchase_date
 		if (!groups[date]) groups[date] = []
 		groups[date].push(purchase)
@@ -116,7 +239,7 @@ export default function PurchasesPage() {
 	}, {})
 
 	const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a))
-	const totalSpending = purchases.reduce((sum, p) => sum + p.total_amount, 0)
+	const totalSpending = filteredPurchases.reduce((sum, p) => sum + p.total_amount, 0)
 
 	if (loading) {
 		return (
@@ -158,13 +281,105 @@ export default function PurchasesPage() {
 					</div>
 					<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
 						<p className="text-xs text-white/50">Entries</p>
-						<p className="text-2xl font-semibold text-white mt-1">{purchases.length}</p>
+						<p className="text-2xl font-semibold text-white mt-1">
+							{filteredPurchases.length === purchases.length
+								? purchases.length
+								: `${filteredPurchases.length} of ${purchases.length}`}
+						</p>
 					</div>
 					<div className="rounded-2xl border border-white/10 bg-white/5 p-4 hidden sm:block">
 						<p className="text-xs text-white/50">Days</p>
 						<p className="text-2xl font-semibold text-white mt-1">{sortedDates.length}</p>
 					</div>
 				</div>
+			)}
+
+			{/* Filters */}
+			{purchases.length > 0 && (
+				<motion.div
+					initial={{ opacity: 0, y: 10 }}
+					animate={{ opacity: 1, y: 0 }}
+					className="flex flex-wrap items-end gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl"
+				>
+					<div className="flex-1 min-w-[200px]">
+						<label className="mb-1.5 block text-xs font-medium text-white/60">Search</label>
+						<div className="relative">
+							<Search className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
+							<input
+								type="text"
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
+								placeholder="Invoice, notes, supplier..."
+								className="w-full rounded-xl border border-white/10 bg-black/30 pl-9 pr-4 py-2 text-sm text-white placeholder-white/30 focus:border-white/30 focus:outline-none"
+							/>
+						</div>
+					</div>
+
+					<div>
+						<label className="mb-1.5 block text-xs font-medium text-white/60">Month</label>
+						<select
+							value={selectedMonth}
+							onChange={(e) => handleMonthChange(e.target.value)}
+							className="rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+						>
+							<option value="all">All Months</option>
+							{uniqueMonths.map(([key, label]) => (
+								<option key={key} value={key}>
+									{label}
+								</option>
+							))}
+						</select>
+					</div>
+
+					<div>
+						<label className="mb-1.5 block text-xs font-medium text-white/60">Supplier</label>
+						<select
+							value={selectedSupplierId}
+							onChange={(e) => setSelectedSupplierId(e.target.value)}
+							className="rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+						>
+							<option value="all">All Suppliers</option>
+							{uniqueSuppliers.map((supplier) => (
+								<option key={supplier.id} value={supplier.id}>
+									{supplier.name}
+								</option>
+							))}
+						</select>
+					</div>
+
+					<div className="flex items-center gap-2">
+						<div>
+							<label className="mb-1.5 block text-xs font-medium text-white/60">From</label>
+							<input
+								type="date"
+								value={startDate}
+								onChange={(e) => handleStartDateChange(e.target.value)}
+								className="rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+							/>
+						</div>
+						<div>
+							<label className="mb-1.5 block text-xs font-medium text-white/60">To</label>
+							<input
+								type="date"
+								value={endDate}
+								onChange={(e) => handleEndDateChange(e.target.value)}
+								className="rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+							/>
+						</div>
+					</div>
+
+					{isAnyFilterActive && (
+						<Button
+							onClick={handleClearFilters}
+							variant="ghost"
+							size="sm"
+							className="h-9 px-3 border border-dashed border-white/20 text-white/70 hover:text-white"
+						>
+							<X className="mr-2 h-4 w-4" />
+							Clear Filters
+						</Button>
+					)}
+				</motion.div>
 			)}
 
 			{/* Date-wise List */}
@@ -175,6 +390,15 @@ export default function PurchasesPage() {
 					<p className="text-sm text-white/50 mb-4">Add your first expense or purchase to start tracking</p>
 					<Button onClick={() => setShowPurchaseForm(true)} size="sm">
 						<Plus className="mr-2 h-4 w-4" /> Add Spending
+					</Button>
+				</div>
+			) : filteredPurchases.length === 0 ? (
+				<div className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-12 text-center">
+					<Filter className="mx-auto h-12 w-12 text-white/20 mb-4" />
+					<h3 className="text-lg font-semibold text-white mb-1">No matching spendings</h3>
+					<p className="text-sm text-white/50 mb-4">Try adjusting your filters or search terms</p>
+					<Button onClick={handleClearFilters} variant="ghost" size="sm" className="border-white/20 bg-white/5 text-white hover:bg-white/10 border">
+						<X className="mr-2 h-4 w-4" /> Clear Filters
 					</Button>
 				</div>
 			) : (
