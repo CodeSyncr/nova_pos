@@ -22,7 +22,9 @@ import {
 	LogOut,
 	FileBarChart,
 	UserCog,
-	ClipboardList
+	ClipboardList,
+	Percent,
+	Brain
 } from 'lucide-react'
 import { canAccessRoute } from '@/lib/permissions'
 import { OrderNotifications } from '@/components/order-notifications'
@@ -40,6 +42,8 @@ const navItems = [
 	{ href: '/staff', label: 'Staff', icon: UserCog },
 	{ href: '/analytics', label: 'Analytics', icon: BarChart3 },
 	{ href: '/reports', label: 'Reports', icon: FileBarChart },
+	{ href: '/tax', label: 'ITR Module', icon: Percent },
+	{ href: '/advisor', label: 'AI Advisor', icon: Brain },
 	{ href: '/settings', label: 'Settings', icon: Settings }
 ]
 

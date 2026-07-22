@@ -43,7 +43,7 @@ export default function PurchasesPage() {
 	const [deletingId, setDeletingId] = useState<string | null>(null)
 
 	// Filter states
-	const [selectedMonth, setSelectedMonth] = useState<string>('all')
+	const [filterPeriod, setFilterPeriod] = useState<string>('this_month')
 	const [startDate, setStartDate] = useState<string>('')
 	const [endDate, setEndDate] = useState<string>('')
 	const [selectedSupplierId, setSelectedSupplierId] = useState<string>('all')
@@ -117,10 +117,10 @@ export default function PurchasesPage() {
 		return (purchase.created_by_profile as { full_name: string | null }).full_name || null
 	}
 
-	// Filter handlers to sync Month and Custom Range options
-	const handleMonthChange = (month: string) => {
-		setSelectedMonth(month)
-		if (month !== 'all') {
+	// Filter handlers to sync Period and Custom Range options
+	const handlePeriodChange = (period: string) => {
+		setFilterPeriod(period)
+		if (period !== 'custom') {
 			setStartDate('')
 			setEndDate('')
 		}
@@ -129,19 +129,19 @@ export default function PurchasesPage() {
 	const handleStartDateChange = (date: string) => {
 		setStartDate(date)
 		if (date) {
-			setSelectedMonth('all')
+			setFilterPeriod('custom')
 		}
 	}
 
 	const handleEndDateChange = (date: string) => {
 		setEndDate(date)
 		if (date) {
-			setSelectedMonth('all')
+			setFilterPeriod('custom')
 		}
 	}
 
 	const handleClearFilters = () => {
-		setSelectedMonth('all')
+		setFilterPeriod('this_month')
 		setStartDate('')
 		setEndDate('')
 		setSelectedSupplierId('all')
@@ -149,30 +149,28 @@ export default function PurchasesPage() {
 	}
 
 	const isAnyFilterActive =
-		selectedMonth !== 'all' ||
+		filterPeriod !== 'this_month' ||
 		startDate !== '' ||
 		endDate !== '' ||
 		selectedSupplierId !== 'all' ||
 		searchQuery !== ''
 
-	// Extract unique months (YYYY-MM) dynamically from purchases
-	const uniqueMonths = (() => {
-		const monthsMap = new Map<string, string>() // '2026-07' -> 'July 2026'
-		purchases.forEach((p) => {
-			try {
-				const dateObj = new Date(p.purchase_date)
-				if (isNaN(dateObj.getTime())) return
-				const year = dateObj.getFullYear()
-				const month = String(dateObj.getMonth() + 1).padStart(2, '0')
-				const key = `${year}-${month}`
-				const label = dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-				monthsMap.set(key, label)
-			} catch (e) {
-				console.error(e)
-			}
-		})
-		return Array.from(monthsMap.entries()).sort((a, b) => b[0].localeCompare(a[0]))
-	})()
+	// Dynamic label generators for current and last month
+	const getThisMonthLabel = () => {
+		return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+	}
+
+	const getLastMonthLabel = () => {
+		const now = new Date()
+		let year = now.getFullYear()
+		let monthNum = now.getMonth() // 0-indexed
+		if (monthNum === 0) {
+			monthNum = 12
+			year -= 1
+		}
+		const dummyDate = new Date(year, monthNum - 1, 1)
+		return dummyDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+	}
 
 	// Extract unique suppliers dynamically from purchases
 	const uniqueSuppliers = (() => {
@@ -188,34 +186,43 @@ export default function PurchasesPage() {
 
 	// Filter purchases
 	const filteredPurchases = purchases.filter((purchase) => {
-		// 1. Month Filter
-		if (selectedMonth !== 'all') {
-			try {
-				const pDate = new Date(purchase.purchase_date)
-				const year = pDate.getFullYear()
-				const month = String(pDate.getMonth() + 1).padStart(2, '0')
-				if (`${year}-${month}` !== selectedMonth) {
-					return false
-				}
-			} catch {
+		// 1. Period Filter
+		if (filterPeriod === 'this_month') {
+			const now = new Date()
+			const year = now.getFullYear()
+			const month = String(now.getMonth() + 1).padStart(2, '0')
+			const currentMonthKey = `${year}-${month}`
+			if (!purchase.purchase_date.startsWith(currentMonthKey)) {
+				return false
+			}
+		} else if (filterPeriod === 'last_month') {
+			const now = new Date()
+			let year = now.getFullYear()
+			let monthNum = now.getMonth() // 0-indexed, June is 5 for July (6)
+			if (monthNum === 0) {
+				monthNum = 12
+				year -= 1
+			}
+			const lastMonthKey = `${year}-${String(monthNum).padStart(2, '0')}`
+			if (!purchase.purchase_date.startsWith(lastMonthKey)) {
+				return false
+			}
+		} else if (filterPeriod === 'custom') {
+			// Date Range Filter
+			if (startDate && purchase.purchase_date < startDate) {
+				return false
+			}
+			if (endDate && purchase.purchase_date > endDate) {
 				return false
 			}
 		}
 
-		// 2. Date Range Filter
-		if (startDate && purchase.purchase_date < startDate) {
-			return false
-		}
-		if (endDate && purchase.purchase_date > endDate) {
-			return false
-		}
-
-		// 3. Supplier Filter
+		// 2. Supplier Filter
 		if (selectedSupplierId !== 'all' && purchase.supplier_id !== selectedSupplierId) {
 			return false
 		}
 
-		// 4. Search Query
+		// 3. Search Query
 		if (searchQuery) {
 			const query = searchQuery.toLowerCase()
 			const notesMatch = purchase.notes?.toLowerCase().includes(query) || false
@@ -316,18 +323,16 @@ export default function PurchasesPage() {
 					</div>
 
 					<div>
-						<label className="mb-1.5 block text-xs font-medium text-white/60">Month</label>
+						<label className="mb-1.5 block text-xs font-medium text-white/60">Period</label>
 						<select
-							value={selectedMonth}
-							onChange={(e) => handleMonthChange(e.target.value)}
+							value={filterPeriod}
+							onChange={(e) => handlePeriodChange(e.target.value)}
 							className="rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
 						>
-							<option value="all">All Months</option>
-							{uniqueMonths.map(([key, label]) => (
-								<option key={key} value={key}>
-									{label}
-								</option>
-							))}
+							<option value="this_month">This Month ({getThisMonthLabel()})</option>
+							<option value="last_month">Last Month ({getLastMonthLabel()})</option>
+							<option value="all">All Time</option>
+							<option value="custom">Custom Range</option>
 						</select>
 					</div>
 
@@ -347,26 +352,28 @@ export default function PurchasesPage() {
 						</select>
 					</div>
 
-					<div className="flex items-center gap-2">
-						<div>
-							<label className="mb-1.5 block text-xs font-medium text-white/60">From</label>
-							<input
-								type="date"
-								value={startDate}
-								onChange={(e) => handleStartDateChange(e.target.value)}
-								className="rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-							/>
+					{filterPeriod === 'custom' && (
+						<div className="flex items-center gap-2">
+							<div>
+								<label className="mb-1.5 block text-xs font-medium text-white/60">From</label>
+								<input
+									type="date"
+									value={startDate}
+									onChange={(e) => handleStartDateChange(e.target.value)}
+									className="rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+								/>
+							</div>
+							<div>
+								<label className="mb-1.5 block text-xs font-medium text-white/60">To</label>
+								<input
+									type="date"
+									value={endDate}
+									onChange={(e) => handleEndDateChange(e.target.value)}
+									className="rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+								/>
+							</div>
 						</div>
-						<div>
-							<label className="mb-1.5 block text-xs font-medium text-white/60">To</label>
-							<input
-								type="date"
-								value={endDate}
-								onChange={(e) => handleEndDateChange(e.target.value)}
-								className="rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-							/>
-						</div>
-					</div>
+					)}
 
 					{isAnyFilterActive && (
 						<Button

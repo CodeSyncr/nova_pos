@@ -603,26 +603,31 @@ export default function OrdersPage() {
 	}
 
 	const handleStatusUpdate = async (orderId: string, newStatus: string) => {
-		setUpdatingOrderId(orderId)
+		const targetStatus = newStatus as
+			| 'pending'
+			| 'confirmed'
+			| 'preparing'
+			| 'ready'
+			| 'completed'
+			| 'cancelled'
+
+		const previousOrders = [...orders]
+
+		// 1. Instant Optimistic local state update (0ms latency, zero flicker)
+		setOrders((prev) =>
+			prev.map((o) => (o.id === orderId ? { ...o, status: targetStatus, updated_at: new Date().toISOString() } : o))
+		)
+		toast.success(`Order marked as ${newStatus.toUpperCase()}`)
+
+		// 2. Async background sync
 		try {
-			await updateOrderStatus(
-				orderId,
-				newStatus as
-					| 'pending'
-					| 'confirmed'
-					| 'preparing'
-					| 'ready'
-					| 'completed'
-					| 'cancelled'
-			)
-			loadOrders()
-			toast.success('Order status updated successfully')
+			await updateOrderStatus(orderId, targetStatus)
 		} catch (error) {
+			console.error('Status update error, reverting UI:', error)
+			setOrders(previousOrders)
 			toast.error(
-				error instanceof Error ? error.message : 'Failed to update order'
+				error instanceof Error ? error.message : 'Failed to update order status'
 			)
-		} finally {
-			setUpdatingOrderId(null)
 		}
 	}
 
@@ -714,22 +719,37 @@ export default function OrdersPage() {
 			return
 		}
 
+		const targetOrderId = completingOrder.id
+		const selectedPaymentMethod = paymentMethod || 'cash'
+		const previousOrders = [...orders]
+
+		// Close modal & Optimistically update order to completed immediately
+		setCompletingOrder(null)
+		setDiscountType(null)
+		setDiscountValue('')
+		setSpaceRentalAmount('')
+		setPaymentMethod('')
+
+		setOrders((prev) =>
+			prev.map((o) =>
+				o.id === targetOrderId
+					? { ...o, status: 'completed', payment_method: selectedPaymentMethod, updated_at: new Date().toISOString() }
+					: o
+			)
+		)
+		toast.success('Order completed successfully!')
+
 		try {
 			await completeOrderWithPayment(
-				completingOrder.id,
-				paymentMethod || 'cash',
+				targetOrderId,
+				selectedPaymentMethod,
 				discountType || undefined,
 				discountValue ? parseFloat(discountValue) : undefined,
 				spaceRentalAmount ? parseFloat(spaceRentalAmount) : 0
 			)
-			setCompletingOrder(null)
-			setDiscountType(null)
-			setDiscountValue('')
-			setSpaceRentalAmount('')
-			setPaymentMethod('')
-			loadOrders()
-			toast.success('Order completed successfully')
 		} catch (error) {
+			console.error('Complete order error, reverting UI:', error)
+			setOrders(previousOrders)
 			toast.error(
 				error instanceof Error ? error.message : 'Failed to complete order'
 			)
@@ -737,11 +757,17 @@ export default function OrdersPage() {
 	}
 
 	const handleDelete = async (orderId: string) => {
+		const previousOrders = [...orders]
+
+		// Instantly remove order from UI
+		setOrders((prev) => prev.filter((o) => o.id !== orderId))
+		toast.success('Order deleted')
+
 		try {
 			await deleteOrder(orderId)
-			loadOrders()
-			toast.success('Order deleted successfully')
 		} catch (error) {
+			console.error('Delete order error, reverting UI:', error)
+			setOrders(previousOrders)
 			toast.error(
 				error instanceof Error ? error.message : 'Failed to delete order'
 			)

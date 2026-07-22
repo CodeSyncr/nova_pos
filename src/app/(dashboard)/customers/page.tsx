@@ -4,11 +4,11 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Plus, Users, Star, Edit, Search, Loader2, CreditCard, Copy } from 'lucide-react'
+import { Plus, Users, Star, Edit, Search, Loader2, CreditCard, Copy, Brain, MessageSquare, Check, Sparkles } from 'lucide-react'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/toast'
 import { CustomerFormModal } from '@/components/customers/customer-form-modal'
-import { createMembershipCard } from '@/app/actions/customers'
+import { createMembershipCard, getAICustomerCampaigns, loadCustomerAICache, type AICustomerCampaignsReport } from '@/app/actions/customers'
 
 type CustomerRow = {
 	id: string
@@ -35,6 +35,11 @@ export default function CustomersPage() {
 	const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null)
 	const [creatingCardForId, setCreatingCardForId] = useState<string | null>(null)
 
+	// AI Customer Retention State
+	const [aiReport, setAiReport] = useState<AICustomerCampaignsReport | null>(null)
+	const [aiLoading, setAiLoading] = useState(false)
+	const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
+
 	useEffect(() => {
 		const checkUser = async () => {
 			const supabase = createSupabaseBrowserClient()
@@ -56,6 +61,10 @@ export default function CustomersPage() {
 			}
 
 			setTenantId(pt.tenant_id)
+
+			loadCustomerAICache(pt.tenant_id).then((cached) => {
+				if (cached) setAiReport(cached)
+			}).catch(() => {})
 		}
 		checkUser()
 	}, [router])
@@ -120,30 +129,101 @@ export default function CustomersPage() {
 
 	return (
 		<div className="flex flex-col gap-8 py-6">
-			<header className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
+			{/* Header */}
+			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
 					<Badge className="border-white/20 bg-white/10 text-white/80">
-						Customers
+						<Brain className="mr-1.5 h-3.5 w-3.5 text-[#E0342A]" /> AI Customer Retention
 					</Badge>
-					<h1 className="mt-3 text-3xl font-semibold text-white">
-						Guest & loyalty graph
+					<h1 className="mt-2 text-2xl font-bold text-white sm:text-3xl">
+						Customer CRM &amp; Loyalty
 					</h1>
-					<p className="text-white/60">
-						See who your regulars are, how many points they carry, and which
-						tier they belong to.
+					<p className="text-sm text-white/60">
+						Manage customer profiles, loyalty tiers, and AI-generated WhatsApp campaigns
 					</p>
 				</div>
-				<div className="flex gap-3">
-					<Button variant="ghost" className="border-white/20 text-white/80">
-						<Star className="mr-2 h-4 w-4" />
-						View tiers
+				<div className="flex items-center gap-3">
+					<Button
+						disabled={aiLoading || !tenantId}
+						onClick={async () => {
+							if (!tenantId) return
+							setAiLoading(true)
+							try {
+								const report = await getAICustomerCampaigns(tenantId)
+								setAiReport(report)
+							} catch (err) {
+								console.error('AI Customer Campaign error:', err)
+							} finally {
+								setAiLoading(false)
+							}
+						}}
+						className="bg-[#E0342A] hover:bg-[#c02a22] text-white font-semibold text-xs px-5"
+					>
+						<Brain className={`mr-2 h-4 w-4 ${aiLoading ? 'animate-spin' : ''}`} />
+						{aiLoading ? 'Writing Copy...' : 'Generate AI WhatsApp Campaigns'}
 					</Button>
-					<Button onClick={() => { setSelectedCustomer(null); setShowModal(true) }}>
+					<Button
+						onClick={() => {
+							setSelectedCustomer(null)
+							setShowModal(true)
+						}}
+						className="bg-[#E0342A] hover:bg-[#b8261e] text-white text-xs font-semibold"
+					>
 						<Plus className="mr-2 h-4 w-4" />
-						New customer
+						Add Customer
 					</Button>
 				</div>
-			</header>
+			</div>
+
+			{/* AI WhatsApp Campaign Copywriter Card */}
+			{aiReport && (
+				<div className="rounded-2xl border border-[#E0342A]/30 bg-[#E0342A]/10 p-6 space-y-6">
+					<div className="flex items-center justify-between border-b border-white/10 pb-4">
+						<div className="flex items-center gap-3">
+							<Brain className="h-6 w-6 text-[#E0342A]" />
+							<div>
+								<h3 className="font-bold text-white text-base">Cloudflare AI Customer Retention Campaigns</h3>
+								<p className="text-xs text-white/60 mt-0.5">{aiReport.summary}</p>
+							</div>
+						</div>
+						<Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">Ready to Send</Badge>
+					</div>
+
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 text-xs">
+						{aiReport.campaigns?.map((camp, idx) => (
+							<div key={idx} className="rounded-xl border border-white/10 bg-black/40 p-4 space-y-3 flex flex-col justify-between">
+								<div className="space-y-2">
+									<div className="flex justify-between items-start border-b border-white/5 pb-2">
+										<span className="font-bold text-white flex items-center gap-1.5">
+											<MessageSquare className="h-4 w-4 text-emerald-400" /> {camp.title}
+										</span>
+									</div>
+									<Badge className="bg-white/10 text-white/70 text-[10px]">{camp.targetSegment}</Badge>
+									<div className="bg-black/60 p-3 rounded-lg border border-white/5 font-sans text-white/80 whitespace-pre-wrap text-[11px] leading-relaxed">
+										{camp.messageCopy}
+									</div>
+								</div>
+
+								<div className="flex items-center justify-between pt-2 border-t border-white/5">
+									<span className="text-[10px] text-emerald-400 font-semibold">{camp.expectedConversion}</span>
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => {
+											navigator.clipboard.writeText(camp.messageCopy)
+											setCopiedIndex(idx)
+											setTimeout(() => setCopiedIndex(null), 3000)
+										}}
+										className="border border-white/10 text-xs text-emerald-400 hover:bg-emerald-500/10 h-7"
+									>
+										{copiedIndex === idx ? <><Check className="mr-1.5 h-3.5 w-3.5" /> Copied!</> : <><Copy className="mr-1.5 h-3.5 w-3.5" /> Copy Message</>}
+									</Button>
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+			)}
 
 			<section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-2xl">
 				<div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">

@@ -7,15 +7,20 @@ import {
 	AlertTriangle,
 	Edit,
 	TrendingDown,
-	RefreshCw,
-	Plus,
 	Loader2,
-	X
+	X,
+	Brain,
+	Copy,
+	Check,
+	ShoppingCart,
+	Clock,
+	Plus,
+	RefreshCw
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
-import { getInventory, getLowStockItems } from '@/app/actions/inventory'
+import { getInventory, getLowStockItems, getAIInventoryForecast, loadInventoryAICache, type AIInventoryForecastReport } from '@/app/actions/inventory'
 import { createIngredient } from '@/app/actions/menu'
 import { useToast } from '@/components/ui/toast'
 import { StockAdjustmentForm } from '@/components/inventory/stock-adjustment-form'
@@ -55,6 +60,11 @@ export default function InventoryPage() {
 	})
 	const { success, error: showError } = useToast()
 
+	// AI Inventory Forecast State
+	const [aiReport, setAiReport] = useState<AIInventoryForecastReport | null>(null)
+	const [aiLoading, setAiLoading] = useState(false)
+	const [copiedPO, setCopiedPO] = useState(false)
+
 	useEffect(() => {
 		const loadData = async () => {
 			try {
@@ -75,6 +85,10 @@ export default function InventoryPage() {
 
 				const tid = profileTenant.tenant_id
 				setTenantId(tid)
+
+				loadInventoryAICache(tid).then((cached) => {
+					if (cached) setAiReport(cached)
+				}).catch(() => {})
 
 				const [inventoryData, lowStockData] = await Promise.all([
 					getInventory(tid),
