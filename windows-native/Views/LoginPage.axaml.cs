@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using NovaPOS.Desktop.Controls;
+using NovaPOS.Desktop.Services;
 using System;
 
 namespace NovaPOS.Desktop.Views;
@@ -16,8 +17,46 @@ public partial class LoginPage : UserControl
     {
         InitializeComponent();
 
-        // A terminal operator should be able to start typing straight away.
-        AttachedToVisualTree += (_, _) => TxtEmail.Focus();
+        AttachedToVisualTree += (_, _) =>
+        {
+            CheckSavedSession();
+            TxtEmail.Focus();
+        };
+    }
+
+    public void CheckSavedSession()
+    {
+        if (SessionManager.HasSavedSession)
+        {
+            var session = SessionManager.Current;
+            TxtEmail.Text = session.UserEmail;
+            TxtPassword.Text = session.SavedPassword;
+
+            CardBiometric.IsVisible = session.BiometricEnabled;
+            LblSavedAccount.Text = session.UserEmail;
+        }
+        else
+        {
+            CardBiometric.IsVisible = false;
+        }
+    }
+
+    private async void OnBiometricLoginClick(object? sender, RoutedEventArgs e)
+    {
+        if (_busy || ParentWindow == null || !SessionManager.HasSavedSession) return;
+
+        bool verified = await BiometricAuthService.AuthenticateAsync("Verify identity to log in to NovaPOS Terminal");
+        if (verified)
+        {
+            var session = SessionManager.Current;
+            TxtEmail.Text = session.UserEmail;
+            TxtPassword.Text = session.SavedPassword;
+            SignIn();
+        }
+        else
+        {
+            ShowError("Biometric authentication was cancelled or not recognized.");
+        }
     }
 
     private void OnToggleReveal(object? sender, RoutedEventArgs e)
@@ -32,8 +71,6 @@ public partial class LoginPage : UserControl
     {
         if (e.Key is not (Key.Enter or Key.Tab)) return;
 
-        // Enter walks the form the way a till operator expects: email → password
-        // → submit. Tab is made explicit so focus can never skip the password box.
         if (ReferenceEquals(sender, TxtEmail))
         {
             TxtPassword.Focus();
@@ -77,6 +114,15 @@ public partial class LoginPage : UserControl
 
             if (result.success)
             {
+                // Save persistent session for auto-login & biometrics across launches
+                SessionManager.SaveSession(
+                    email,
+                    password,
+                    ParentWindow.Api.TenantId ?? "",
+                    ParentWindow.Api.TenantName ?? "Pizzeria Da Cafe",
+                    enableBiometric: true
+                );
+
                 LblLogin.Text = "Signed in";
                 IcoLogin.Data = Ui.Glyph("CircleCheckBig");
                 ParentWindow.OnLoginSuccess();
@@ -99,27 +145,20 @@ public partial class LoginPage : UserControl
     {
         _busy = busy;
         BtnLogin.IsEnabled = !busy;
-        TxtEmail.IsEnabled = !busy;
-        TxtPassword.IsEnabled = !busy;
         LblLogin.Text = busy ? "Signing in…" : "Sign in";
-        IcoLogin.IsVisible = !busy;
+    }
+
+    private void ShowError(string? message)
+    {
+        LblError.Text = string.IsNullOrWhiteSpace(message) ? "Could not sign in" : message;
+        ErrorBox.IsVisible = true;
     }
 
     private void ResetButton()
     {
         _busy = false;
         BtnLogin.IsEnabled = true;
-        TxtEmail.IsEnabled = true;
-        TxtPassword.IsEnabled = true;
         LblLogin.Text = "Sign in";
         IcoLogin.Data = Ui.Glyph("ArrowRight");
-        IcoLogin.IsVisible = true;
-        TxtPassword.Text = "";
-    }
-
-    private void ShowError(string message)
-    {
-        LblError.Text = string.IsNullOrWhiteSpace(message) ? "Sign-in failed. Try again." : message;
-        ErrorBox.IsVisible = true;
     }
 }

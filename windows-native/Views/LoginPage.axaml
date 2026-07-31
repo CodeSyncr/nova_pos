@@ -5,18 +5,8 @@
              Background="#0A0A0A"
              Foreground="White">
 
-    <!--
-      Mirrors src/app/(auth)/login/page.tsx: the storefront photograph fills the
-      left half, the form sits centred in the right half, and the image fades
-      into the form column.
-    -->
     <Grid ColumnDefinitions="*,*">
-
-        <!--
-          Hero fills the left column and fades into the form column. Painted as a
-          brush rather than an Image so the photograph's intrinsic size can't
-          inflate the star column.
-        -->
+        <!-- Hero column -->
         <Border Grid.Column="0" ClipToBounds="True">
             <Border.Background>
                 <ImageBrush Source="/Assets/login_bg.jpg"
@@ -56,7 +46,38 @@
                 <TextBlock Text="Welcome back to Pizzeria Da Cafe"
                            FontSize="13"
                            Foreground="{StaticResource White40Brush}"
-                           Margin="0,4,0,26" />
+                           Margin="0,4,0,24" />
+
+                <!-- Biometric Sign-In Quick Card -->
+                <Border Name="CardBiometric"
+                        IsVisible="False"
+                        Margin="0,0,0,20"
+                        CornerRadius="16"
+                        Padding="16,14"
+                        Background="#151515"
+                        BorderBrush="#E0342A"
+                        BorderThickness="1.5"
+                        BoxShadow="0 10 30 -6 #59E0342A">
+                    <StackPanel Spacing="10">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <ctl:Icon Data="{StaticResource Icon.Sparkles}" Width="20" Height="20" Foreground="#E0342A" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Margin="10,0,0,0" Spacing="2">
+                                <TextBlock Text="BIOMETRIC QUICK SIGN-IN" Classes="caption" Foreground="#E0342A" />
+                                <TextBlock Name="LblSavedAccount" Text="yashkumar12125@gmail.com" FontSize="12" FontWeight="SemiBold" Foreground="White" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Button Name="BtnBiometricLogin"
+                                Content="Sign in with Windows Hello / Fingerprint"
+                                Background="#E0342A"
+                                Foreground="White"
+                                FontWeight="SemiBold"
+                                CornerRadius="12"
+                                Height="40"
+                                HorizontalAlignment="Stretch"
+                                Click="OnBiometricLoginClick" />
+                    </StackPanel>
+                </Border>
 
                 <!-- Email -->
                 <TextBlock Text="EMAIL" Classes="label" Margin="0,0,0,6" />
@@ -142,45 +163,6 @@
                     </Button>
                 </Border>
 
-                <!-- Divider -->
-                <Grid Margin="0,22,0,0" ColumnDefinitions="*,Auto,*">
-                    <Border Grid.Column="0" Height="1" Background="{StaticResource White10Brush}" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="1"
-                               Text="NATIVE TERMINAL"
-                               FontSize="10"
-                               FontWeight="Medium"
-                               LetterSpacing="1.4"
-                               Foreground="{StaticResource White30Brush}"
-                               Margin="12,0" />
-                    <Border Grid.Column="2" Height="1" Background="{StaticResource White10Brush}" VerticalAlignment="Center" />
-                </Grid>
-
-                <!-- Device note -->
-                <Border Margin="0,18,0,0"
-                        CornerRadius="12"
-                        Padding="14,12"
-                        Background="{StaticResource White03Brush}"
-                        BorderBrush="{StaticResource White08Brush}"
-                        BorderThickness="1">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <ctl:Icon Data="{StaticResource Icon.Printer}"
-                                  Width="18" Height="18"
-                                  Foreground="{StaticResource BrandBrush}"
-                                  VerticalAlignment="Top"
-                                  Margin="0,1,0,0" />
-                        <StackPanel Spacing="2">
-                            <TextBlock Text="Direct hardware session"
-                                       FontSize="12"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource White80Brush}" />
-                            <TextBlock Text="Thermal printer and cash drawer are driven locally."
-                                       FontSize="11"
-                                       Foreground="{StaticResource White35Brush}"
-                                       TextWrapping="Wrap"
-                                       MaxWidth="270" />
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
             </StackPanel>
         </Panel>
     </Grid>

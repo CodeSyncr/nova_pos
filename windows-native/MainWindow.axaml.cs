@@ -43,6 +43,20 @@ public partial class MainWindow : Window
         JoystickService.ActionTriggered += OnJoystickAction;
 
         Closed += OnWindowClosed;
+        TryAutoRestoreSession();
+    }
+
+    private async void TryAutoRestoreSession()
+    {
+        if (SessionManager.HasSavedSession && SessionManager.Current.AutoLoginOnLaunch)
+        {
+            var session = SessionManager.Current;
+            var res = await Api.LoginAsync(session.UserEmail, session.SavedPassword);
+            if (res.success)
+            {
+                OnLoginSuccess();
+            }
+        }
     }
 
     private void OnJoystickAction(JoystickAction action)
