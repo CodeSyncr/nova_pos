@@ -64,7 +64,7 @@ export default function OnboardingPage() {
 			}
 
 			if (data?.tenant_id) {
-				router.replace('/tenant')
+				router.replace('/dashboard')
 			} else {
 				setIsCheckingTenant(false)
 			}

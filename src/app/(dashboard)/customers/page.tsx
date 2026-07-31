@@ -49,14 +49,16 @@ export default function CustomersPage() {
 				return
 			}
 
-			const { data: pt } = await supabase
+			const { data: pts } = await supabase
 				.from('profile_tenants')
 				.select('tenant_id')
 				.eq('profile_id', user.id)
-				.single()
+				.limit(1)
 
-			if (!pt) {
-				router.push('/onboarding')
+			const pt = pts && pts.length > 0 ? pts[0] : null
+
+			if (!pt || !pt.tenant_id) {
+				router.push('/dashboard')
 				return
 			}
 

@@ -1,0 +1,91 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:NovaPOS.Desktop.Views"
+        x:Class="NovaPOS.Desktop.MainWindow"
+        Title="NovaPOS — Native Desktop Terminal"
+        Width="1280" Height="860"
+        MinWidth="1100" MinHeight="750"
+        Background="#0A0A0A"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid ColumnDefinitions="72,*">
+        <!-- Sidebar Navigation -->
+        <Border Grid.Column="0"
+                Background="#121212"
+                BorderBrush="#242424"
+                BorderThickness="0,0,1,0">
+            <DockPanel>
+                <!-- Logo -->
+                <StackPanel DockPanel.Dock="Top" Margin="0,20,0,24" HorizontalAlignment="Center">
+                    <TextBlock Text="N"
+                               FontSize="26" FontWeight="Bold"
+                               Foreground="#E0342A"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+
+                <!-- Status dot at bottom -->
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,0,0,16" HorizontalAlignment="Center">
+                    <TextBlock Text="●" FontSize="8" Foreground="#22C55E" HorizontalAlignment="Center" />
+                </StackPanel>
+
+                <!-- Nav Buttons -->
+                <StackPanel Spacing="4" Margin="6,0">
+                    <Button x:Name="BtnNavHome" Classes="nav-btn" Click="OnNavHome">
+                        <StackPanel HorizontalAlignment="Center" Spacing="2">
+                            <TextBlock Text="🏠" FontSize="18" HorizontalAlignment="Center" />
+                            <TextBlock Text="Home" FontSize="9" Foreground="#94A3B8" HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="BtnNavPOS" Classes="nav-btn" Click="OnNavPOS">
+                        <StackPanel HorizontalAlignment="Center" Spacing="2">
+                            <TextBlock Text="🛒" FontSize="18" HorizontalAlignment="Center" />
+                            <TextBlock Text="POS" FontSize="9" Foreground="#94A3B8" HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="BtnNavOrders" Classes="nav-btn" Click="OnNavOrders">
+                        <StackPanel HorizontalAlignment="Center" Spacing="2">
+                            <TextBlock Text="📋" FontSize="18" HorizontalAlignment="Center" />
+                            <TextBlock Text="Orders" FontSize="9" Foreground="#94A3B8" HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="BtnNavLogin" Classes="nav-btn" Click="OnNavLogin">
+                        <StackPanel HorizontalAlignment="Center" Spacing="2">
+                            <TextBlock Text="🔑" FontSize="18" HorizontalAlignment="Center" />
+                            <TextBlock Text="Login" FontSize="9" Foreground="#94A3B8" HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Main Content Area -->
+        <Panel Grid.Column="1" x:Name="ContentArea">
+            <views:LoginPage x:Name="PageLogin" />
+            <views:HomePage x:Name="PageHome" IsVisible="False" />
+            <views:POSPage x:Name="PagePOS" IsVisible="False" />
+            <views:OrdersPage x:Name="PageOrders" IsVisible="False" />
+        </Panel>
+    </Grid>
+
+    <Window.Styles>
+        <!-- Nav button base style -->
+        <Style Selector="Button.nav-btn">
+            <Setter Property="Width" Value="58" />
+            <Setter Property="Height" Value="52" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="0,4" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.nav-btn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1E1E1E" />
+        </Style>
+        <Style Selector="Button.nav-btn.active /template/ ContentPresenter">
+            <Setter Property="Background" Value="#E0342A" />
+        </Style>
+        <Style Selector="Button.nav-btn.active TextBlock">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+    </Window.Styles>
+</Window>

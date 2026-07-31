@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NovaPOS.Desktop.Views.OrdersPage"
+             Background="#0A0A0A">
+
+    <DockPanel Margin="24">
+        <!-- Header -->
+        <StackPanel DockPanel.Dock="Top" Spacing="16" Margin="0,0,0,20">
+            <TextBlock Text="Order History &amp; Control"
+                       FontSize="22" FontWeight="Bold" Foreground="White" />
+
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Button x:Name="BtnRefresh"
+                        Content="Refresh List"
+                        Background="#E0342A" Foreground="White"
+                        BorderThickness="0" CornerRadius="10"
+                        Padding="20,10" FontWeight="SemiBold"
+                        Cursor="Hand"
+                        Click="OnRefresh" />
+                <Button x:Name="BtnComplete"
+                        Content="Mark Completed"
+                        Background="#10B981" Foreground="White"
+                        BorderThickness="0" CornerRadius="10"
+                        Padding="20,10" FontWeight="SemiBold"
+                        Cursor="Hand"
+                        Click="OnComplete" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Orders Table -->
+        <Border Background="#121212"
+                CornerRadius="16"
+                BorderBrush="#242424" BorderThickness="1"
+                ClipToBounds="True">
+            <DataGrid x:Name="OrdersGrid"
+                      AutoGenerateColumns="False"
+                      Background="Transparent"
+                      RowBackground="#121212"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal"
+                      HorizontalGridLinesBrush="#242424"
+                      BorderThickness="0"
+                      IsReadOnly="True"
+                      CanUserResizeColumns="True"
+                      SelectionMode="Single">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Order ID" Binding="{Binding Id}" Width="220" />
+                    <DataGridTextColumn Header="Table" Binding="{Binding TableNumber}" Width="80" />
+                    <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="180" />
+                    <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat=Rs. {0:F2}}" Width="120" />
+                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" />
+                    <DataGridTextColumn Header="Date" Binding="{Binding CreatedAt}" Width="160" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+    </DockPanel>
+</UserControl>

@@ -21,16 +21,18 @@ export default function LoginPage() {
 		let isMounted = true
 
 		const redirectAfterAuth = async (userId: string) => {
-			const { data: pt } = await supabaseClient
+			const { data: pts } = await supabaseClient
 				.from('profile_tenants')
-				.select('role_id')
+				.select('role_id, tenant_id')
 				.eq('profile_id', userId)
-				.single()
+				.limit(1)
 
 			if (!isMounted) return
 
+			const pt = pts && pts.length > 0 ? pts[0] : null
+
 			// No workspace yet → onboarding
-			if (!pt) {
+			if (!pt || !pt.tenant_id) {
 				router.replace('/onboarding')
 				return
 			}
@@ -42,10 +44,11 @@ export default function LoginPage() {
 					.from('roles')
 					.select('code, permissions')
 					.eq('id', pt.role_id)
-					.single()
+					.maybeSingle()
 				const perms = role?.permissions as unknown
 				isFullAccess =
 					role?.code === 'OWNER' ||
+					role?.code === 'DEFAULT_OWNER' ||
 					perms == null ||
 					(Array.isArray(perms) &&
 						(perms.includes('*') || perms.includes('all')))

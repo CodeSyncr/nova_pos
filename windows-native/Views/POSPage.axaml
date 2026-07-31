@@ -1,0 +1,200 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NovaPOS.Desktop.Views.POSPage"
+             Background="#0A0A0A">
+
+    <Grid ColumnDefinitions="*,380">
+        <!-- Left: Menu Area -->
+        <DockPanel Grid.Column="0" Margin="16">
+            <!-- Search Bar -->
+            <Border DockPanel.Dock="Top"
+                    Background="#141414"
+                    CornerRadius="16"
+                    BorderBrush="#242424" BorderThickness="1"
+                    Padding="14,0" Height="44" Margin="0,0,0,12">
+                <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Grid.Column="0" Text="🔍"
+                               FontSize="14"
+                               Foreground="#4D4D4D"
+                               VerticalAlignment="Center"
+                               Margin="0,0,10,0" />
+                    <TextBox Grid.Column="1"
+                             x:Name="TxtSearch"
+                             Watermark="Search menu…"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Foreground="White"
+                             FontSize="13"
+                             VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+
+            <!-- Category Pills -->
+            <ScrollViewer DockPanel.Dock="Top"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Disabled"
+                          Height="44" Margin="0,0,0,12">
+                <StackPanel x:Name="CategoriesPanel"
+                            Orientation="Horizontal" Spacing="8" />
+            </ScrollViewer>
+
+            <!-- Items Grid -->
+            <ScrollViewer>
+                <WrapPanel x:Name="ItemsPanel"
+                           Orientation="Horizontal" />
+            </ScrollViewer>
+        </DockPanel>
+
+        <!-- Right: Cart Sidebar -->
+        <Border Grid.Column="1"
+                Background="#121212"
+                CornerRadius="24,0,0,24"
+                BorderBrush="#242424" BorderThickness="1,0,0,0">
+            <DockPanel>
+                <!-- Cart Header -->
+                <Border DockPanel.Dock="Top"
+                        Background="#181818"
+                        CornerRadius="24,0,0,0"
+                        Height="80" Padding="20,0">
+                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="🛒" FontSize="14" Foreground="#E0342A"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="Current order" FontSize="14"
+                                       FontWeight="SemiBold" Foreground="White"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock x:Name="LblCartCount" Text="0 items"
+                                   FontSize="11" Foreground="#94A3B8" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Place Order Button at bottom -->
+                <Button DockPanel.Dock="Bottom"
+                        x:Name="BtnPlaceOrder"
+                        Content="Place POS Order"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        Height="50"
+                        Background="#E0342A"
+                        Foreground="White"
+                        FontSize="14" FontWeight="Bold"
+                        CornerRadius="14"
+                        Margin="16,0,16,16"
+                        Cursor="Hand"
+                        Click="OnPlaceOrder" />
+
+                <!-- Total -->
+                <Border DockPanel.Dock="Bottom" Margin="16,8,16,8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="Total" FontSize="16"
+                                   FontWeight="SemiBold" Foreground="White" />
+                        <TextBlock x:Name="LblTotal" Grid.Column="1"
+                                   Text="Rs. 0" FontSize="18"
+                                   FontWeight="Bold" Foreground="White" />
+                    </Grid>
+                </Border>
+
+                <!-- Customer & Order Type Section -->
+                <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="16,8,16,4">
+                    <Separator Background="#242424" Height="1" />
+
+                    <!-- Order Type Tabs -->
+                    <TextBlock Text="Order Type" FontSize="10"
+                               FontWeight="SemiBold" Foreground="#94A3B8" />
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Button x:Name="BtnDineIn" Content="Dine In"
+                                Classes="order-tab active"
+                                Click="OnSelectDineIn" />
+                        <Button x:Name="BtnTakeaway" Content="Takeaway"
+                                Classes="order-tab"
+                                Click="OnSelectTakeaway" />
+                        <Button x:Name="BtnDelivery" Content="Delivery"
+                                Classes="order-tab"
+                                Click="OnSelectDelivery" />
+                    </StackPanel>
+
+                    <!-- Table dropdown -->
+                    <StackPanel x:Name="TableSection" Spacing="4">
+                        <TextBlock Text="Table" FontSize="10"
+                                   FontWeight="SemiBold" Foreground="#94A3B8" />
+                        <ComboBox x:Name="CbTable"
+                                  Background="#141414"
+                                  BorderBrush="#242424"
+                                  Foreground="White"
+                                  CornerRadius="10"
+                                  HorizontalAlignment="Stretch" />
+                    </StackPanel>
+
+                    <!-- Customer Name -->
+                    <TextBlock Text="Customer" FontSize="10"
+                               FontWeight="SemiBold" Foreground="#94A3B8" />
+                    <TextBox x:Name="TxtCustName"
+                             Text="Walk-in Customer"
+                             Background="#141414"
+                             BorderBrush="#242424"
+                             Foreground="White"
+                             CornerRadius="10" Padding="12,8"
+                             FontSize="12" />
+
+                    <!-- Customer Phone -->
+                    <TextBlock Text="Phone" FontSize="10"
+                               FontWeight="SemiBold" Foreground="#94A3B8" />
+                    <TextBox x:Name="TxtCustPhone"
+                             Text="9999999999"
+                             Background="#141414"
+                             BorderBrush="#242424"
+                             Foreground="White"
+                             CornerRadius="10" Padding="12,8"
+                             FontSize="12" />
+                </StackPanel>
+
+                <!-- Cart Items List -->
+                <ListBox x:Name="CartList"
+                         Background="Transparent"
+                         Margin="8,8" />
+            </DockPanel>
+        </Border>
+    </Grid>
+
+    <UserControl.Styles>
+        <!-- Order type tab buttons -->
+        <Style Selector="Button.order-tab">
+            <Setter Property="Background" Value="#1C1C1C" />
+            <Setter Property="Foreground" Value="#94A3B8" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="100" />
+            <Setter Property="Padding" Value="16,6" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.order-tab.active /template/ ContentPresenter">
+            <Setter Property="Background" Value="#E0342A" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.order-tab:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2A2A2A" />
+        </Style>
+
+        <!-- Category pill style -->
+        <Style Selector="Button.cat-pill">
+            <Setter Property="Background" Value="#0D0D0D" />
+            <Setter Property="Foreground" Value="#8C8C8C" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="100" />
+            <Setter Property="Padding" Value="16,6" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.cat-pill.active /template/ ContentPresenter">
+            <Setter Property="Background" Value="#E0342A" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.cat-pill:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1A1A1A" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+    </UserControl.Styles>
+</UserControl>

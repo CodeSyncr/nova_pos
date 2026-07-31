@@ -1,0 +1,99 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NovaPOS.Desktop.Views.HomePage"
+             Background="#0A0A0A">
+
+    <ScrollViewer Padding="32">
+        <StackPanel Spacing="24">
+            <!-- Welcome Header -->
+            <StackPanel Spacing="4">
+                <TextBlock x:Name="LblWelcome" Text="Welcome to NovaPOS Terminal"
+                           FontSize="26" FontWeight="Bold" Foreground="White" />
+                <TextBlock Text="Realtime Native Control Center"
+                           FontSize="14" Foreground="#94A3B8" />
+            </StackPanel>
+
+            <!-- Metric Cards Row -->
+            <WrapPanel Orientation="Horizontal" x:Name="MetricsPanel">
+                <!-- Total Sales -->
+                <Border Background="#121212" CornerRadius="16"
+                        BorderBrush="#242424" BorderThickness="1"
+                        Width="280" Height="150" Margin="0,0,16,0">
+                    <Grid>
+                        <Border Background="#E0342A" Height="4"
+                                VerticalAlignment="Top"
+                                CornerRadius="16,16,0,0" />
+                        <StackPanel Margin="20,28,20,0">
+                            <TextBlock Text="Total Sales Today"
+                                       FontSize="12" Foreground="#94A3B8" />
+                            <TextBlock x:Name="LblSales" Text="Rs. 0.00"
+                                       FontSize="28" FontWeight="Bold"
+                                       Foreground="White" Margin="0,10,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Pending Orders -->
+                <Border Background="#121212" CornerRadius="16"
+                        BorderBrush="#242424" BorderThickness="1"
+                        Width="280" Height="150" Margin="0,0,16,0">
+                    <Grid>
+                        <Border Background="#F59E0B" Height="4"
+                                VerticalAlignment="Top"
+                                CornerRadius="16,16,0,0" />
+                        <StackPanel Margin="20,28,20,0">
+                            <TextBlock Text="Pending Orders"
+                                       FontSize="12" Foreground="#94A3B8" />
+                            <TextBlock x:Name="LblPending" Text="0"
+                                       FontSize="28" FontWeight="Bold"
+                                       Foreground="White" Margin="0,10,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Completed Orders -->
+                <Border Background="#121212" CornerRadius="16"
+                        BorderBrush="#242424" BorderThickness="1"
+                        Width="280" Height="150">
+                    <Grid>
+                        <Border Background="#10B981" Height="4"
+                                VerticalAlignment="Top"
+                                CornerRadius="16,16,0,0" />
+                        <StackPanel Margin="20,28,20,0">
+                            <TextBlock Text="Completed Orders"
+                                       FontSize="12" Foreground="#94A3B8" />
+                            <TextBlock x:Name="LblCompleted" Text="0"
+                                       FontSize="28" FontWeight="Bold"
+                                       Foreground="White" Margin="0,10,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </WrapPanel>
+
+            <!-- Hardware Diagnostics Card -->
+            <Border Background="#121212" CornerRadius="16"
+                    BorderBrush="#242424" BorderThickness="1"
+                    Padding="24" MaxWidth="900" HorizontalAlignment="Left">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Hardware Diagnostics"
+                               FontSize="16" FontWeight="SemiBold" Foreground="White" />
+                    <TextBlock Text="Trigger raw testing actions to confirm native printer ZyPrinter.dll behaves correctly."
+                               FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,8,0,0">
+                        <Button Content="Test Receipt Print"
+                                Background="#1C1C1C" Foreground="White"
+                                BorderBrush="#E0342A" BorderThickness="1"
+                                CornerRadius="10" Padding="20,12"
+                                Cursor="Hand" />
+                        <Button Content="Kick Cash Drawer"
+                                Background="#1C1C1C" Foreground="White"
+                                BorderBrush="#E0342A" BorderThickness="1"
+                                CornerRadius="10" Padding="20,12"
+                                Cursor="Hand" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

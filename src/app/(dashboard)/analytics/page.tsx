@@ -109,14 +109,16 @@ export default function AnalyticsPage() {
 					return
 				}
 
-				const { data: profileTenant } = await supabase
+				const { data: pts } = await supabase
 					.from('profile_tenants')
 					.select('tenant:tenants(id, settings)')
 					.eq('profile_id', user.id)
-					.single()
+					.limit(1)
+
+				const profileTenant = pts && pts.length > 0 ? pts[0] : null
 
 				if (!profileTenant?.tenant) {
-					router.push('/onboarding')
+					router.push('/dashboard')
 					return
 				}
 
