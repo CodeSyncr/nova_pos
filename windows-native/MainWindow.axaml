@@ -139,6 +139,60 @@
             </DockPanel>
         </Border>
 
+        <!-- Biometric Setup Modal Popup -->
+        <Border Name="BiometricSetupOverlay"
+                IsVisible="False"
+                Background="#CC000000"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
+            <Border CornerRadius="28"
+                    Width="460"
+                    Padding="32"
+                    Background="#121212"
+                    BorderBrush="#E0342A"
+                    BorderThickness="1.5"
+                    BoxShadow="0 30 100 0 #D0000000"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel Spacing="20">
+                    <Border Width="64" Height="64"
+                            CornerRadius="20"
+                            Background="#20E0342A"
+                            HorizontalAlignment="Center">
+                        <ctl:Icon Data="{StaticResource Icon.Sparkles}" Width="32" Height="32" Foreground="#E0342A" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                    </Border>
+
+                    <StackPanel Spacing="6" HorizontalAlignment="Center">
+                        <TextBlock Text="Setup Biometric Sign-In?"
+                                   FontSize="22" FontWeight="Bold"
+                                   Foreground="White"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="Use Windows Hello, Fingerprint or Facial Recognition for instant sign-in next time you launch NovaPOS."
+                                   FontSize="13" Foreground="#A3A3A3"
+                                   TextAlignment="Center" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="12">
+                        <Button Name="BtnEnableBiometricsNow"
+                                Content="Enable Windows Hello / Fingerprint"
+                                Classes="brand"
+                                Height="44"
+                                CornerRadius="14"
+                                FontWeight="SemiBold"
+                                HorizontalAlignment="Stretch"
+                                Click="OnEnableBiometricsNow" />
+                        <Button Name="BtnSkipBiometrics"
+                                Content="Skip for Now"
+                                Classes="secondary"
+                                Height="40"
+                                CornerRadius="12"
+                                HorizontalAlignment="Stretch"
+                                Click="OnSkipBiometrics" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Border>
+
         <!-- Toast stack sits above every page, like the web ToastProvider -->
         <ctl:ToastHost />
     </ctl:ShellHost>

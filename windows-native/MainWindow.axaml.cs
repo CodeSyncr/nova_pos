@@ -205,6 +205,34 @@ public partial class MainWindow : Window
             : Api.TenantName.ToLowerInvariant();
 
         ShowPage("home");
+
+        // First-time biometric setup modal prompt
+        if (!SessionManager.Current.BiometricPrompted)
+        {
+            BiometricSetupOverlay.IsVisible = true;
+        }
+    }
+
+    private async void OnEnableBiometricsNow(object? sender, RoutedEventArgs e)
+    {
+        bool ok = await BiometricAuthService.AuthenticateAsync("Setup Windows Hello for NovaPOS Terminal");
+        if (ok)
+        {
+            SessionManager.SetBiometricEnabled(true);
+            ToastHost.Success("Windows Hello Biometric login enabled!");
+        }
+        else
+        {
+            SessionManager.SetBiometricPrompted(true);
+            ToastHost.Warning("Biometric verification cancelled.");
+        }
+        BiometricSetupOverlay.IsVisible = false;
+    }
+
+    private void OnSkipBiometrics(object? sender, RoutedEventArgs e)
+    {
+        SessionManager.SetBiometricPrompted(true);
+        BiometricSetupOverlay.IsVisible = false;
     }
 
     private void OnNavHome(object? sender, RoutedEventArgs e) => Navigate("home");

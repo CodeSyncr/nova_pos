@@ -11,6 +11,7 @@ public class SessionState
     public string TenantId { get; set; } = "";
     public string TenantName { get; set; } = "";
     public bool BiometricEnabled { get; set; } = false;
+    public bool BiometricPrompted { get; set; } = false;
     public bool AutoLoginOnLaunch { get; set; } = true;
     public DateTime LastLoginTime { get; set; } = DateTime.UtcNow;
 }
@@ -30,7 +31,7 @@ public static class SessionManager
     public static bool IsBiometricConfigured =>
         HasSavedSession && _current.BiometricEnabled;
 
-    public static void SaveSession(string email, string password, string tenantId, string tenantName, bool enableBiometric = true)
+    public static void SaveSession(string email, string password, string tenantId, string tenantName, bool enableBiometric = false)
     {
         _current = new SessionState
         {
@@ -49,6 +50,13 @@ public static class SessionManager
     public static void SetBiometricEnabled(bool enabled)
     {
         _current.BiometricEnabled = enabled;
+        _current.BiometricPrompted = true;
+        Persist();
+    }
+
+    public static void SetBiometricPrompted(bool prompted)
+    {
+        _current.BiometricPrompted = prompted;
         Persist();
     }
 

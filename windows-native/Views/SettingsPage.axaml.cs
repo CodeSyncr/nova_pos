@@ -116,6 +116,18 @@ public partial class SettingsPage : UserControl
                 : ParentWindow.Api.TenantName;
             LblAccountUser.Text = ParentWindow.Api.UserEmail;
         }
+
+        ChkEnableBiometric.IsChecked = SessionManager.Current.BiometricEnabled;
+    }
+
+    private void OnBiometricToggleChanged(object? sender, RoutedEventArgs e)
+    {
+        bool enabled = ChkEnableBiometric.IsChecked == true;
+        SessionManager.SetBiometricEnabled(enabled);
+        if (enabled)
+            ToastHost.Success("Windows Hello Biometric sign-in enabled!");
+        else
+            ToastHost.Warning("Biometric sign-in disabled.");
     }
 
     private void OnJoystickAction(JoystickAction action)

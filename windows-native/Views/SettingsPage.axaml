@@ -305,6 +305,17 @@
 
                             <Separator Background="{StaticResource White08Brush}" Height="1" Margin="0,8" />
 
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="BIOMETRIC &amp; SECURITY SETUP" Classes="caption" />
+                                <CheckBox Name="ChkEnableBiometric"
+                                          Content="Enable Windows Hello / Fingerprint Sign-in"
+                                          IsCheckedChanged="OnBiometricToggleChanged" />
+                                <TextBlock Text="When enabled, you can sign in instantly using Windows Hello, fingerprint, or face recognition."
+                                           FontSize="11" Foreground="{StaticResource White40Brush}" Margin="28,0,0,0" />
+                            </StackPanel>
+
+                            <Separator Background="{StaticResource White08Brush}" Height="1" Margin="0,8" />
+
                             <!-- LOGOUT BUTTON INSIDE SETTINGS -->
                             <StackPanel Spacing="12">
                                 <TextBlock Text="TERMINAL LOGOUT" Classes="caption" />
