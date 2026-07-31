@@ -490,6 +490,34 @@ public class ApiService
 
     public Task<bool> CompleteOrderAsync(string orderId) => UpdateOrderStatusAsync(orderId, "completed");
 
+    public async Task<bool> CompleteOrderWithDetailsAsync(
+        string orderId,
+        string paymentMethod,
+        decimal discountAmount,
+        string? discountType,
+        decimal? discountValue,
+        decimal spaceRentalAmount,
+        decimal total)
+    {
+        try
+        {
+            var payload = new Dictionary<string, object?>
+            {
+                ["status"] = "completed",
+                ["completed_at"] = DateTime.UtcNow.ToString("o"),
+                ["payment_method"] = paymentMethod,
+                ["discount_amount"] = discountAmount,
+                ["discount_type"] = discountType,
+                ["discount_value"] = discountValue,
+                ["space_rental_amount"] = spaceRentalAmount,
+                ["total"] = total
+            };
+
+            return await PatchAsync($"orders?id=eq.{orderId}", JsonSerializer.Serialize(payload));
+        }
+        catch { return false; }
+    }
+
     /// <summary>
     /// Saves an edited order: reconciles its lines, then rewrites the header with
     /// the recomputed money figures.

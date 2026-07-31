@@ -471,7 +471,13 @@ public partial class OrdersPage : UserControl
             advance.HorizontalAlignment = HorizontalAlignment.Stretch;
             advance.Margin = new Thickness(0, 0, 8, 0);
             advance.IsEnabled = !busy;
-            advance.Click += (_, _) => UpdateStatus(order, next);
+            advance.Click += (_, _) =>
+            {
+                if (next == "completed")
+                    OpenCompleteOrderModal(order);
+                else
+                    UpdateStatus(order, next);
+            };
             grid.Children.Add(advance);
         }
         else if (closed)
@@ -1060,4 +1066,235 @@ public partial class OrdersPage : UserControl
     }
 
     private string Money(decimal value) => ParentWindow?.Api.Money(value) ?? "\u20B9" + value.ToString("N0");
+
+    // ── Complete Order Payment Modal Logic ─────────────────────────────────
+    private OrderRecord? _completingOrder;
+    private string _compPaymentMethod = "cash";
+    private decimal _compSubtotal;
+    private decimal _compTax;
+    private decimal _compDiscountAmount;
+    private decimal _compSpaceRentalAmount;
+    private decimal _compTotalPayable;
+    private decimal _compCashTendered;
+    private bool _completingOrderBusy;
+
+    public void OpenCompleteOrderModal(OrderRecord order)
+    {
+        _completingOrder = order;
+        _compSubtotal = order.Subtotal;
+        _compTax = order.Tax;
+        _compPaymentMethod = string.IsNullOrEmpty(order.PaymentMethod) || order.PaymentMethod == "unpaid" ? "cash" : order.PaymentMethod;
+        _compCashTendered = 0;
+        _compDiscountAmount = order.DiscountAmount;
+        _compSpaceRentalAmount = order.SpaceRentalAmount;
+
+        LblCompleteOrderHeader.Text = $"Complete Order #{order.ShortId}";
+
+        // Set initial controls
+        CboCompDiscountType.SelectedIndex = order.DiscountType switch
+        {
+            "percent" => 1,
+            "flat" => 2,
+            _ => 0
+        };
+
+        TxtCompDiscountValue.Text = order.DiscountValue > 0 ? order.DiscountValue.Value.ToString(CultureInfo.InvariantCulture) : "";
+        TxtCompSpaceRental.Text = order.SpaceRentalAmount > 0 ? order.SpaceRentalAmount.ToString(CultureInfo.InvariantCulture) : "";
+        TxtCompCashTendered.Text = "";
+
+        SetCompPaySegmentActive(BtnCompPayCash);
+
+        RecalculateCompModal();
+        CompleteOrderModalHost.IsVisible = true;
+    }
+
+    private void OnCloseCompleteModal(object? sender, RoutedEventArgs e) => CloseCompleteModal();
+    private void OnCloseCompleteModal(object? sender, PointerPressedEventArgs e) => CloseCompleteModal();
+    private void CloseCompleteModal()
+    {
+        CompleteOrderModalHost.IsVisible = false;
+        _completingOrder = null;
+    }
+
+    private void SetCompPaySegmentActive(Button activeBtn)
+    {
+        BtnCompPayCash.Classes.Remove("active");
+        BtnCompPayCard.Classes.Remove("active");
+        BtnCompPayUpi.Classes.Remove("active");
+        BtnCompPayCredit.Classes.Remove("active");
+
+        activeBtn.Classes.Add("active");
+        PanelCompCashTender.IsVisible = activeBtn == BtnCompPayCash;
+    }
+
+    private void OnCompSelectPayCash(object? sender, RoutedEventArgs e)
+    {
+        _compPaymentMethod = "cash";
+        SetCompPaySegmentActive(BtnCompPayCash);
+    }
+
+    private void OnCompSelectPayCard(object? sender, RoutedEventArgs e)
+    {
+        _compPaymentMethod = "card";
+        SetCompPaySegmentActive(BtnCompPayCard);
+    }
+
+    private void OnCompSelectPayUpi(object? sender, RoutedEventArgs e)
+    {
+        _compPaymentMethod = "upi";
+        SetCompPaySegmentActive(BtnCompPayUpi);
+    }
+
+    private void OnCompSelectPayCredit(object? sender, RoutedEventArgs e)
+    {
+        _compPaymentMethod = "credit";
+        SetCompPaySegmentActive(BtnCompPayCredit);
+    }
+
+    private void OnCompDiscountTypeChanged(object? sender, SelectionChangedEventArgs e) => RecalculateCompModal();
+    private void OnCompDiscountValueKeyUp(object? sender, KeyEventArgs e) => RecalculateCompModal();
+    private void OnCompRentalKeyUp(object? sender, KeyEventArgs e) => RecalculateCompModal();
+    private void OnCompCashTenderedKeyUp(object? sender, KeyEventArgs e) => RecalculateCompModal();
+
+    private void RecalculateCompModal()
+    {
+        if (_completingOrder == null) return;
+
+        decimal subtotal = _compSubtotal;
+        decimal tax = _compTax;
+        decimal discountAmount = 0;
+
+        string discValText = TxtCompDiscountValue.Text ?? "";
+        if (decimal.TryParse(discValText, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal discVal) && discVal > 0)
+        {
+            if (CboCompDiscountType.SelectedIndex == 1) // Percentage
+            {
+                discountAmount = Math.Round((subtotal + tax) * (discVal / 100m), 2);
+            }
+            else if (CboCompDiscountType.SelectedIndex == 2) // Flat
+            {
+                discountAmount = discVal;
+            }
+        }
+
+        decimal spaceRental = 0;
+        string rentalText = TxtCompSpaceRental.Text ?? "";
+        if (decimal.TryParse(rentalText, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal rVal) && rVal > 0)
+        {
+            spaceRental = rVal;
+        }
+
+        _compDiscountAmount = discountAmount;
+        _compSpaceRentalAmount = spaceRental;
+        _compTotalPayable = Math.Max(0, subtotal + tax + spaceRental - discountAmount);
+
+        LblCompSubtotal.Text = ParentWindow?.Api.Money(subtotal) ?? "₹" + subtotal;
+        LblCompTax.Text = ParentWindow?.Api.Money(tax) ?? "₹" + tax;
+
+        bool hasDiscount = discountAmount > 0;
+        LblCompDiscountTitle.IsVisible = hasDiscount;
+        LblCompDiscountAmount.IsVisible = hasDiscount;
+        if (hasDiscount) LblCompDiscountAmount.Text = "-" + (ParentWindow?.Api.Money(discountAmount) ?? "₹" + discountAmount);
+
+        bool hasRental = spaceRental > 0;
+        LblCompRentalTitle.IsVisible = hasRental;
+        LblCompRentalAmount.IsVisible = hasRental;
+        if (hasRental) LblCompRentalAmount.Text = "+" + (ParentWindow?.Api.Money(spaceRental) ?? "₹" + spaceRental);
+
+        LblCompTotalPayable.Text = ParentWindow?.Api.Money(_compTotalPayable) ?? "₹" + _compTotalPayable;
+
+        if (decimal.TryParse(TxtCompCashTendered.Text ?? "", NumberStyles.Number, CultureInfo.InvariantCulture, out decimal cashIn))
+        {
+            _compCashTendered = cashIn;
+        }
+        else
+        {
+            _compCashTendered = 0;
+        }
+
+        decimal change = _compCashTendered - _compTotalPayable;
+        LblCompChangeDue.Text = change >= 0 ? (ParentWindow?.Api.Money(change) ?? "₹" + change) : "₹0";
+    }
+
+    private void OnCompQuickCashExact(object? sender, RoutedEventArgs e)
+    {
+        TxtCompCashTendered.Text = Math.Ceiling(_compTotalPayable).ToString(CultureInfo.InvariantCulture);
+        RecalculateCompModal();
+    }
+
+    private void OnCompQuickCashAdd50(object? sender, RoutedEventArgs e) => AddCompQuickCash(50);
+    private void OnCompQuickCashAdd100(object? sender, RoutedEventArgs e) => AddCompQuickCash(100);
+    private void OnCompQuickCashAdd200(object? sender, RoutedEventArgs e) => AddCompQuickCash(200);
+    private void OnCompQuickCashAdd500(object? sender, RoutedEventArgs e) => AddCompQuickCash(500);
+    private void OnCompQuickCashAdd2000(object? sender, RoutedEventArgs e) => AddCompQuickCash(2000);
+
+    private void AddCompQuickCash(decimal amount)
+    {
+        _compCashTendered += amount;
+        TxtCompCashTendered.Text = _compCashTendered.ToString(CultureInfo.InvariantCulture);
+        RecalculateCompModal();
+    }
+
+    private async void OnConfirmCompleteOrder(object? sender, RoutedEventArgs e)
+    {
+        if (ParentWindow == null || _completingOrder == null || _completingOrderBusy) return;
+
+        _completingOrderBusy = true;
+        BtnFinalizeCompleteOrder.IsEnabled = false;
+        LblFinalizeCompleteText.Text = "Completing…";
+
+        try
+        {
+            string? discType = CboCompDiscountType.SelectedIndex switch
+            {
+                1 => "percent",
+                2 => "flat",
+                _ => null
+            };
+
+            decimal.TryParse(TxtCompDiscountValue.Text ?? "", NumberStyles.Number, CultureInfo.InvariantCulture, out decimal discVal);
+            decimal.TryParse(TxtCompSpaceRental.Text ?? "", NumberStyles.Number, CultureInfo.InvariantCulture, out decimal rentalVal);
+
+            bool ok = await ParentWindow.Api.CompleteOrderWithDetailsAsync(
+                _completingOrder.Id,
+                _compPaymentMethod,
+                _compDiscountAmount,
+                discType,
+                discVal > 0 ? discVal : null,
+                rentalVal,
+                _compTotalPayable);
+
+            if (ok)
+            {
+                _completingOrder.Status = "completed";
+                _completingOrder.PaymentMethod = _compPaymentMethod;
+                _completingOrder.DiscountAmount = _compDiscountAmount;
+                _completingOrder.DiscountType = discType;
+                _completingOrder.DiscountValue = discVal > 0 ? discVal : null;
+                _completingOrder.SpaceRentalAmount = rentalVal;
+                _completingOrder.Total = _compTotalPayable;
+
+                CloseCompleteModal();
+                ToastHost.Success("Order completed successfully!");
+
+                // Thermal receipt auto-print
+                await BillPrinter.AutoPrintAsync(ParentWindow.Api, _completingOrder, PrinterService.Target.AutoPrintOnComplete);
+                await LoadAsync();
+            }
+            else
+            {
+                ToastHost.Error("Could not complete order. Please try again.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastHost.Error("Error completing order: " + ex.Message);
+        }
+        finally
+        {
+            _completingOrderBusy = false;
+            BtnFinalizeCompleteOrder.IsEnabled = true;
+            LblFinalizeCompleteText.Text = "Complete Order";
+        }
+    }
 }

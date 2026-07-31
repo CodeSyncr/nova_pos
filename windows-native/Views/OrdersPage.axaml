@@ -346,5 +346,160 @@
                 </Border>
             </Panel>
         </Panel>
+
+        <!-- ═════════════════════════════════════════════════════════════
+             COMPLETE ORDER PAYMENT MODAL OVERLAY (ORDERS PAGE)
+             ═════════════════════════════════════════════════════════════ -->
+        <Panel Name="CompleteOrderModalHost" IsVisible="False">
+            <Border Background="{StaticResource ScrimBrush}" PointerPressed="OnCloseCompleteModal" />
+
+            <Border Width="540" MaxHeight="620"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    CornerRadius="26"
+                    ClipToBounds="True"
+                    Background="#121212"
+                    BorderBrush="{StaticResource White10Brush}"
+                    BorderThickness="1"
+                    BoxShadow="0 24 70 0 #B3000000">
+                <DockPanel>
+                    <!-- Header -->
+                    <Border DockPanel.Dock="Top" Padding="24,20,20,16" BorderBrush="{StaticResource White06Brush}" BorderThickness="0,0,0,1">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="2">
+                                <TextBlock Name="LblCompleteOrderHeader" Text="Complete Order" FontSize="18" FontWeight="Bold" Foreground="White" />
+                                <TextBlock Text="Select payment method, discount, and finalize order completion." FontSize="12" Foreground="{StaticResource White40Brush}" />
+                            </StackPanel>
+
+                            <Button Grid.Column="1" Classes="step" Width="32" Height="32" Click="OnCloseCompleteModal">
+                                <ctl:Icon Data="{StaticResource Icon.X}" Width="18" Height="18" />
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- Footer Actions -->
+                    <Border DockPanel.Dock="Bottom" Padding="24,16" BorderBrush="{StaticResource White06Brush}" BorderThickness="0,1,0,0" Background="{StaticResource White02Brush}">
+                        <Grid ColumnDefinitions="*,12,*">
+                            <Button Grid.Column="0" Content="Cancel" Classes="secondary" Height="44" CornerRadius="14" Click="OnCloseCompleteModal" />
+                            <Button Name="BtnFinalizeCompleteOrder" Grid.Column="2" Classes="brand" Height="44" CornerRadius="14" Click="OnConfirmCompleteOrder">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <ctl:Icon Data="{StaticResource Icon.CircleCheckBig}" Width="16" Height="16" />
+                                    <TextBlock Name="LblFinalizeCompleteText" Text="Complete Order" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- Scrollable Body -->
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="24,20" Spacing="18">
+
+                            <!-- Order Summary Card -->
+                            <Border CornerRadius="16" Padding="18" Background="{StaticResource White03Brush}" BorderBrush="{StaticResource White08Brush}" BorderThickness="1">
+                                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Subtotal" Foreground="{StaticResource White50Brush}" FontSize="13" />
+                                    <TextBlock Name="LblCompSubtotal" Grid.Row="0" Grid.Column="1" Text="₹0" Foreground="White" FontSize="13" />
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Tax" Foreground="{StaticResource White50Brush}" FontSize="13" Margin="0,6,0,0" />
+                                    <TextBlock Name="LblCompTax" Grid.Row="1" Grid.Column="1" Text="₹0" Foreground="White" FontSize="13" Margin="0,6,0,0" />
+
+                                    <TextBlock Name="LblCompDiscountTitle" Grid.Row="2" Grid.Column="0" Text="Discount" Foreground="#10B981" FontSize="13" Margin="0,6,0,0" IsVisible="False" />
+                                    <TextBlock Name="LblCompDiscountAmount" Grid.Row="2" Grid.Column="1" Text="-₹0" Foreground="#10B981" FontSize="13" Margin="0,6,0,0" IsVisible="False" />
+
+                                    <TextBlock Name="LblCompRentalTitle" Grid.Row="3" Grid.Column="0" Text="Space Rental" Foreground="{StaticResource White50Brush}" FontSize="13" Margin="0,6,0,0" IsVisible="False" />
+                                    <TextBlock Name="LblCompRentalAmount" Grid.Row="3" Grid.Column="1" Text="+₹0" Foreground="White" FontSize="13" Margin="0,6,0,0" IsVisible="False" />
+
+                                    <Separator Grid.Row="4" Grid.ColumnSpan="2" Height="1" Background="{StaticResource White08Brush}" Margin="0,10" />
+
+                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="TOTAL PAYABLE" Classes="caption" FontSize="12" FontWeight="Bold" Foreground="{StaticResource BrandBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Name="LblCompTotalPayable" Grid.Row="5" Grid.Column="1" Text="₹0" FontSize="22" FontWeight="Bold" Foreground="White" />
+                                </Grid>
+                            </Border>
+
+                            <!-- Discount Section -->
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="APPLY DISCOUNT" Classes="caption" />
+                                <Grid ColumnDefinitions="*,8,*">
+                                    <ComboBox Name="CboCompDiscountType" CornerRadius="12" Padding="12,8" HorizontalAlignment="Stretch" SelectionChanged="OnCompDiscountTypeChanged">
+                                        <ComboBoxItem Content="No Discount" IsSelected="True" />
+                                        <ComboBoxItem Content="Percentage (%)" />
+                                        <ComboBoxItem Content="Flat Amount (₹)" />
+                                    </ComboBox>
+
+                                    <TextBox Name="TxtCompDiscountValue" Grid.Column="1" Watermark="e.g. 10" CornerRadius="12" Padding="12,8" KeyUp="OnCompDiscountValueKeyUp" />
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Space Rental Input -->
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="SPACE RENTAL / EXTRA CHARGE (OPTIONAL)" Classes="caption" />
+                                <TextBox Name="TxtCompSpaceRental" Watermark="0.00" CornerRadius="12" Padding="12,8" KeyUp="OnCompRentalKeyUp" />
+                            </StackPanel>
+
+                            <!-- Payment Method Selector -->
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="PAYMENT METHOD *" Classes="caption" />
+                                <Grid ColumnDefinitions="*,8,*,8,*,8,*">
+                                    <Button Name="BtnCompPayCash" Grid.Column="0" Classes="segment active" Padding="10,12" CornerRadius="14" Click="OnCompSelectPayCash">
+                                        <StackPanel Spacing="4" HorizontalAlignment="Center">
+                                            <ctl:Icon Data="{StaticResource Icon.Banknote}" Width="20" Height="20" HorizontalAlignment="Center" />
+                                            <TextBlock Text="Cash" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+
+                                    <Button Name="BtnCompPayCard" Grid.Column="2" Classes="segment" Padding="10,12" CornerRadius="14" Click="OnCompSelectPayCard">
+                                        <StackPanel Spacing="4" HorizontalAlignment="Center">
+                                            <ctl:Icon Data="{StaticResource Icon.CreditCard}" Width="20" Height="20" HorizontalAlignment="Center" />
+                                            <TextBlock Text="Card" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+
+                                    <Button Name="BtnCompPayUpi" Grid.Column="4" Classes="segment" Padding="10,12" CornerRadius="14" Click="OnCompSelectPayUpi">
+                                        <StackPanel Spacing="4" HorizontalAlignment="Center">
+                                            <ctl:Icon Data="{StaticResource Icon.QrCode}" Width="20" Height="20" HorizontalAlignment="Center" />
+                                            <TextBlock Text="UPI / QR" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+
+                                    <Button Name="BtnCompPayCredit" Grid.Column="6" Classes="segment" Padding="10,12" CornerRadius="14" Click="OnCompSelectPayCredit">
+                                        <StackPanel Spacing="4" HorizontalAlignment="Center">
+                                            <ctl:Icon Data="{StaticResource Icon.Wallet}" Width="20" Height="20" HorizontalAlignment="Center" />
+                                            <TextBlock Text="Credit" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Cash Calculator (Visible when Cash selected) -->
+                            <StackPanel Name="PanelCompCashTender" Spacing="10">
+                                <Grid ColumnDefinitions="*,12,Auto">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="CASH TENDERED" Classes="caption" />
+                                        <TextBox Name="TxtCompCashTendered" Watermark="0" CornerRadius="12" Padding="12,10" KeyUp="OnCompCashTenderedKeyUp" />
+                                    </StackPanel>
+
+                                    <Border Grid.Column="2" CornerRadius="14" Padding="16,10" Background="#2010B981" BorderBrush="#10B981" BorderThickness="1" VerticalAlignment="Bottom">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="CHANGE DUE" Classes="caption" Foreground="#10B981" />
+                                            <TextBlock Name="LblCompChangeDue" Text="₹0" FontSize="16" FontWeight="Bold" Foreground="#10B981" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Quick Cash Pills -->
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Classes="chip" Content="Exact Amount" Margin="0,0,6,6" Click="OnCompQuickCashExact" />
+                                    <Button Classes="chip" Content="+₹50" Margin="0,0,6,6" Click="OnCompQuickCashAdd50" />
+                                    <Button Classes="chip" Content="+₹100" Margin="0,0,6,6" Click="OnCompQuickCashAdd100" />
+                                    <Button Classes="chip" Content="+₹200" Margin="0,0,6,6" Click="OnCompQuickCashAdd200" />
+                                    <Button Classes="chip" Content="+₹500" Margin="0,0,6,6" Click="OnCompQuickCashAdd500" />
+                                    <Button Classes="chip" Content="+₹2000" Margin="0,0,6,6" Click="OnCompQuickCashAdd2000" />
+                                </WrapPanel>
+                            </StackPanel>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+        </Panel>
     </DockPanel>
 </UserControl>
