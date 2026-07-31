@@ -630,13 +630,20 @@ public class ApiService
         string customerName,
         string customerPhone,
         string orderType,
-        List<CartItem> cart)
+        List<CartItem> cart,
+        string paymentMethod = "cash",
+        decimal discountAmount = 0,
+        string? discountType = null,
+        decimal? discountValue = null,
+        decimal spaceRentalAmount = 0,
+        string status = "completed")
     {
         try
         {
             decimal subtotal = cart.Sum(c => c.LineTotal);
             decimal tax = Math.Round(subtotal * (TaxRate / 100m), 2);
-            decimal total = subtotal + tax;
+            decimal total = subtotal + tax - discountAmount + spaceRentalAmount;
+            if (total < 0) total = 0;
 
             var order = new Dictionary<string, object?>
             {
@@ -647,10 +654,19 @@ public class ApiService
                 ["customer_phone"] = customerPhone.Length > 0 ? customerPhone : null,
                 ["subtotal"] = subtotal,
                 ["tax"] = tax,
-                ["discount_amount"] = 0,
+                ["discount_amount"] = discountAmount,
+                ["discount_type"] = discountType,
+                ["discount_value"] = discountValue,
+                ["space_rental_amount"] = spaceRentalAmount,
                 ["total"] = total,
-                ["status"] = "pending"
+                ["payment_method"] = Blank(paymentMethod),
+                ["status"] = status
             };
+
+            if (status == "completed")
+            {
+                order["completed_at"] = DateTime.UtcNow.ToString("o");
+            }
 
             if (UserId.Length > 0) order["created_by"] = UserId;
 

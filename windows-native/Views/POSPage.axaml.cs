@@ -11,6 +11,7 @@ using NovaPOS.Desktop.Models;
 using NovaPOS.Desktop.Services;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -853,24 +854,184 @@ public partial class POSPage : UserControl
         RefreshCart();
     }
 
-    // ── Placing the order ───────────────────────────────────────────────────
-    private async void OnPlaceOrder(object? sender, RoutedEventArgs e)
+    // ── Payment Modal & Checkout ────────────────────────────────────────────
+    private string _selectedPaymentMethod = "cash";
+    private decimal _paySubtotal;
+    private decimal _payTax;
+    private decimal _payDiscountAmount;
+    private decimal _payTotalPayable;
+    private decimal _cashTendered;
+
+    private void OnPlaceOrder(object? sender, RoutedEventArgs e)
     {
         if (ParentWindow == null || _cart.Count == 0 || _placing) return;
-        if (_orderType == "dine_in" && _selectedTable == null) return;
+        if (_orderType == "dine_in" && _selectedTable == null)
+        {
+            ToastHost.Warning("Please select a table for Dine-in orders.");
+            return;
+        }
+
+        OpenCheckoutModal();
+    }
+
+    private void OpenCheckoutModal()
+    {
+        _paySubtotal = _cart.Sum(c => c.LineTotal);
+        _payTax = Math.Round(_paySubtotal * ((ParentWindow?.Api.TaxRate ?? 0) / 100m), 2);
+        _selectedPaymentMethod = "cash";
+        _cashTendered = 0;
+        _payDiscountAmount = 0;
+
+        CboDiscountType.SelectedIndex = 0;
+        TxtDiscountValue.Text = "";
+        TxtCashTendered.Text = "";
+
+        SetPaySegmentActive(BtnPayCash);
+
+        RecalculateCheckoutModal();
+        CheckoutModalHost.IsVisible = true;
+    }
+
+    private void OnCloseCheckoutModal(object? sender, RoutedEventArgs e) => CloseCheckoutModal();
+    private void CloseCheckoutModal()
+    {
+        CheckoutModalHost.IsVisible = false;
+    }
+
+    private void SetPaySegmentActive(Button activeBtn)
+    {
+        BtnPayCash.Classes.Remove("active");
+        BtnPayCard.Classes.Remove("active");
+        BtnPayUpi.Classes.Remove("active");
+        BtnPayCredit.Classes.Remove("active");
+
+        activeBtn.Classes.Add("active");
+        PanelCashTender.IsVisible = activeBtn == BtnPayCash;
+    }
+
+    private void OnSelectPayCash(object? sender, RoutedEventArgs e)
+    {
+        _selectedPaymentMethod = "cash";
+        SetPaySegmentActive(BtnPayCash);
+    }
+
+    private void OnSelectPayCard(object? sender, RoutedEventArgs e)
+    {
+        _selectedPaymentMethod = "card";
+        SetPaySegmentActive(BtnPayCard);
+    }
+
+    private void OnSelectPayUpi(object? sender, RoutedEventArgs e)
+    {
+        _selectedPaymentMethod = "upi";
+        SetPaySegmentActive(BtnPayUpi);
+    }
+
+    private void OnSelectPayCredit(object? sender, RoutedEventArgs e)
+    {
+        _selectedPaymentMethod = "credit";
+        SetPaySegmentActive(BtnPayCredit);
+    }
+
+    private void OnDiscountTypeChanged(object? sender, SelectionChangedEventArgs e) => RecalculateCheckoutModal();
+    private void OnDiscountValueKeyUp(object? sender, KeyEventArgs e) => RecalculateCheckoutModal();
+    private void OnCashTenderedKeyUp(object? sender, KeyEventArgs e) => RecalculateCheckoutModal();
+
+    private void RecalculateCheckoutModal()
+    {
+        decimal subtotal = _paySubtotal;
+        decimal tax = _payTax;
+        decimal discountAmount = 0;
+
+        string valText = TxtDiscountValue.Text ?? "";
+        if (decimal.TryParse(valText, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal val) && val > 0)
+        {
+            if (CboDiscountType.SelectedIndex == 1) // Percentage
+            {
+                discountAmount = Math.Round((subtotal + tax) * (val / 100m), 2);
+            }
+            else if (CboDiscountType.SelectedIndex == 2) // Flat
+            {
+                discountAmount = val;
+            }
+        }
+
+        _payDiscountAmount = discountAmount;
+        _payTotalPayable = Math.Max(0, subtotal + tax - discountAmount);
+
+        LblPaySubtotal.Text = Money(subtotal);
+        LblPayTax.Text = Money(tax);
+
+        bool hasDiscount = discountAmount > 0;
+        LblPayDiscountTitle.IsVisible = hasDiscount;
+        LblPayDiscountAmount.IsVisible = hasDiscount;
+        if (hasDiscount) LblPayDiscountAmount.Text = "-" + Money(discountAmount);
+
+        LblPayTotal.Text = Money(_payTotalPayable);
+
+        if (decimal.TryParse(TxtCashTendered.Text ?? "", NumberStyles.Number, CultureInfo.InvariantCulture, out decimal cashIn))
+        {
+            _cashTendered = cashIn;
+        }
+        else
+        {
+            _cashTendered = 0;
+        }
+
+        decimal change = _cashTendered - _payTotalPayable;
+        LblChangeDue.Text = change >= 0 ? Money(change) : "₹0";
+    }
+
+    private void OnQuickCashExact(object? sender, RoutedEventArgs e)
+    {
+        TxtCashTendered.Text = Math.Ceiling(_payTotalPayable).ToString(CultureInfo.InvariantCulture);
+        RecalculateCheckoutModal();
+    }
+
+    private void OnQuickCashAdd50(object? sender, RoutedEventArgs e) => AddQuickCash(50);
+    private void OnQuickCashAdd100(object? sender, RoutedEventArgs e) => AddQuickCash(100);
+    private void OnQuickCashAdd200(object? sender, RoutedEventArgs e) => AddQuickCash(200);
+    private void OnQuickCashAdd500(object? sender, RoutedEventArgs e) => AddQuickCash(500);
+    private void OnQuickCashAdd2000(object? sender, RoutedEventArgs e) => AddQuickCash(2000);
+
+    private void AddQuickCash(decimal amount)
+    {
+        _cashTendered += amount;
+        TxtCashTendered.Text = _cashTendered.ToString(CultureInfo.InvariantCulture);
+        RecalculateCheckoutModal();
+    }
+
+    private async void OnFinalizeOrderPay(object? sender, RoutedEventArgs e)
+    {
+        if (ParentWindow == null || _cart.Count == 0 || _placing) return;
 
         _placing = true;
-        BtnPlaceOrder.IsEnabled = false;
-        LblPlace.Text = "Placing order…";
+        BtnFinalizeOrder.IsEnabled = false;
+        LblFinalizePay.Text = "Processing…";
 
         try
         {
+            string? discType = CboDiscountType.SelectedIndex switch
+            {
+                1 => "percent",
+                2 => "flat",
+                _ => null
+            };
+
+            decimal.TryParse(TxtDiscountValue.Text ?? "", NumberStyles.Number, CultureInfo.InvariantCulture, out decimal discVal);
+
             var result = await ParentWindow.Api.PlaceOrderAsync(
                 _selectedTable?.Number ?? "",
                 TxtCustName.Text?.Trim() ?? "",
                 TxtCustPhone.Text?.Trim() ?? "",
                 _orderType,
-                _cart);
+                _cart,
+                paymentMethod: _selectedPaymentMethod,
+                discountAmount: _payDiscountAmount,
+                discountType: discType,
+                discountValue: discVal > 0 ? discVal : null,
+                spaceRentalAmount: 0,
+                status: "completed");
 
             if (result.success)
             {
@@ -879,41 +1040,35 @@ public partial class POSPage : UserControl
                 TxtCustName.Text = "";
                 TxtCustPhone.Text = "";
 
-                LblPlace.Text = "Order placed";
+                CloseCheckoutModal();
+                ToastHost.Success("Order completed & payment recorded!");
+
                 RenderItems();
 
                 _tables = await ParentWindow.Api.GetTablesAsync();
                 RenderTables();
 
-                // Read the order back so the receipt carries the id and timestamp
-                // the server assigned, then print if the till is set to do so.
                 if (PrinterService.Target.AutoPrintOnPlace && result.orderId.Length > 0)
                 {
-                    LblPlace.Text = "Printing…";
                     var placed = await ParentWindow.Api.GetOrderAsync(result.orderId);
                     if (placed != null)
                         await BillPrinter.AutoPrintAsync(ParentWindow.Api, placed, enabled: true);
                 }
-
-                await Task.Delay(1400);
             }
             else
             {
-                LblPlace.Text = Shorten(result.error);
-                IcoPlace.Data = Ui.Glyph("CircleAlert");
-                await Task.Delay(2600);
-                IcoPlace.Data = Ui.Glyph("CircleCheckBig");
+                ToastHost.Error("Could not complete order: " + result.error);
             }
         }
         catch (Exception ex)
         {
-            LblPlace.Text = Shorten(ex.Message);
-            await Task.Delay(2600);
+            ToastHost.Error("Error finalizing order: " + ex.Message);
         }
         finally
         {
             _placing = false;
-            LblPlace.Text = "Place order";
+            BtnFinalizeOrder.IsEnabled = true;
+            LblFinalizePay.Text = "Complete Order";
             RefreshCart();
         }
     }
