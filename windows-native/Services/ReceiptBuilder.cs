@@ -47,12 +47,14 @@ public static class ReceiptBuilder
         var encoder = new EscPosEncoder();
         encoder.Initialize();
 
-        // ── Header ─────────────────────────────────────────────────────────
+        // ── Header Logo & Branding ─────────────────────────────────────────
         encoder.AlignCenter();
         encoder.Bold(true);
+        encoder.Line("========================================");
         encoder.SizeDouble();
-        encoder.Line(string.IsNullOrWhiteSpace(template.HeaderText) ? tenantName : template.HeaderText);
+        encoder.Line(string.IsNullOrWhiteSpace(template.HeaderText) ? tenantName.ToUpperInvariant() : template.HeaderText.ToUpperInvariant());
         encoder.SizeNormal();
+        encoder.Line("========================================");
         encoder.Bold(false);
 
         if (!string.IsNullOrWhiteSpace(template.TaglineText)) encoder.Line(template.TaglineText);

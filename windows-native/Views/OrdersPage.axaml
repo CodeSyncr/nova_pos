@@ -58,22 +58,47 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Search -->
-            <TextBox Name="TxtSearch"
-                     Watermark="Search by order id, customer or table…"
-                     CornerRadius="16"
-                     Padding="14,11"
-                     Background="{StaticResource White03Brush}"
-                     BorderBrush="{StaticResource White08Brush}"
-                     MaxWidth="520"
-                     HorizontalAlignment="Left">
-                <TextBox.InnerLeftContent>
-                    <ctl:Icon Data="{StaticResource Icon.Search}"
-                              Width="16" Height="16"
-                              Foreground="{StaticResource White30Brush}"
-                              Margin="2,0,10,0" />
-                </TextBox.InnerLeftContent>
-            </TextBox>
+            <!-- Time Range & Search Row -->
+            <Grid ColumnDefinitions="Auto,16,*">
+                <!-- Time Range Segment Picker -->
+                <Border CornerRadius="16"
+                        Padding="4"
+                        Background="{StaticResource White02Brush}"
+                        BorderBrush="{StaticResource White08Brush}"
+                        BorderThickness="1"
+                        HorizontalAlignment="Left">
+                    <Grid ColumnDefinitions="Auto,4,Auto,4,Auto,4,Auto,4,Auto">
+                        <Button Name="BtnDateToday" Grid.Column="0" Classes="segment active"
+                                Content="Today" Padding="16,8" Click="OnSelectDateToday" />
+                        <Button Name="BtnDateYesterday" Grid.Column="2" Classes="segment"
+                                Content="Yesterday" Padding="16,8" Click="OnSelectDateYesterday" />
+                        <Button Name="BtnDateWeek" Grid.Column="4" Classes="segment"
+                                Content="This Week" Padding="16,8" Click="OnSelectDateWeek" />
+                        <Button Name="BtnDateMonth" Grid.Column="6" Classes="segment"
+                                Content="This Month" Padding="16,8" Click="OnSelectDateMonth" />
+                        <Button Name="BtnDateAll" Grid.Column="8" Classes="segment"
+                                Content="All Time" Padding="16,8" Click="OnSelectDateAll" />
+                    </Grid>
+                </Border>
+
+                <!-- Search -->
+                <TextBox Name="TxtSearch"
+                         Grid.Column="2"
+                         Watermark="Search by order id, customer or table…"
+                         CornerRadius="16"
+                         Padding="14,11"
+                         Background="{StaticResource White03Brush}"
+                         BorderBrush="{StaticResource White08Brush}"
+                         MaxWidth="420"
+                         HorizontalAlignment="Right">
+                    <TextBox.InnerLeftContent>
+                        <ctl:Icon Data="{StaticResource Icon.Search}"
+                                  Width="16" Height="16"
+                                  Foreground="{StaticResource White30Brush}"
+                                  Margin="2,0,10,0" />
+                    </TextBox.InnerLeftContent>
+                </TextBox>
+            </Grid>
 
             <!-- Status filters -->
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">

@@ -65,7 +65,35 @@ public partial class OrdersPage : UserControl
         }
     }
 
-    public async void OnNavigate() => await LoadAsync();
+    private string _dateRange = "today"; // default to Today's orders as requested
+
+    public async void OnNavigate()
+    {
+        RenderDatePills();
+        await LoadAsync();
+    }
+
+    private async void OnSelectDateToday(object? sender, RoutedEventArgs e) => await SwitchDateRange("today");
+    private async void OnSelectDateYesterday(object? sender, RoutedEventArgs e) => await SwitchDateRange("yesterday");
+    private async void OnSelectDateWeek(object? sender, RoutedEventArgs e) => await SwitchDateRange("week");
+    private async void OnSelectDateMonth(object? sender, RoutedEventArgs e) => await SwitchDateRange("month");
+    private async void OnSelectDateAll(object? sender, RoutedEventArgs e) => await SwitchDateRange("all");
+
+    private async Task SwitchDateRange(string range)
+    {
+        _dateRange = range;
+        RenderDatePills();
+        await LoadAsync();
+    }
+
+    private void RenderDatePills()
+    {
+        Activate(BtnDateToday, _dateRange == "today");
+        Activate(BtnDateYesterday, _dateRange == "yesterday");
+        Activate(BtnDateWeek, _dateRange == "week");
+        Activate(BtnDateMonth, _dateRange == "month");
+        Activate(BtnDateAll, _dateRange == "all");
+    }
 
     private async Task LoadAsync()
     {
@@ -73,7 +101,36 @@ public partial class OrdersPage : UserControl
 
         try
         {
-            _orders = await ParentWindow.Api.GetOrdersAsync();
+            DateTime? fromDate = null;
+            DateTime? toDate = null;
+            DateTime today = DateTime.Today;
+
+            switch (_dateRange)
+            {
+                case "today":
+                    fromDate = today;
+                    toDate = today.AddDays(1).AddTicks(-1);
+                    break;
+                case "yesterday":
+                    fromDate = today.AddDays(-1);
+                    toDate = today.AddTicks(-1);
+                    break;
+                case "week":
+                    int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
+                    fromDate = today.AddDays(-1 * diff);
+                    toDate = today.AddDays(1).AddTicks(-1);
+                    break;
+                case "month":
+                    fromDate = new DateTime(today.Year, today.Month, 1);
+                    toDate = today.AddDays(1).AddTicks(-1);
+                    break;
+                case "all":
+                    fromDate = null;
+                    toDate = null;
+                    break;
+            }
+
+            _orders = await ParentWindow.Api.GetOrdersAsync(fromDate, toDate);
             Render();
         }
         catch (Exception ex)

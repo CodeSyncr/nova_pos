@@ -346,13 +346,25 @@ public class ApiService
         "id,table_number,customer_name,customer_phone,order_type,subtotal,tax,discount_amount,discount_type,discount_value,space_rental_amount,total,status,payment_method,created_at," +
         "order_items(id,menu_item_id,variant_id,name,quantity,unit_price,total_price,notes)";
 
-    public async Task<List<OrderRecord>> GetOrdersAsync(int limit = 120)
+    public async Task<List<OrderRecord>> GetOrdersAsync(DateTime? fromDate = null, DateTime? toDate = null, int limit = 120)
     {
         var list = new List<OrderRecord>();
         try
         {
-            string json = await GetAsync(
-                $"orders?tenant_id=eq.{TenantId}&select={OrderSelect}&order=created_at.desc&limit={limit}");
+            string url = $"orders?tenant_id=eq.{TenantId}&select={OrderSelect}&order=created_at.desc&limit={limit}";
+
+            if (fromDate.HasValue)
+            {
+                string fromIso = fromDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
+                url += $"&created_at=gte.{fromIso}";
+            }
+            if (toDate.HasValue)
+            {
+                string toIso = toDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
+                url += $"&created_at=lte.{toIso}";
+            }
+
+            string json = await GetAsync(url);
             using var doc = Parse(json);
             if (doc == null || doc.RootElement.ValueKind != JsonValueKind.Array) return list;
 
