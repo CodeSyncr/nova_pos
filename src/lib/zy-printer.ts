@@ -9,7 +9,7 @@
 
 const BRIDGE_URL = 'http://localhost:18181'
 
-export type PrinterType = 'usb' | 'net' | 'com'
+export type PrinterType = 'usb' | 'net' | 'com' | 'bt' | 'spooler'
 
 export interface BridgeStatus {
 	active: boolean
@@ -28,6 +28,12 @@ export interface PrinterConfig {
 	comPort?: number
 	/** Serial baud rate (default: 19200) */
 	comBaud?: number
+	/** Bluetooth COM port (e.g. "COM4") */
+	btComPort?: string | number
+	/** Bluetooth baud rate (default: 9600) */
+	btBaud?: number
+	/** Windows installed printer name (e.g. "POS-80" or "Bluetooth POS Printer") */
+	spoolerName?: string
 }
 
 /**
@@ -77,6 +83,11 @@ export async function printViaBridge(
 		} else if (config.type === 'com') {
 			headers['X-Com-Port'] = String(config.comPort || 1)
 			headers['X-Com-Baud'] = String(config.comBaud || 19200)
+		} else if (config.type === 'bt') {
+			headers['X-Bt-Com'] = String(config.btComPort || 'COM4')
+			headers['X-Bt-Baud'] = String(config.btBaud || 9600)
+		} else if (config.type === 'spooler') {
+			headers['X-Spooler-Name'] = config.spoolerName || 'POS-80'
 		}
 
 		const res = await fetch(`${BRIDGE_URL}/print`, {

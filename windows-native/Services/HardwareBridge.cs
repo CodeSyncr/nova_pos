@@ -95,7 +95,7 @@ public class HardwareBridge
         response.AddHeader("Access-Control-Allow-Origin", "*");
         response.AddHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
         response.AddHeader("Access-Control-Allow-Headers",
-            "Content-Type, X-Printer-Type, X-Printer-Ip, X-Printer-Port, X-Com-Port, X-Com-Baud");
+            "Content-Type, X-Printer-Type, X-Printer-Ip, X-Printer-Port, X-Com-Port, X-Com-Baud, X-Bt-Com, X-Bt-Baud, X-Spooler-Name");
 
         if (context.Request.HttpMethod == "OPTIONS")
         {
@@ -114,7 +114,7 @@ public class HardwareBridge
                 {
                     status = "active",
                     sdk = ZyPrinterNative.Dll,
-                    version = "1.2",
+                    version = "1.3",
                     sdkAvailable = PrinterService.SdkAvailable,
                     connected = PrinterService.IsConnected,
                     printer = PrinterService.Target.Describe(),
@@ -202,6 +202,17 @@ public class HardwareBridge
         {
             if (int.TryParse(request.Headers["X-Com-Port"], out int com) && com > 0) target.ComPort = com;
             if (int.TryParse(request.Headers["X-Com-Baud"], out int baud) && baud > 0) target.ComBaud = baud;
+        }
+        else if (target.Transport == PrinterTransport.Bluetooth)
+        {
+            string? btCom = request.Headers["X-Bt-Com"];
+            if (!string.IsNullOrWhiteSpace(btCom)) target.BtComPort = btCom;
+            if (int.TryParse(request.Headers["X-Bt-Baud"], out int baud) && baud > 0) target.BtBaud = baud;
+        }
+        else if (target.Transport == PrinterTransport.WindowsSpooler)
+        {
+            string? spooler = request.Headers["X-Spooler-Name"];
+            if (!string.IsNullOrWhiteSpace(spooler)) target.SpoolerName = spooler;
         }
 
         return target;

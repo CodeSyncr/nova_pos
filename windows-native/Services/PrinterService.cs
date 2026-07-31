@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.IO.Ports;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -12,7 +13,9 @@ public enum PrinterTransport
     Usb,
     Network,
     Serial,
-    Parallel
+    Parallel,
+    Bluetooth,
+    WindowsSpooler
 }
 
 /// <summary>
@@ -29,6 +32,13 @@ public class PrinterTarget
     public int ComPort { get; set; } = 1;
     public int ComBaud { get; set; } = 19200;
     public string LptName { get; set; } = "LPT1";
+
+    /// <summary>Bluetooth virtual COM port (e.g. COM4) or Bluetooth address.</summary>
+    public string BtComPort { get; set; } = "COM4";
+    public int BtBaud { get; set; } = 9600;
+
+    /// <summary>Windows installed printer name (e.g. "POS-80" or "Bluetooth POS Printer").</summary>
+    public string SpoolerName { get; set; } = "POS-80";
 
     /// <summary>Milliseconds the SDK waits when opening a port.</summary>
     public int OpenTimeout { get; set; } = 4000;
@@ -62,6 +72,9 @@ public class PrinterTarget
         ComPort = ComPort,
         ComBaud = ComBaud,
         LptName = LptName,
+        BtComPort = BtComPort,
+        BtBaud = BtBaud,
+        SpoolerName = SpoolerName,
         OpenTimeout = OpenTimeout,
         UsbVid = UsbVid,
         UsbPid = UsbPid,
@@ -78,6 +91,8 @@ public class PrinterTarget
         PrinterTransport.Network => $"Network · {Ip}:{Port}",
         PrinterTransport.Serial => $"Serial · COM{ComPort} @ {ComBaud}",
         PrinterTransport.Parallel => $"Parallel · {LptName}",
+        PrinterTransport.Bluetooth => $"Bluetooth · {BtComPort} @ {BtBaud}",
+        PrinterTransport.WindowsSpooler => $"Windows Spooler · {SpoolerName}",
         _ => "USB · ZyPrinter SDK"
     };
 
@@ -90,6 +105,8 @@ public class PrinterTarget
         PrinterTransport.Network => $"net:{Ip}:{Port}",
         PrinterTransport.Serial => $"com:{ComPort}:{ComBaud}",
         PrinterTransport.Parallel => $"lpt:{LptName}",
+        PrinterTransport.Bluetooth => $"bt:{BtComPort}:{BtBaud}",
+        PrinterTransport.WindowsSpooler => $"winspool:{SpoolerName}",
         _ => $"usb:{UsbVid:X4}:{UsbPid:X4}"
     };
 
@@ -99,6 +116,8 @@ public class PrinterTarget
         "net" or "network" or "tcp" => PrinterTransport.Network,
         "com" or "serial" => PrinterTransport.Serial,
         "lpt" or "parallel" => PrinterTransport.Parallel,
+        "bt" or "bluetooth" or "spp" => PrinterTransport.Bluetooth,
+        "spooler" or "windows" or "winspool" => PrinterTransport.WindowsSpooler,
         _ => PrinterTransport.Usb
     };
 }
@@ -112,20 +131,72 @@ public readonly record struct PrintResult(bool Success, string? Error)
 }
 
 /// <summary>
+/// Raw Printing Helper using Win32 winspool.drv API to print raw ESC/POS byte streams directly
+/// to any Windows printer installed in Devices &amp; Printers (including Bluetooth thermal printers).
+/// </summary>
+internal static class RawPrinterHelper
+{
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public class DOCINFOA
+    {
+        [MarshalAs(UnmanagedType.LPStr)] public string? pDocName;
+        [MarshalAs(UnmanagedType.LPStr)] public string? pOutputFile;
+        [MarshalAs(UnmanagedType.LPStr)] public string? pDataType;
+    }
+
+    [DllImport("winspool.Drv", EntryPoint = "OpenPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool OpenPrinter([MarshalAs(UnmanagedType.LPStr)] string szPrinter, out IntPtr hPrinter, IntPtr pd);
+
+    [DllImport("winspool.Drv", EntryPoint = "ClosePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool ClosePrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.Drv", EntryPoint = "StartDocPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool StartDocPrinter(IntPtr hPrinter, Int32 level, [In, MarshalAs(UnmanagedType.LPStruct)] DOCINFOA di);
+
+    [DllImport("winspool.Drv", EntryPoint = "EndDocPrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool EndDocPrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.Drv", EntryPoint = "StartPagePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool StartPagePrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.Drv", EntryPoint = "EndPagePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool EndPagePrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.Drv", EntryPoint = "WritePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool WritePrinter(IntPtr hPrinter, byte[] pBytes, Int32 dwCount, out Int32 dwWritten);
+
+    public static bool SendBytesToPrinter(string szPrinterName, byte[] pBytes)
+    {
+        if (string.IsNullOrWhiteSpace(szPrinterName)) return false;
+        Int32 dwWritten = 0;
+        IntPtr hPrinter = IntPtr.Zero;
+        DOCINFOA di = new DOCINFOA();
+        bool bSuccess = false;
+
+        di.pDocName = "NovaPOS Bill";
+        di.pDataType = "RAW";
+
+        if (OpenPrinter(szPrinterName.Trim(), out hPrinter, IntPtr.Zero))
+        {
+            if (StartDocPrinter(hPrinter, 1, di))
+            {
+                if (StartPagePrinter(hPrinter))
+                {
+                    bSuccess = WritePrinter(hPrinter, pBytes, pBytes.Length, out dwWritten);
+                    EndPagePrinter(hPrinter);
+                }
+                EndDocPrinter(hPrinter);
+            }
+            ClosePrinter(hPrinter);
+        }
+        return bSuccess;
+    }
+}
+
+/// <summary>
 /// Single funnel for every byte that reaches a printer, whether the job came from
-/// this app's UI or from the browser through <see cref="HardwareBridge"/>. All
-/// transports go through ZyPrinter.dll.
-/// <para>
-/// The open/write/retry rhythm follows the vendor's WinForms sample: the port is
-/// opened once and the handle cached, a write is attempted up to three times, and
-/// a failed write closes the port so the next attempt reopens it. Thermal heads
-/// routinely refuse the first write after an idle spell, and reopening is what
-/// clears it — retrying on the same dead handle does not.
-/// </para>
-/// <para>
-/// Settings persist next to the executable so the till remembers its hardware
-/// between runs.
-/// </para>
+/// this app's UI or from the browser through <see cref="HardwareBridge"/>.
+/// Supports USB, Network, Serial, Parallel, Bluetooth SPP and Windows Spooler.
 /// </summary>
 public static class PrinterService
 {
@@ -198,11 +269,6 @@ public static class PrinterService
 
     // ── SDK availability ───────────────────────────────────────────────────
 
-    /// <summary>
-    /// True when ZyPrinter.dll is present and loadable in this process. Checked by
-    /// loading the module rather than opening a port, so it costs nothing and does
-    /// not need hardware attached.
-    /// </summary>
     public static bool SdkAvailable
     {
         get
@@ -219,15 +285,12 @@ public static class PrinterService
                 return false;
             }
 
-            // A bitness mismatch is the most likely failure, so name it precisely
-            // instead of leaving the operator with "could not load library".
             string? machine = ReadPeMachine(path);
             bool hostIs64 = Environment.Is64BitProcess;
 
             if (machine == "x86" && hostIs64)
             {
-                _sdkDetail = $"{ZyPrinterNative.Dll} is 32-bit but NovaPOS is running as 64-bit. " +
-                             "Rebuild with PlatformTarget x86.";
+                _sdkDetail = $"{ZyPrinterNative.Dll} is 32-bit but NovaPOS is running as 64-bit. Rebuild with PlatformTarget x86.";
                 LastError = _sdkDetail;
                 _sdkProbe = false;
                 return false;
@@ -241,7 +304,6 @@ public static class PrinterService
                 return false;
             }
 
-            // Keep the module loaded; later DllImport calls resolve against it.
             if (!NativeLibrary.TryLoad(path, out _))
             {
                 _sdkDetail = $"{ZyPrinterNative.Dll} could not be loaded. A dependency may be missing.";
@@ -256,7 +318,6 @@ public static class PrinterService
         }
     }
 
-    /// <summary>Human-readable SDK state for the diagnostics panel.</summary>
     public static string SdkStatus
     {
         get
@@ -294,19 +355,44 @@ public static class PrinterService
 
     // ── Public print surface ───────────────────────────────────────────────
 
-    /// <summary>Sends raw ESC/POS bytes to the given target (or the saved one).</summary>
     public static bool Send(byte[] data, PrinterTarget? target = null) => SendJob(data, target).Success;
 
-    /// <summary>
-    /// Sends raw ESC/POS bytes and reports why it failed. Serialised, because the
-    /// SDK holds one handle per port and the bridge can deliver concurrent jobs.
-    /// </summary>
     public static PrintResult SendJob(byte[] data, PrinterTarget? target = null)
     {
         if (data.Length == 0) return PrintResult.Ok;
-        if (!SdkAvailable) return PrintResult.Fail(_sdkDetail ?? "Printer SDK unavailable.");
-
         target ??= Target;
+
+        // Windows Spooler works directly via winspool.drv without requiring ZyPrinter.dll
+        if (target.Transport == PrinterTransport.WindowsSpooler)
+        {
+            lock (Gate)
+            {
+                bool ok = RawPrinterHelper.SendBytesToPrinter(target.SpoolerName, data);
+                if (ok)
+                {
+                    LastError = null;
+                    return PrintResult.Ok;
+                }
+                return Record($"Could not print to Windows printer '{target.SpoolerName}'. Check printer name in Printers & Devices.");
+            }
+        }
+
+        // Bluetooth SPP can use direct COM port serial connection if SDK unavailable
+        if (target.Transport == PrinterTransport.Bluetooth)
+        {
+            lock (Gate)
+            {
+                bool ok = WriteBluetooth(data, target);
+                if (ok)
+                {
+                    LastError = null;
+                    return PrintResult.Ok;
+                }
+                return Record($"Could not print to Bluetooth printer on {target.BtComPort}. Ensure printer is paired & powered on.");
+            }
+        }
+
+        if (!SdkAvailable) return PrintResult.Fail(_sdkDetail ?? "Printer SDK unavailable.");
 
         lock (Gate)
         {
@@ -337,25 +423,23 @@ public static class PrinterService
         }
     }
 
-    /// <summary>ESC p 0 30 255 — cash drawer kick pulse on pin 2.</summary>
     public static bool OpenDrawer(PrinterTarget? target = null)
         => Send(new byte[] { 0x1B, 0x70, 0x00, 0x1E, 0xFF }, target);
 
-    /// <summary>
-    /// Cheap liveness check: an ESC @ reset. Harmless on a real printer and fails
-    /// fast when nothing is attached.
-    /// </summary>
     public static PrintResult Probe(PrinterTarget? target = null)
         => SendJob(new byte[] { 0x1B, 0x40 }, target);
 
-    /// <summary>
-    /// Feeds and cuts using the SDK's own helper rather than raw ESC/POS, which
-    /// lets the DLL pick the command variant the attached model understands.
-    /// </summary>
     public static PrintResult Cut(int feedLines = 4, PrinterTarget? target = null)
     {
-        if (!SdkAvailable) return PrintResult.Fail(_sdkDetail ?? "Printer SDK unavailable.");
         target ??= Target;
+        if (target.Transport == PrinterTransport.WindowsSpooler || target.Transport == PrinterTransport.Bluetooth)
+        {
+            // Standard ESC/POS cut bytes
+            byte[] cutBytes = new byte[] { 0x1D, 0x56, 0x42, 0x00 };
+            return SendJob(cutBytes, target);
+        }
+
+        if (!SdkAvailable) return PrintResult.Fail(_sdkDetail ?? "Printer SDK unavailable.");
 
         lock (Gate)
         {
@@ -380,7 +464,6 @@ public static class PrinterService
         }
     }
 
-    /// <summary>Drops the cached port and releases the SDK's socket layer.</summary>
     public static void Shutdown()
     {
         lock (Gate)
@@ -397,10 +480,6 @@ public static class PrinterService
 
     // ── Write loop ─────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// The sample's send rhythm: try, and on refusal close the port so the next
-    /// pass reopens it.
-    /// </summary>
     private static PrintResult Write(byte[] data, PrinterTarget target)
     {
         string? failure = null;
@@ -418,6 +497,7 @@ public static class PrinterService
                 PrinterTransport.Network => ZyPrinterNative.WriteToNetPort(_handle, data, data.Length),
                 PrinterTransport.Serial => ZyPrinterNative.WriteCom(_handle, data, (uint)data.Length),
                 PrinterTransport.Parallel => ZyPrinterNative.WriteLpt(_handle, data, data.Length),
+                PrinterTransport.Bluetooth => WriteBluetooth(data, target) ? data.Length : 0,
                 _ => ZyPrinterNative.WriteUsb(_handle, data, data.Length)
             };
 
@@ -431,9 +511,6 @@ public static class PrinterService
             CloseHandle();
         }
 
-        // Every transport but USB has a one-shot entry point that opens, writes
-        // and closes internally. It sometimes succeeds where the handle-based
-        // path does not, so it is worth one last try.
         if (OneShot(data, target))
         {
             LastError = null;
@@ -443,6 +520,35 @@ public static class PrinterService
         return Record(failure ?? "The printer did not accept the job.");
     }
 
+    private static bool WriteBluetooth(byte[] data, PrinterTarget target)
+    {
+        string portName = target.BtComPort.Trim().ToUpperInvariant();
+        if (!portName.StartsWith("COM")) portName = "COM" + portName;
+
+        int baud = target.BtBaud > 0 ? target.BtBaud : 9600;
+
+        try
+        {
+            int written = ZyPrinterNative.comportwrite(portName, (uint)baud, 0, 8, 1, 0, (uint)data.Length, data);
+            if (written > 0) return true;
+        }
+        catch { }
+
+        try
+        {
+            using var port = new SerialPort(portName, baud, Parity.None, 8, StopBits.One);
+            port.ReadTimeout = 1000;
+            port.WriteTimeout = 3000;
+            port.Open();
+            port.Write(data, 0, data.Length);
+            port.Close();
+            return true;
+        }
+        catch { }
+
+        return false;
+    }
+
     private static bool OneShot(byte[] data, PrinterTarget target)
     {
         try
@@ -450,7 +556,6 @@ public static class PrinterService
             switch (target.Transport)
             {
                 case PrinterTransport.Serial:
-                    // Parity 0 = none, 8 data bits, DTR enabled, 0 = one stop bit.
                     return ZyPrinterNative.comportwrite(
                         "COM" + target.ComPort, (uint)target.ComBaud,
                         0, 8, 1, 0, (uint)data.Length, data) > 0;
@@ -463,6 +568,9 @@ public static class PrinterService
                     return ZyPrinterNative.Netportwrite(
                         packed, target.Port, target.OpenTimeout, data.Length, data) > 0;
 
+                case PrinterTransport.Bluetooth:
+                    return WriteBluetooth(data, target);
+
                 default:
                     return false;
             }
@@ -472,7 +580,6 @@ public static class PrinterService
 
     // ── Port management ────────────────────────────────────────────────────
 
-    /// <summary>Opens the port if it isn't already, reusing a live handle.</summary>
     private static bool EnsureOpen(PrinterTarget target)
     {
         string key = target.PortKey();
@@ -491,7 +598,6 @@ public static class PrinterService
             _ => OpenUsb(target)
         };
 
-        // The SDK signals failure as 0 or -1 depending on the entry point.
         if (handle <= 0) return false;
 
         _handle = handle;
@@ -515,15 +621,13 @@ public static class PrinterService
             if (byId > 0) return byId;
         }
 
-        // OpenUsbTO bounds the wait; OpenUsb can block if the bus is busy.
         try
         {
-            int timed = ZyPrinterNative.OpenUsbTO(target.OpenTimeout);
-            if (timed > 0) return timed;
+            int openTo = ZyPrinterNative.OpenUsbTO(target.OpenTimeout);
+            if (openTo > 0) return openTo;
         }
         catch (EntryPointNotFoundException)
         {
-            // Older builds of the DLL omit it; fall through.
         }
 
         return ZyPrinterNative.OpenUsb();
@@ -531,28 +635,21 @@ public static class PrinterService
 
     private static int OpenNetwork(PrinterTarget target)
     {
-        if (!IPAddress.TryParse(target.Ip, out var address) ||
-            address.GetAddressBytes().Length != 4)
-        {
-            LastError = $"'{target.Ip}' is not a valid IPv4 address.";
-            return 0;
-        }
+        if (!TryPackAddress(target.Ip, out int packed)) return -1;
 
-        // InitNetSev boots the SDK's socket layer; it only needs doing once.
         if (!_netStackReady)
         {
-            ZyPrinterNative.InitNetSev();
+            if (ZyPrinterNative.InitNetSev() <= 0) return -1;
             _netStackReady = true;
         }
 
-        byte[] octets = address.GetAddressBytes();
+        byte[] octets = IPAddress.Parse(target.Ip).GetAddressBytes();
         return ZyPrinterNative.ConnectNetPortEx(
             octets[0], octets[1], octets[2], octets[3], target.Port, target.OpenTimeout);
     }
 
     private static int OpenSerial(PrinterTarget target)
     {
-        // OpenCOM is the sample's serial entry point and takes the port as a number.
         try
         {
             int handle = ZyPrinterNative.OpenCOM(target.ComPort, target.ComBaud, target.OpenTimeout);
@@ -560,7 +657,6 @@ public static class PrinterService
         }
         catch (EntryPointNotFoundException)
         {
-            // Fall back to the undecorated export below.
         }
 
         return ZyPrinterNative.OpenComW("COM" + target.ComPort, (uint)target.ComBaud, 0, 8, 1, 0);
@@ -609,6 +705,8 @@ public static class PrinterService
         PrinterTransport.Network => $"Could not reach the printer at {target.Ip}:{target.Port}.",
         PrinterTransport.Serial => $"COM{target.ComPort} did not open. Check the port number and baud rate.",
         PrinterTransport.Parallel => $"{target.LptName} did not open.",
+        PrinterTransport.Bluetooth => $"Bluetooth port {target.BtComPort} did not open.",
+        PrinterTransport.WindowsSpooler => $"Windows printer '{target.SpoolerName}' could not be opened.",
         _ => "No USB printer responded. Check the cable and that it is powered on."
     };
 
