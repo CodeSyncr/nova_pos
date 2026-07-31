@@ -38,7 +38,35 @@ public partial class MainWindow : Window
         AddHandler(KeyDownEvent, OnShellKeyDown, handledEventsToo: true);
 
         ApplyBridgeSettings();
+
+        JoystickService.Initialize();
+        JoystickService.ActionTriggered += OnJoystickAction;
+
         Closed += OnWindowClosed;
+    }
+
+    private void OnJoystickAction(JoystickAction action)
+    {
+        if (!Api.IsAuthenticated) return;
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            switch (action)
+            {
+                case JoystickAction.Left:
+                    if (PagePOS.IsVisible) PagePOS.SelectPreviousCategory();
+                    break;
+                case JoystickAction.Right:
+                    if (PagePOS.IsVisible) PagePOS.SelectNextCategory();
+                    break;
+                case JoystickAction.ButtonB:
+                    ShowPage("home");
+                    break;
+                case JoystickAction.ButtonY:
+                    if (PagePOS.IsVisible) PagePOS.TriggerCheckout();
+                    break;
+            }
+        });
     }
 
     /// <summary>
@@ -68,6 +96,7 @@ public partial class MainWindow : Window
     private void OnWindowClosed(object? sender, System.EventArgs e)
     {
         Bridge.Stop();
+        JoystickService.Stop();
         PrinterService.Shutdown();
     }
 

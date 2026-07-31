@@ -9,11 +9,6 @@ using System.Threading.Tasks;
 
 namespace NovaPOS.Desktop.Views;
 
-/// <summary>
-/// Printer and hardware configuration. Edits a working copy of
-/// <see cref="PrinterTarget"/> and only commits it on save, so a half-typed IP
-/// address never reaches a live print job.
-/// </summary>
 public partial class SettingsPage : UserControl
 {
     public MainWindow? ParentWindow { get; set; }
@@ -21,17 +16,55 @@ public partial class SettingsPage : UserControl
     private PrinterTransport _transport = PrinterTransport.Usb;
     private int _charWidth = 48;
     private bool _busy;
+    private string _activeTab = "printer";
 
     public SettingsPage()
     {
         InitializeComponent();
+
+        SliderTouchThreshold.PropertyChanged += (s, e) =>
+        {
+            if (e.Property == Slider.ValueProperty && e.NewValue is double val)
+            {
+                TxtTouchThreshold.Text = Math.Round(val).ToString(CultureInfo.InvariantCulture);
+            }
+        };
+
+        JoystickService.ActionTriggered += OnJoystickAction;
+        JoystickService.StatusChanged += OnJoystickStatusChanged;
     }
 
     public void OnNavigate()
     {
         LoadFrom(PrinterService.Target);
+        LoadTouchSettings();
+        LoadJoystickSettings();
+        LoadAccountInfo();
+
         RefreshSdkCard();
         RefreshBridgeBadge();
+        SwitchTab("printer");
+    }
+
+    // ── Tab Navigation ──────────────────────────────────────────────────────
+    private void OnSelectPrinterTab(object? sender, RoutedEventArgs e) => SwitchTab("printer");
+    private void OnSelectTouchTab(object? sender, RoutedEventArgs e) => SwitchTab("touch");
+    private void OnSelectJoystickTab(object? sender, RoutedEventArgs e) => SwitchTab("joystick");
+    private void OnSelectAccountTab(object? sender, RoutedEventArgs e) => SwitchTab("account");
+
+    private void SwitchTab(string tab)
+    {
+        _activeTab = tab;
+
+        Activate(BtnTabPrinter, tab == "printer");
+        Activate(BtnTabTouch, tab == "touch");
+        Activate(BtnTabJoystick, tab == "joystick");
+        Activate(BtnTabAccount, tab == "account");
+
+        SectionPrinter.IsVisible = tab == "printer";
+        SectionTouch.IsVisible = tab == "touch";
+        SectionJoystick.IsVisible = tab == "joystick";
+        SectionAccount.IsVisible = tab == "account";
     }
 
     // ── Loading ────────────────────────────────────────────────────────────
@@ -63,8 +96,60 @@ public partial class SettingsPage : UserControl
         RenderPaper();
     }
 
-    /// <summary>Reads the form into a target, keeping unparsable fields at their saved value.</summary>
-    private PrinterTarget Collect()
+    private void LoadTouchSettings()
+    {
+        var touch = TouchSettings.Current;
+        SliderTouchThreshold.Value = touch.DragThreshold;
+        TxtTouchThreshold.Text = touch.DragThreshold.ToString(CultureInfo.InvariantCulture);
+        ChkTouchOptimize.IsChecked = touch.EnableTouchOptimization;
+    }
+
+    private void LoadJoystickSettings()
+    {
+        var js = JoystickService.Current;
+        ChkJoystickEnable.IsChecked = js.Enabled;
+        LblJoystickStatus.Text = JoystickService.ControllerName;
+    }
+
+    private void LoadAccountInfo()
+    {
+        if (ParentWindow != null)
+        {
+            LblAccountTenant.Text = string.IsNullOrWhiteSpace(ParentWindow.Api.TenantName)
+                ? "Pizzeria Da Cafe"
+                : ParentWindow.Api.TenantName;
+            LblAccountUser.Text = ParentWindow.Api.UserEmail;
+        }
+    }
+
+    private void OnJoystickAction(JoystickAction action)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            LblLastJoystickAction.Text = action.ToString();
+        });
+    }
+
+    private void OnJoystickStatusChanged(string status)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            LblJoystickStatus.Text = status;
+        });
+    }
+
+    private void OnLogoutFromSettings(object? sender, RoutedEventArgs e)
+    {
+        if (ParentWindow != null)
+        {
+            ParentWindow.Api.Logout();
+            ParentWindow.ShowPage("login");
+            ToastHost.Success("Logged out of POS terminal");
+        }
+    }
+
+    // ── Collecting ─────────────────────────────────────────────────────────
+    private PrinterTarget CollectPrinter()
     {
         var target = PrinterService.Target.Clone();
 
@@ -94,6 +179,27 @@ public partial class SettingsPage : UserControl
         return target;
     }
 
+    private void CollectAndSaveTouch()
+    {
+        double thresh = 12.0;
+        if (double.TryParse(TxtTouchThreshold.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed))
+            thresh = Math.Clamp(parsed, 4.0, 40.0);
+
+        TouchSettings.Save(new TouchConfig
+        {
+            DragThreshold = thresh,
+            EnableTouchOptimization = ChkTouchOptimize.IsChecked == true
+        });
+    }
+
+    private void CollectAndSaveJoystick()
+    {
+        JoystickService.Save(new JoystickConfig
+        {
+            Enabled = ChkJoystickEnable.IsChecked == true
+        });
+    }
+
     private static bool TryInt(string? text, out int value)
         => int.TryParse((text ?? "").Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
 
@@ -108,15 +214,10 @@ public partial class SettingsPage : UserControl
 
     // ── Transport + paper pickers ──────────────────────────────────────────
     private void OnPickUsb(object? sender, RoutedEventArgs e) => SetTransport(PrinterTransport.Usb);
-
     private void OnPickNetwork(object? sender, RoutedEventArgs e) => SetTransport(PrinterTransport.Network);
-
     private void OnPickSerial(object? sender, RoutedEventArgs e) => SetTransport(PrinterTransport.Serial);
-
     private void OnPickParallel(object? sender, RoutedEventArgs e) => SetTransport(PrinterTransport.Parallel);
-
     private void OnPickBluetooth(object? sender, RoutedEventArgs e) => SetTransport(PrinterTransport.Bluetooth);
-
     private void OnPickSpooler(object? sender, RoutedEventArgs e) => SetTransport(PrinterTransport.WindowsSpooler);
 
     private void SetTransport(PrinterTransport transport)
@@ -166,120 +267,68 @@ public partial class SettingsPage : UserControl
         else button.Classes.Remove("active");
     }
 
-    // ── Status cards ───────────────────────────────────────────────────────
+    // ── Diagnostics + saving ───────────────────────────────────────────────
     private void RefreshSdkCard()
     {
         bool ok = PrinterService.SdkAvailable;
-
-        LblSdkTitle.Text = ok ? "Printer SDK ready" : "Printer SDK unavailable";
+        LblSdkTitle.Text = ok ? "ZyPrinter SDK (x86)" : "Printer SDK Warning";
         LblSdkDetail.Text = PrinterService.SdkStatus;
-        LblSdkBadge.Text = ok ? "LOADED" : "ERROR";
 
-        SdkBadge.Background = Ui.Brush(ok ? "White15Brush" : "Brand20Brush");
-        LblSdkBadge.Foreground = Ui.Brush(ok ? "Emerald400Brush" : "BrandBrush");
-        IcoSdk.Foreground = Ui.Brush(ok ? "Emerald400Brush" : "BrandBrush");
-        IcoSdk.Data = Ui.Glyph(ok ? "Usb" : "TriangleAlert");
+        SdkCard.Background = Ui.Brush(ok ? "White03Brush" : "Red08Brush");
+        SdkCard.BorderBrush = Ui.Brush(ok ? "White08Brush" : "Red20Brush");
+
+        LblSdkBadge.Text = ok ? "READY" : "MISSING";
+        LblSdkBadge.Foreground = Ui.Brush(ok ? "White70Brush" : "RedBrush");
+        SdkBadge.Background = Ui.Brush(ok ? "White10Brush" : "Red20Brush");
     }
 
     private void RefreshBridgeBadge()
     {
-        var bridge = ParentWindow?.Bridge;
-        bool running = bridge?.IsRunning == true;
-
-        LblBridge.Text = running ? "LISTENING · " + bridge!.Port : "STOPPED";
-        BridgeBadge.Background = Ui.Brush(running ? "White15Brush" : "White10Brush");
-        LblBridge.Foreground = Ui.Brush(running ? "Emerald400Brush" : "White70Brush");
-    }
-
-    // ── Actions ────────────────────────────────────────────────────────────
-    private void OnSave(object? sender, RoutedEventArgs e)
-    {
-        var target = Collect();
-        PrinterService.Save(target);
-
-        // The bridge may have been switched on, off, or moved to another port.
-        ParentWindow?.ApplyBridgeSettings();
-
-        LoadFrom(PrinterService.Target);
-        RefreshBridgeBadge();
-
-        ToastHost.Success("Hardware settings saved · " + target.Describe());
+        bool running = ParentWindow?.Bridge.IsRunning ?? false;
+        LblBridge.Text = running ? $"RUNNING ON PORT {ParentWindow?.Bridge.Port}" : "STOPPED";
+        LblBridge.Foreground = Ui.Brush(running ? "GreenBrush" : "White70Brush");
+        BridgeBadge.Background = Ui.Brush(running ? "Green20Brush" : "White10Brush");
     }
 
     private async void OnTestPrint(object? sender, RoutedEventArgs e)
     {
-        var target = Collect();
-        string tenant = ParentWindow?.Api.TenantName ?? "NovaPOS";
+        if (_busy) return;
+        _busy = true;
 
-        await RunAsync(BtnTest, LblTest, "Printing…", "Test print",
-            () => BillPrinter.PrintTestSlipAsync(tenant, target),
-            "Test slip sent to " + target.Describe(),
-            "Test print failed");
+        string tenant = ParentWindow?.Api.TenantName ?? "Pizzeria Da Cafe";
+        PrinterTarget target = CollectPrinter();
+
+        var result = await BillPrinter.PrintTestSlipAsync(tenant, target);
+        if (result.Success) ToastHost.Success("Test slip printed");
+        else ToastHost.Error(result.Error ?? "Could not print test slip");
+
+        _busy = false;
     }
 
-    private async void OnOpenDrawer(object? sender, RoutedEventArgs e)
-    {
-        var target = Collect();
-
-        await RunAsync(BtnDrawer, LblDrawer, "Opening…", "Open drawer",
-            async () =>
-            {
-                bool ok = await BillPrinter.OpenDrawerAsync(target);
-                return ok ? PrintResult.Ok : PrintResult.Fail(PrinterService.LastError ?? "The drawer did not respond.");
-            },
-            "Cash drawer pulse sent",
-            "Could not open the drawer");
-    }
-
-    private async void OnProbe(object? sender, RoutedEventArgs e)
-    {
-        var target = Collect();
-
-        await RunAsync(BtnProbe, LblProbe, "Checking…", "Check connection",
-            () => BillPrinter.ProbeAsync(target),
-            target.Describe() + " responded",
-            "No response from " + target.Describe());
-
-        RefreshSdkCard();
-    }
-
-    /// <summary>
-    /// Runs one hardware action with a busy label, so a printer that takes the full
-    /// open timeout to fail doesn't look like a frozen window.
-    /// </summary>
-    private async Task RunAsync(
-        Button button,
-        TextBlock label,
-        string busyText,
-        string idleText,
-        Func<Task<PrintResult>> action,
-        string successMessage,
-        string failurePrefix)
+    private async void OnTestDrawer(object? sender, RoutedEventArgs e)
     {
         if (_busy) return;
-
         _busy = true;
-        button.IsEnabled = false;
-        label.Text = busyText;
 
-        try
-        {
-            var result = await action();
+        PrinterTarget target = CollectPrinter();
+        bool ok = await BillPrinter.OpenDrawerAsync(target);
+        if (ok) ToastHost.Success("Drawer kick pulse sent");
+        else ToastHost.Error(PrinterService.LastError ?? "Could not open cash drawer");
 
-            if (result.Success) ToastHost.Success(successMessage);
-            else ToastHost.Error(string.IsNullOrWhiteSpace(result.Error)
-                ? failurePrefix
-                : failurePrefix + ": " + result.Error);
-        }
-        catch (Exception ex)
-        {
-            ToastHost.Error(failurePrefix + ": " + ex.Message);
-        }
-        finally
-        {
-            label.Text = idleText;
-            button.IsEnabled = true;
-            _busy = false;
-        }
+        _busy = false;
+    }
+
+    private void OnSave(object? sender, RoutedEventArgs e)
+    {
+        PrinterTarget target = CollectPrinter();
+        PrinterService.Save(target);
+
+        CollectAndSaveTouch();
+        CollectAndSaveJoystick();
+
+        ParentWindow?.ApplyBridgeSettings();
+        RefreshBridgeBadge();
+
+        ToastHost.Success("Settings saved successfully");
     }
 }

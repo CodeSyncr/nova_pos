@@ -5,276 +5,350 @@
              Background="#0A0A0A"
              Foreground="White">
 
-    <!--
-      Printer and hardware settings. Everything on this page maps onto
-      PrinterTarget, which is persisted to printer-settings.json next to the
-      executable and is the single source of truth for every print job.
-    -->
     <DockPanel Margin="32,26,32,24">
+        <!-- Header & Category Tabs -->
+        <StackPanel DockPanel.Dock="Top" Spacing="16" Margin="0,0,0,24">
+            <StackPanel Spacing="4">
+                <TextBlock Text="System Settings"
+                           FontSize="30"
+                           FontWeight="SemiBold"
+                           Foreground="White" />
+                <TextBlock Text="Configure printers, touch gestures, joysticks, and terminal session"
+                           FontSize="13"
+                           Foreground="{StaticResource White40Brush}" />
+            </StackPanel>
 
-        <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,20">
-            <TextBlock Text="Hardware"
-                       FontSize="30"
-                       FontWeight="SemiBold"
-                       Foreground="White" />
-            <TextBlock Text="Thermal printer, cash drawer and the browser bridge"
-                       FontSize="13"
-                       Foreground="{StaticResource White40Brush}" />
+            <!-- Main Category Nav Segment Bar -->
+            <Border CornerRadius="18"
+                    Padding="4"
+                    Background="{StaticResource White02Brush}"
+                    BorderBrush="{StaticResource White08Brush}"
+                    BorderThickness="1"
+                    HorizontalAlignment="Left">
+                <Grid ColumnDefinitions="Auto,4,Auto,4,Auto,4,Auto">
+                    <Button Name="BtnTabPrinter" Grid.Column="0" Classes="segment active"
+                            Content="Printer &amp; Hardware" Padding="20,10" Click="OnSelectPrinterTab" />
+                    <Button Name="BtnTabTouch" Grid.Column="2" Classes="segment"
+                            Content="Touch Screen" Padding="20,10" Click="OnSelectTouchTab" />
+                    <Button Name="BtnTabJoystick" Grid.Column="4" Classes="segment"
+                            Content="Joystick &amp; Controller" Padding="20,10" Click="OnSelectJoystickTab" />
+                    <Button Name="BtnTabAccount" Grid.Column="6" Classes="segment"
+                            Content="Account &amp; System" Padding="20,10" Click="OnSelectAccountTab" />
+                </Grid>
+            </Border>
         </StackPanel>
 
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="16" MaxWidth="880" HorizontalAlignment="Left">
 
-                <!-- SDK status -->
-                <Border Name="SdkCard"
-                        CornerRadius="20"
-                        Padding="18,16"
-                        Background="{StaticResource White03Brush}"
-                        BorderBrush="{StaticResource White08Brush}"
-                        BorderThickness="1">
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <ctl:Icon Name="IcoSdk"
-                                  Data="{StaticResource Icon.Usb}"
-                                  Width="22" Height="22"
-                                  Foreground="{StaticResource White50Brush}"
-                                  VerticalAlignment="Center" />
-                        <StackPanel Grid.Column="1" Spacing="2" Margin="14,0,14,0">
-                            <TextBlock Name="LblSdkTitle"
-                                       Text="Printer SDK"
-                                       FontSize="14"
-                                       FontWeight="Medium"
-                                       Foreground="White" />
-                            <TextBlock Name="LblSdkDetail"
-                                       Text="Checking…"
-                                       FontSize="12"
-                                       TextWrapping="Wrap"
-                                       Foreground="{StaticResource White45Brush}" />
-                        </StackPanel>
-                        <Border Name="SdkBadge"
-                                Grid.Column="2"
-                                CornerRadius="100"
-                                Padding="10,4"
-                                VerticalAlignment="Center"
-                                Background="{StaticResource White10Brush}">
-                            <TextBlock Name="LblSdkBadge"
-                                       Text="…"
-                                       FontSize="10"
-                                       FontWeight="Bold"
-                                       LetterSpacing="0.6"
-                                       Foreground="{StaticResource White70Brush}" />
-                        </Border>
-                    </Grid>
-                </Border>
-
-                <!-- Connection -->
-                <Border CornerRadius="24"
-                        Padding="22"
-                        Background="{StaticResource PanelGradientBrush}"
-                        BorderBrush="{StaticResource White08Brush}"
-                        BorderThickness="1">
-                    <StackPanel Spacing="16">
-                        <TextBlock Text="CONNECTION" Classes="caption" />
-
-                        <!-- Transport picker -->
-                        <Border CornerRadius="16"
-                                Padding="4"
-                                Background="{StaticResource White02Brush}"
-                                BorderBrush="{StaticResource White08Brush}"
-                                BorderThickness="1">
-                            <Grid ColumnDefinitions="*,4,*,4,*,4,*,4,*,4,*">
-                                <Button Name="BtnUsb" Grid.Column="0" Classes="segment active"
-                                        Content="USB" Click="OnPickUsb" />
-                                <Button Name="BtnNet" Grid.Column="2" Classes="segment"
-                                        Content="Network" Click="OnPickNetwork" />
-                                <Button Name="BtnSerial" Grid.Column="4" Classes="segment"
-                                        Content="Serial" Click="OnPickSerial" />
-                                <Button Name="BtnParallel" Grid.Column="6" Classes="segment"
-                                        Content="Parallel" Click="OnPickParallel" />
-                                <Button Name="BtnBluetooth" Grid.Column="8" Classes="segment"
-                                        Content="Bluetooth" Click="OnPickBluetooth" />
-                                <Button Name="BtnSpooler" Grid.Column="10" Classes="segment"
-                                        Content="Win Printer" Click="OnPickSpooler" />
-                            </Grid>
-                        </Border>
-
-                        <!-- USB -->
-                        <StackPanel Name="PanelUsb" Spacing="6">
-                            <TextBlock Text="The SDK claims the first thermal printer it finds on the USB bus. Leave the identifiers blank unless several printers are attached."
-                                       FontSize="12"
-                                       TextWrapping="Wrap"
-                                       Foreground="{StaticResource White45Brush}" />
-                            <Grid ColumnDefinitions="*,12,*" Margin="0,6,0,0">
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="VENDOR ID (HEX)" Classes="caption" />
-                                    <TextBox Name="TxtVid" Watermark="e.g. 0416" CornerRadius="12" Padding="12,10" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="2" Spacing="6">
-                                    <TextBlock Text="PRODUCT ID (HEX)" Classes="caption" />
-                                    <TextBox Name="TxtPid" Watermark="e.g. 5011" CornerRadius="12" Padding="12,10" />
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
-
-                        <!-- Network -->
-                        <Grid Name="PanelNet" ColumnDefinitions="*,12,140" IsVisible="False">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="IP ADDRESS" Classes="caption" />
-                                <TextBox Name="TxtIp" Watermark="192.168.1.100" CornerRadius="12" Padding="12,10" />
+                <!-- ════════════════════════════════════════════════════════════
+                     TAB 1: PRINTER & HARDWARE SETUP
+                     ════════════════════════════════════════════════════════════ -->
+                <StackPanel Name="SectionPrinter" Spacing="16">
+                    <!-- SDK status -->
+                    <Border Name="SdkCard"
+                            CornerRadius="20"
+                            Padding="18,16"
+                            Background="{StaticResource White03Brush}"
+                            BorderBrush="{StaticResource White08Brush}"
+                            BorderThickness="1">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <ctl:Icon Name="IcoSdk"
+                                      Data="{StaticResource Icon.Usb}"
+                                      Width="22" Height="22"
+                                      Foreground="{StaticResource White50Brush}"
+                                      VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Spacing="2" Margin="14,0,14,0">
+                                <TextBlock Name="LblSdkTitle"
+                                           Text="Printer SDK"
+                                           FontSize="14"
+                                           FontWeight="Medium"
+                                           Foreground="White" />
+                                <TextBlock Name="LblSdkDetail"
+                                           Text="Checking…"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"
+                                           Foreground="{StaticResource White45Brush}" />
                             </StackPanel>
-                            <StackPanel Grid.Column="2" Spacing="6">
-                                <TextBlock Text="PORT" Classes="caption" />
-                                <TextBox Name="TxtPort" Watermark="9100" CornerRadius="12" Padding="12,10" />
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Serial -->
-                        <Grid Name="PanelSerial" ColumnDefinitions="140,12,*" IsVisible="False">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="COM PORT" Classes="caption" />
-                                <TextBox Name="TxtCom" Watermark="1" CornerRadius="12" Padding="12,10" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="2" Spacing="6">
-                                <TextBlock Text="BAUD RATE" Classes="caption" />
-                                <TextBox Name="TxtBaud" Watermark="19200" CornerRadius="12" Padding="12,10" />
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Parallel -->
-                        <StackPanel Name="PanelParallel" Spacing="6" IsVisible="False">
-                            <TextBlock Text="DEVICE NAME" Classes="caption" />
-                            <TextBox Name="TxtLpt" Watermark="LPT1" CornerRadius="12" Padding="12,10" />
-                        </StackPanel>
-
-                        <!-- Bluetooth -->
-                        <Grid Name="PanelBluetooth" ColumnDefinitions="140,12,*" IsVisible="False">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="BT COM PORT" Classes="caption" />
-                                <TextBox Name="TxtBtCom" Watermark="COM4" CornerRadius="12" Padding="12,10" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="2" Spacing="6">
-                                <TextBlock Text="BAUD RATE" Classes="caption" />
-                                <TextBox Name="TxtBtBaud" Watermark="9600" CornerRadius="12" Padding="12,10" />
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Windows Spooler -->
-                        <StackPanel Name="PanelSpooler" Spacing="6" IsVisible="False">
-                            <TextBlock Text="PRINTER NAME IN WINDOWS" Classes="caption" />
-                            <TextBox Name="TxtSpoolerName" Watermark="e.g. POS-80 or Bluetooth POS Printer" CornerRadius="12" Padding="12,10" />
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-
-                <!-- Paper + behaviour -->
-                <Border CornerRadius="24"
-                        Padding="22"
-                        Background="{StaticResource PanelGradientBrush}"
-                        BorderBrush="{StaticResource White08Brush}"
-                        BorderThickness="1">
-                    <StackPanel Spacing="16">
-                        <TextBlock Text="RECEIPT" Classes="caption" />
-
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="PAPER WIDTH" Classes="caption" />
-                            <Border CornerRadius="16"
-                                    Padding="4"
-                                    Background="{StaticResource White02Brush}"
-                                    BorderBrush="{StaticResource White08Brush}"
-                                    BorderThickness="1"
-                                    HorizontalAlignment="Left">
-                                <Grid ColumnDefinitions="Auto,4,Auto">
-                                    <Button Name="BtnPaper80" Grid.Column="0" Classes="segment active"
-                                            Content="80mm  ·  48 cols" Padding="18,8" Click="OnPick80" />
-                                    <Button Name="BtnPaper58" Grid.Column="2" Classes="segment"
-                                            Content="58mm  ·  32 cols" Padding="18,8" Click="OnPick58" />
-                                </Grid>
-                            </Border>
-                        </StackPanel>
-
-                        <CheckBox Name="ChkAutoPlace"
-                                  Content="Print a bill as soon as an order is placed at the till" />
-                        <CheckBox Name="ChkAutoComplete"
-                                  Content="Print a bill when an order is marked completed" />
-                        <CheckBox Name="ChkDrawer"
-                                  Content="Pop the cash drawer on cash payments" />
-                    </StackPanel>
-                </Border>
-
-                <!-- Browser bridge -->
-                <Border CornerRadius="24"
-                        Padding="22"
-                        Background="{StaticResource PanelGradientBrush}"
-                        BorderBrush="{StaticResource White08Brush}"
-                        BorderThickness="1">
-                    <StackPanel Spacing="14">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="BROWSER BRIDGE" Classes="caption" VerticalAlignment="Center" />
-                            <Border Name="BridgeBadge"
-                                    Grid.Column="1"
+                            <Border Name="SdkBadge"
+                                    Grid.Column="2"
                                     CornerRadius="100"
                                     Padding="10,4"
+                                    VerticalAlignment="Center"
                                     Background="{StaticResource White10Brush}">
-                                <TextBlock Name="LblBridge"
-                                           Text="STOPPED"
+                                <TextBlock Name="LblSdkBadge"
+                                           Text="…"
                                            FontSize="10"
                                            FontWeight="Bold"
                                            LetterSpacing="0.6"
                                            Foreground="{StaticResource White70Brush}" />
                             </Border>
                         </Grid>
+                    </Border>
 
-                        <TextBlock Text="Lets the web app print to this till's printer. It listens on loopback only, but it is unauthenticated — any page open in a browser on this machine can print or open the cash drawer. Switch it off if you only use the desktop app."
-                                   FontSize="12"
-                                   TextWrapping="Wrap"
-                                   Foreground="{StaticResource White45Brush}" />
+                    <!-- Connection -->
+                    <Border CornerRadius="24"
+                            Padding="22"
+                            Background="{StaticResource PanelGradientBrush}"
+                            BorderBrush="{StaticResource White08Brush}"
+                            BorderThickness="1">
+                        <StackPanel Spacing="16">
+                            <TextBlock Text="CONNECTION TRANSPORT" Classes="caption" />
 
-                        <Grid ColumnDefinitions="Auto,16,140">
-                            <CheckBox Name="ChkBridge"
-                                      Content="Serve the local print bridge"
-                                      VerticalAlignment="Center" />
-                            <StackPanel Grid.Column="2" Spacing="6">
-                                <TextBlock Text="PORT" Classes="caption" />
-                                <TextBox Name="TxtBridgePort" Watermark="18181" CornerRadius="12" Padding="12,10" />
+                            <!-- Transport picker -->
+                            <Border CornerRadius="16"
+                                    Padding="4"
+                                    Background="{StaticResource White02Brush}"
+                                    BorderBrush="{StaticResource White08Brush}"
+                                    BorderThickness="1">
+                                <Grid ColumnDefinitions="*,4,*,4,*,4,*,4,*,4,*">
+                                    <Button Name="BtnUsb" Grid.Column="0" Classes="segment active"
+                                            Content="USB" Click="OnPickUsb" />
+                                    <Button Name="BtnNet" Grid.Column="2" Classes="segment"
+                                            Content="Network" Click="OnPickNetwork" />
+                                    <Button Name="BtnSerial" Grid.Column="4" Classes="segment"
+                                            Content="Serial" Click="OnPickSerial" />
+                                    <Button Name="BtnParallel" Grid.Column="6" Classes="segment"
+                                            Content="Parallel" Click="OnPickParallel" />
+                                    <Button Name="BtnBluetooth" Grid.Column="8" Classes="segment"
+                                            Content="Bluetooth" Click="OnPickBluetooth" />
+                                    <Button Name="BtnSpooler" Grid.Column="10" Classes="segment"
+                                            Content="Win Printer" Click="OnPickSpooler" />
+                                </Grid>
+                            </Border>
+
+                            <!-- USB -->
+                            <StackPanel Name="PanelUsb" Spacing="6">
+                                <TextBlock Text="The SDK claims the first thermal printer it finds on the USB bus."
+                                           FontSize="12" Foreground="{StaticResource White45Brush}" />
+                                <Grid ColumnDefinitions="*,12,*" Margin="0,6,0,0">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="VENDOR ID (HEX)" Classes="caption" />
+                                        <TextBox Name="TxtVid" Watermark="e.g. 0416" CornerRadius="12" Padding="12,10" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Spacing="6">
+                                        <TextBlock Text="PRODUCT ID (HEX)" Classes="caption" />
+                                        <TextBox Name="TxtPid" Watermark="e.g. 5011" CornerRadius="12" Padding="12,10" />
+                                    </StackPanel>
+                                </Grid>
                             </StackPanel>
-                        </Grid>
-                    </StackPanel>
+
+                            <!-- Network -->
+                            <Grid Name="PanelNet" ColumnDefinitions="*,12,140" IsVisible="False">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="IP ADDRESS" Classes="caption" />
+                                    <TextBox Name="TxtIp" Watermark="192.168.1.100" CornerRadius="12" Padding="12,10" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="6">
+                                    <TextBlock Text="PORT" Classes="caption" />
+                                    <TextBox Name="TxtPort" Watermark="9100" CornerRadius="12" Padding="12,10" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Serial -->
+                            <Grid Name="PanelSerial" ColumnDefinitions="140,12,*" IsVisible="False">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="COM PORT" Classes="caption" />
+                                    <TextBox Name="TxtCom" Watermark="1" CornerRadius="12" Padding="12,10" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="6">
+                                    <TextBlock Text="BAUD RATE" Classes="caption" />
+                                    <TextBox Name="TxtBaud" Watermark="19200" CornerRadius="12" Padding="12,10" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Parallel -->
+                            <StackPanel Name="PanelParallel" Spacing="6" IsVisible="False">
+                                <TextBlock Text="DEVICE NAME" Classes="caption" />
+                                <TextBox Name="TxtLpt" Watermark="LPT1" CornerRadius="12" Padding="12,10" />
+                            </StackPanel>
+
+                            <!-- Bluetooth -->
+                            <Grid Name="PanelBluetooth" ColumnDefinitions="140,12,*" IsVisible="False">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="BT COM PORT" Classes="caption" />
+                                    <TextBox Name="TxtBtCom" Watermark="COM4" CornerRadius="12" Padding="12,10" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="6">
+                                    <TextBlock Text="BAUD RATE" Classes="caption" />
+                                    <TextBox Name="TxtBtBaud" Watermark="9600" CornerRadius="12" Padding="12,10" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Windows Spooler -->
+                            <StackPanel Name="PanelSpooler" Spacing="6" IsVisible="False">
+                                <TextBlock Text="PRINTER NAME IN WINDOWS" Classes="caption" />
+                                <TextBox Name="TxtSpoolerName" Watermark="e.g. POS-80 or Bluetooth POS Printer" CornerRadius="12" Padding="12,10" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Paper + behaviour -->
+                    <Border CornerRadius="24" Padding="22" Background="{StaticResource PanelGradientBrush}" BorderBrush="{StaticResource White08Brush}" BorderThickness="1">
+                        <StackPanel Spacing="16">
+                            <TextBlock Text="RECEIPT" Classes="caption" />
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="PAPER WIDTH" Classes="caption" />
+                                <Border CornerRadius="16" Padding="4" Background="{StaticResource White02Brush}" BorderBrush="{StaticResource White08Brush}" BorderThickness="1" HorizontalAlignment="Left">
+                                    <Grid ColumnDefinitions="Auto,4,Auto">
+                                        <Button Name="BtnPaper80" Grid.Column="0" Classes="segment active" Content="80mm  ·  48 cols" Padding="18,8" Click="OnPick80" />
+                                        <Button Name="BtnPaper58" Grid.Column="2" Classes="segment" Content="58mm  ·  32 cols" Padding="18,8" Click="OnPick58" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <CheckBox Name="ChkAutoPlace" Content="Print a bill as soon as an order is placed at the till" />
+                            <CheckBox Name="ChkAutoComplete" Content="Print a bill when an order is marked completed" />
+                            <CheckBox Name="ChkDrawer" Content="Pop the cash drawer on cash payments" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Browser bridge -->
+                    <Border CornerRadius="24" Padding="22" Background="{StaticResource PanelGradientBrush}" BorderBrush="{StaticResource White08Brush}" BorderThickness="1">
+                        <StackPanel Spacing="14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="BROWSER BRIDGE" Classes="caption" VerticalAlignment="Center" />
+                                <Border Name="BridgeBadge" Grid.Column="1" CornerRadius="100" Padding="10,4" Background="{StaticResource White10Brush}">
+                                    <TextBlock Name="LblBridge" Text="STOPPED" FontSize="10" FontWeight="Bold" Foreground="{StaticResource White70Brush}" />
+                                </Border>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,12,120">
+                                <CheckBox Name="ChkBridge" Content="Serve local HTTP bridge on port" VerticalAlignment="Center" />
+                                <TextBox Name="TxtBridgePort" Grid.Column="2" Text="18181" CornerRadius="12" Padding="12,10" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ════════════════════════════════════════════════════════════
+                     TAB 2: TOUCH SCREEN SETUP
+                     ════════════════════════════════════════════════════════════ -->
+                <StackPanel Name="SectionTouch" Spacing="16" IsVisible="False">
+                    <Border CornerRadius="24" Padding="22" Background="{StaticResource PanelGradientBrush}" BorderBrush="{StaticResource White08Brush}" BorderThickness="1">
+                        <StackPanel Spacing="18">
+                            <TextBlock Text="TOUCH SCREEN GESTURE CALIBRATION" Classes="caption" />
+                            <TextBlock Text="Prevents drag/scroll gestures on touch monitors from accidentally opening item modals or adding items to cart."
+                                       FontSize="13" Foreground="{StaticResource White50Brush}" TextWrapping="Wrap" />
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="SCROLL VS TAP DISPLACEMENT THRESHOLD (PIXELS)" Classes="caption" />
+                                <Grid ColumnDefinitions="*,16,100">
+                                    <Slider Name="SliderTouchThreshold" Minimum="4" Maximum="40" Value="12" SmallChange="1" LargeChange="5" VerticalAlignment="Center" />
+                                    <TextBox Name="TxtTouchThreshold" Grid.Column="2" Text="12" CornerRadius="12" Padding="12,10" HorizontalContentAlignment="Center" />
+                                </Grid>
+                                <TextBlock Text="Movement greater than this threshold during touch is treated as scrolling, cancelling item clicks."
+                                           FontSize="11" Foreground="{StaticResource White40Brush}" />
+                            </StackPanel>
+
+                            <CheckBox Name="ChkTouchOptimize" IsChecked="True" Content="Enable high-precision touch drag filtering" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ════════════════════════════════════════════════════════════
+                     TAB 3: JOYSTICK & CONTROLLER SETUP
+                     ════════════════════════════════════════════════════════════ -->
+                <StackPanel Name="SectionJoystick" Spacing="16" IsVisible="False">
+                    <Border CornerRadius="24" Padding="22" Background="{StaticResource PanelGradientBrush}" BorderBrush="{StaticResource White08Brush}" BorderThickness="1">
+                        <StackPanel Spacing="18">
+                            <TextBlock Text="GAMEPAD &amp; JOYSTICK CONTROLS" Classes="caption" />
+                            <TextBlock Text="Drive POS operations using an Xbox controller, USB gamepad or Arcade fightstick."
+                                       FontSize="13" Foreground="{StaticResource White50Brush}" TextWrapping="Wrap" />
+
+                            <CheckBox Name="ChkJoystickEnable" IsChecked="True" Content="Enable Gamepad &amp; Joystick navigation" />
+
+                            <Border CornerRadius="16" Padding="16" Background="{StaticResource White03Brush}" BorderBrush="{StaticResource White08Brush}" BorderThickness="1">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <ctl:Icon Data="{StaticResource Icon.Pos}" Width="24" Height="24" Foreground="#E0342A" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="1" Margin="14,0,0,0" Spacing="2">
+                                        <TextBlock Text="STATUS" Classes="caption" />
+                                        <TextBlock Name="LblJoystickStatus" Text="Searching for controllers..." FontSize="13" FontWeight="SemiBold" Foreground="White" />
+                                    </StackPanel>
+                                    <Border Grid.Column="2" CornerRadius="100" Padding="12,4" Background="#2010B981" VerticalAlignment="Center">
+                                        <TextBlock Name="LblJoystickBadge" Text="ACTIVE" FontSize="10" FontWeight="Bold" Foreground="#10B981" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="CONTROLLER BUTTON MAPPING" Classes="caption" />
+                                <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="140,*" Margin="0,4,0,0">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="D-Pad / Stick:" FontWeight="SemiBold" Foreground="White" Margin="0,4" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Navigate POS items &amp; categories" Foreground="{StaticResource White60Brush}" Margin="0,4" />
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Button A (1):" FontWeight="SemiBold" Foreground="White" Margin="0,4" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="Select focused item / Add to Cart" Foreground="{StaticResource White60Brush}" Margin="0,4" />
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Button B (2):" FontWeight="SemiBold" Foreground="White" Margin="0,4" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="Back / Cancel modal" Foreground="{StaticResource White60Brush}" Margin="0,4" />
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Button Y (4):" FontWeight="SemiBold" Foreground="White" Margin="0,4" />
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="Checkout / Place Order" Foreground="{StaticResource White60Brush}" Margin="0,4" />
+                                </Grid>
+                            </StackPanel>
+
+                            <Border CornerRadius="16" Padding="16" Background="{StaticResource White02Brush}">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="LAST DETECTED ACTION" Classes="caption" />
+                                    <TextBlock Name="LblLastJoystickAction" Text="None" FontSize="16" FontWeight="Bold" Foreground="#E0342A" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ════════════════════════════════════════════════════════════
+                     TAB 4: ACCOUNT & SYSTEM SETUP
+                     ════════════════════════════════════════════════════════════ -->
+                <StackPanel Name="SectionAccount" Spacing="16" IsVisible="False">
+                    <Border CornerRadius="24" Padding="22" Background="{StaticResource PanelGradientBrush}" BorderBrush="{StaticResource White08Brush}" BorderThickness="1">
+                        <StackPanel Spacing="18">
+                            <TextBlock Text="TERMINAL SESSION &amp; ACCOUNT" Classes="caption" />
+
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,6,0,0">
+                                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="STORE TENANT" Classes="caption" />
+                                    <TextBlock Name="LblAccountTenant" Text="Pizzeria Da Cafe" FontSize="16" FontWeight="Bold" Foreground="White" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="SIGNED IN OPERATOR" Classes="caption" />
+                                    <TextBlock Name="LblAccountUser" Text="yashkumar12125@gmail.com" FontSize="16" FontWeight="Bold" Foreground="White" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Separator Background="{StaticResource White08Brush}" Height="1" Margin="0,8" />
+
+                            <!-- LOGOUT BUTTON INSIDE SETTINGS -->
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="TERMINAL LOGOUT" Classes="caption" />
+                                <TextBlock Text="Sign out of this POS terminal. Requires authentication to log back in." FontSize="12" Foreground="{StaticResource White45Brush}" />
+                                <Button Name="BtnLogoutInsideSettings"
+                                        Content="Sign Out of POS Terminal"
+                                        Background="#E0342A"
+                                        Foreground="White"
+                                        FontWeight="SemiBold"
+                                        CornerRadius="14"
+                                        Padding="24,12"
+                                        HorizontalAlignment="Left"
+                                        Cursor="Hand"
+                                        Click="OnLogoutFromSettings" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Action Bar -->
+                <Border CornerRadius="24" Padding="20" Background="{StaticResource PanelGradientBrush}" BorderBrush="{StaticResource White08Brush}" BorderThickness="1">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10">
+                            <Button Name="BtnTestPrint" Content="Print Test Slip" Classes="secondary" Click="OnTestPrint" />
+                            <Button Name="BtnTestDrawer" Content="Open Drawer" Classes="secondary" Click="OnTestDrawer" />
+                            <Button Name="BtnSave" Content="Save Configuration" Classes="primary" Click="OnSave" />
+                        </StackPanel>
+                        <TextBlock Name="LblSaveHint" Text="Changes take effect as soon as you save." FontSize="12" Foreground="{StaticResource White40Brush}" VerticalAlignment="Center" />
+                    </DockPanel>
                 </Border>
 
-                <!-- Actions -->
-                <Grid ColumnDefinitions="Auto,10,Auto,10,Auto,*,Auto" Margin="0,2,0,24">
-                    <Button Name="BtnSave" Grid.Column="0" Classes="brand" Height="42"
-                            CornerRadius="14" Padding="20,0" Click="OnSave">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <ctl:Icon Data="{StaticResource Icon.Save}" Width="15" Height="15" />
-                            <TextBlock Name="LblSave" Text="Save settings" FontSize="13"
-                                       FontWeight="SemiBold" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-
-                    <Button Name="BtnTest" Grid.Column="2" Classes="outline" Height="42"
-                            CornerRadius="14" Padding="18,0" Click="OnTestPrint">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <ctl:Icon Data="{StaticResource Icon.Printer}" Width="15" Height="15" />
-                            <TextBlock Name="LblTest" Text="Test print" FontSize="13" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-
-                    <Button Name="BtnDrawer" Grid.Column="4" Classes="outline" Height="42"
-                            CornerRadius="14" Padding="18,0" Click="OnOpenDrawer">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <ctl:Icon Data="{StaticResource Icon.Wallet}" Width="15" Height="15" />
-                            <TextBlock Name="LblDrawer" Text="Open drawer" FontSize="13" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-
-                    <Button Name="BtnProbe" Grid.Column="6" Classes="soft" Height="42"
-                            CornerRadius="14" Padding="18,0" Click="OnProbe">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <ctl:Icon Data="{StaticResource Icon.Wifi}" Width="15" Height="15" />
-                            <TextBlock Name="LblProbe" Text="Check connection" FontSize="13" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                </Grid>
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

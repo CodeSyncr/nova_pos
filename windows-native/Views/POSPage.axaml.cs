@@ -254,12 +254,56 @@ public partial class POSPage : UserControl
             bool inCart = _cart.Any(c => c.Item.Id == item.Id);
             card.BorderBrush = Ui.Brush(inCart ? "Brand40Brush" : "White08Brush");
         };
+        Point pressPos = default;
         card.PointerPressed += (_, e) =>
         {
-            if (e.GetCurrentPoint(card).Properties.IsLeftButtonPressed) HandleItemClick(item);
+            if (e.GetCurrentPoint(card).Properties.IsLeftButtonPressed)
+            {
+                pressPos = e.GetPosition(card);
+            }
+        };
+        card.PointerReleased += (_, e) =>
+        {
+            if (e.InitialPressMouseButton == MouseButton.Left)
+            {
+                Point releasePos = e.GetPosition(card);
+                double dx = releasePos.X - pressPos.X;
+                double dy = releasePos.Y - pressPos.Y;
+                double dist = Math.Sqrt(dx * dx + dy * dy);
+                if (dist <= TouchSettings.DragThreshold)
+                {
+                    HandleItemClick(item);
+                }
+            }
         };
 
         return card;
+    }
+
+    public void SelectNextCategory()
+    {
+        if (_categories.Count == 0) return;
+        int idx = _categories.FindIndex(c => c.Id == _selectedCategoryId);
+        int nextIdx = (idx + 1) % _categories.Count;
+        _selectedCategoryId = _categories[nextIdx].Id;
+        RenderCategories();
+        RenderItems();
+    }
+
+    public void SelectPreviousCategory()
+    {
+        if (_categories.Count == 0) return;
+        int idx = _categories.FindIndex(c => c.Id == _selectedCategoryId);
+        if (idx <= 0) idx = _categories.Count;
+        int prevIdx = idx - 1;
+        _selectedCategoryId = _categories[prevIdx].Id;
+        RenderCategories();
+        RenderItems();
+    }
+
+    public void TriggerCheckout()
+    {
+        if (_cart.Count > 0) OnPlaceOrder(null, null);
     }
 
     private static async void LoadArtworkAsync(Image target, string? url)
