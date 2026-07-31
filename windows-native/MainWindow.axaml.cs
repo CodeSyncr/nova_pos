@@ -81,6 +81,11 @@ public partial class MainWindow : Window
             case Key.F2: ShowPage("pos"); break;
             case Key.F3: ShowPage("orders"); break;
             case Key.F4: ShowPage("settings"); break;
+            case Key.F11:
+                WindowState = WindowState == WindowState.FullScreen
+                    ? WindowState.Maximized
+                    : WindowState.FullScreen;
+                break;
             default: return;
         }
 

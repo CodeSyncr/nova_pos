@@ -8,7 +8,7 @@
         Width="1280" Height="820"
         MinWidth="1024" MinHeight="680"
         Background="#0A0A0A"
-        WindowState="Maximized"
+        WindowState="FullScreen"
         WindowStartupLocation="CenterScreen">
 
     <!--
