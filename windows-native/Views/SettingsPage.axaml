@@ -100,26 +100,19 @@
                                     Padding="4"
                                     Background="{StaticResource White02Brush}"
                                     BorderBrush="{StaticResource White08Brush}"
-                                    BorderThickness="1">
-                                <Grid ColumnDefinitions="*,4,*,4,*,4,*,4,*,4,*">
+                                    BorderThickness="1"
+                                    HorizontalAlignment="Left">
+                                <Grid ColumnDefinitions="Auto,4,Auto">
                                     <Button Name="BtnUsb" Grid.Column="0" Classes="segment active"
-                                            Content="USB" Click="OnPickUsb" />
-                                    <Button Name="BtnNet" Grid.Column="2" Classes="segment"
-                                            Content="Network" Click="OnPickNetwork" />
-                                    <Button Name="BtnSerial" Grid.Column="4" Classes="segment"
-                                            Content="Serial" Click="OnPickSerial" />
-                                    <Button Name="BtnParallel" Grid.Column="6" Classes="segment"
-                                            Content="Parallel" Click="OnPickParallel" />
-                                    <Button Name="BtnBluetooth" Grid.Column="8" Classes="segment"
-                                            Content="Bluetooth" Click="OnPickBluetooth" />
-                                    <Button Name="BtnSpooler" Grid.Column="10" Classes="segment"
-                                            Content="Win Printer" Click="OnPickSpooler" />
+                                            Content="USB Printer" Padding="24,10" Click="OnPickUsb" />
+                                    <Button Name="BtnBluetooth" Grid.Column="2" Classes="segment"
+                                            Content="Bluetooth Printer" Padding="24,10" Click="OnPickBluetooth" />
                                 </Grid>
                             </Border>
 
                             <!-- USB -->
                             <StackPanel Name="PanelUsb" Spacing="6">
-                                <TextBlock Text="The SDK claims the first thermal printer it finds on the USB bus."
+                                <TextBlock Text="The SDK claims the thermal printer on the USB bus. Leave identifiers blank for automatic claiming."
                                            FontSize="12" Foreground="{StaticResource White45Brush}" />
                                 <Grid ColumnDefinitions="*,12,*" Margin="0,6,0,0">
                                     <StackPanel Spacing="6">
@@ -133,36 +126,6 @@
                                 </Grid>
                             </StackPanel>
 
-                            <!-- Network -->
-                            <Grid Name="PanelNet" ColumnDefinitions="*,12,140" IsVisible="False">
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="IP ADDRESS" Classes="caption" />
-                                    <TextBox Name="TxtIp" Watermark="192.168.1.100" CornerRadius="12" Padding="12,10" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="2" Spacing="6">
-                                    <TextBlock Text="PORT" Classes="caption" />
-                                    <TextBox Name="TxtPort" Watermark="9100" CornerRadius="12" Padding="12,10" />
-                                </StackPanel>
-                            </Grid>
-
-                            <!-- Serial -->
-                            <Grid Name="PanelSerial" ColumnDefinitions="140,12,*" IsVisible="False">
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="COM PORT" Classes="caption" />
-                                    <TextBox Name="TxtCom" Watermark="1" CornerRadius="12" Padding="12,10" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="2" Spacing="6">
-                                    <TextBlock Text="BAUD RATE" Classes="caption" />
-                                    <TextBox Name="TxtBaud" Watermark="19200" CornerRadius="12" Padding="12,10" />
-                                </StackPanel>
-                            </Grid>
-
-                            <!-- Parallel -->
-                            <StackPanel Name="PanelParallel" Spacing="6" IsVisible="False">
-                                <TextBlock Text="DEVICE NAME" Classes="caption" />
-                                <TextBox Name="TxtLpt" Watermark="LPT1" CornerRadius="12" Padding="12,10" />
-                            </StackPanel>
-
                             <!-- Bluetooth -->
                             <Grid Name="PanelBluetooth" ColumnDefinitions="140,12,*" IsVisible="False">
                                 <StackPanel Spacing="6">
@@ -174,12 +137,6 @@
                                     <TextBox Name="TxtBtBaud" Watermark="9600" CornerRadius="12" Padding="12,10" />
                                 </StackPanel>
                             </Grid>
-
-                            <!-- Windows Spooler -->
-                            <StackPanel Name="PanelSpooler" Spacing="6" IsVisible="False">
-                                <TextBlock Text="PRINTER NAME IN WINDOWS" Classes="caption" />
-                                <TextBox Name="TxtSpoolerName" Watermark="e.g. POS-80 or Bluetooth POS Printer" CornerRadius="12" Padding="12,10" />
-                            </StackPanel>
                         </StackPanel>
                     </Border>
 

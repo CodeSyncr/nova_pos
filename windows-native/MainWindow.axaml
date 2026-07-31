@@ -95,10 +95,10 @@
                             <TextBlock Name="LblNavOrders" Text="Orders" VerticalAlignment="Center" IsVisible="False" />
                         </StackPanel>
                     </Button>
-                    <Button Name="BtnNavSettings" Classes="nav" Click="OnNavSettings" ToolTip.Tip="Hardware  (F4)">
+                    <Button Name="BtnNavSettings" Classes="nav" Click="OnNavSettings" ToolTip.Tip="Settings  (F4)">
                         <StackPanel Orientation="Horizontal" Spacing="12">
-                            <ctl:Icon Data="{StaticResource Icon.Printer}" />
-                            <TextBlock Name="LblNavSettings" Text="Hardware" VerticalAlignment="Center" IsVisible="False" />
+                            <ctl:Icon Data="{StaticResource Icon.Settings}" />
+                            <TextBlock Name="LblNavSettings" Text="Settings" VerticalAlignment="Center" IsVisible="False" />
                         </StackPanel>
                     </Button>
                 </StackPanel>

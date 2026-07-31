@@ -73,14 +73,8 @@ public partial class SettingsPage : UserControl
         _transport = target.Transport;
         _charWidth = target.CharWidth >= 48 ? 48 : 32;
 
-        TxtIp.Text = target.Ip;
-        TxtPort.Text = target.Port.ToString(CultureInfo.InvariantCulture);
-        TxtCom.Text = target.ComPort.ToString(CultureInfo.InvariantCulture);
-        TxtBaud.Text = target.ComBaud.ToString(CultureInfo.InvariantCulture);
-        TxtLpt.Text = target.LptName;
         TxtBtCom.Text = target.BtComPort;
         TxtBtBaud.Text = target.BtBaud.ToString(CultureInfo.InvariantCulture);
-        TxtSpoolerName.Text = target.SpoolerName;
 
         TxtVid.Text = target.UsbVid > 0 ? target.UsbVid.ToString("X4") : "";
         TxtPid.Text = target.UsbPid > 0 ? target.UsbPid.ToString("X4") : "";
@@ -156,14 +150,8 @@ public partial class SettingsPage : UserControl
         target.Transport = _transport;
         target.CharWidth = _charWidth;
 
-        if (!string.IsNullOrWhiteSpace(TxtIp.Text)) target.Ip = TxtIp.Text.Trim();
-        if (TryInt(TxtPort.Text, out int port) && port is > 0 and <= 65535) target.Port = port;
-        if (TryInt(TxtCom.Text, out int com) && com > 0) target.ComPort = com;
-        if (TryInt(TxtBaud.Text, out int baud) && baud > 0) target.ComBaud = baud;
-        if (!string.IsNullOrWhiteSpace(TxtLpt.Text)) target.LptName = TxtLpt.Text.Trim();
         if (!string.IsNullOrWhiteSpace(TxtBtCom.Text)) target.BtComPort = TxtBtCom.Text.Trim();
         if (TryInt(TxtBtBaud.Text, out int btBaud) && btBaud > 0) target.BtBaud = btBaud;
-        if (!string.IsNullOrWhiteSpace(TxtSpoolerName.Text)) target.SpoolerName = TxtSpoolerName.Text.Trim();
 
         target.UsbVid = TryHex(TxtVid.Text, out int vid) ? vid : 0;
         target.UsbPid = TryHex(TxtPid.Text, out int pid) ? pid : 0;
@@ -214,11 +202,7 @@ public partial class SettingsPage : UserControl
 
     // ── Transport + paper pickers ──────────────────────────────────────────
     private void OnPickUsb(object? sender, RoutedEventArgs e) => SetTransport(PrinterTransport.Usb);
-    private void OnPickNetwork(object? sender, RoutedEventArgs e) => SetTransport(PrinterTransport.Network);
-    private void OnPickSerial(object? sender, RoutedEventArgs e) => SetTransport(PrinterTransport.Serial);
-    private void OnPickParallel(object? sender, RoutedEventArgs e) => SetTransport(PrinterTransport.Parallel);
     private void OnPickBluetooth(object? sender, RoutedEventArgs e) => SetTransport(PrinterTransport.Bluetooth);
-    private void OnPickSpooler(object? sender, RoutedEventArgs e) => SetTransport(PrinterTransport.WindowsSpooler);
 
     private void SetTransport(PrinterTransport transport)
     {
@@ -228,19 +212,11 @@ public partial class SettingsPage : UserControl
 
     private void RenderTransport()
     {
-        Activate(BtnUsb, _transport == PrinterTransport.Usb);
-        Activate(BtnNet, _transport == PrinterTransport.Network);
-        Activate(BtnSerial, _transport == PrinterTransport.Serial);
-        Activate(BtnParallel, _transport == PrinterTransport.Parallel);
+        Activate(BtnUsb, _transport != PrinterTransport.Bluetooth);
         Activate(BtnBluetooth, _transport == PrinterTransport.Bluetooth);
-        Activate(BtnSpooler, _transport == PrinterTransport.WindowsSpooler);
 
-        PanelUsb.IsVisible = _transport == PrinterTransport.Usb;
-        PanelNet.IsVisible = _transport == PrinterTransport.Network;
-        PanelSerial.IsVisible = _transport == PrinterTransport.Serial;
-        PanelParallel.IsVisible = _transport == PrinterTransport.Parallel;
+        PanelUsb.IsVisible = _transport != PrinterTransport.Bluetooth;
         PanelBluetooth.IsVisible = _transport == PrinterTransport.Bluetooth;
-        PanelSpooler.IsVisible = _transport == PrinterTransport.WindowsSpooler;
     }
 
     private void OnPick80(object? sender, RoutedEventArgs e)
