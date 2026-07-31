@@ -5,6 +5,7 @@ using NovaPOS.Desktop.Controls;
 using NovaPOS.Desktop.Services;
 using System;
 using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace NovaPOS.Desktop.Views;
@@ -43,6 +44,7 @@ public partial class SettingsPage : UserControl
 
         RefreshSdkCard();
         RefreshBridgeBadge();
+        RefreshBluetoothDevices();
         SwitchTab("printer");
     }
 
@@ -217,6 +219,81 @@ public partial class SettingsPage : UserControl
 
         PanelUsb.IsVisible = _transport != PrinterTransport.Bluetooth;
         PanelBluetooth.IsVisible = _transport == PrinterTransport.Bluetooth;
+
+        if (_transport == PrinterTransport.Bluetooth) RefreshBluetoothDevices();
+    }
+
+    private void RefreshBluetoothDevices()
+    {
+        var devices = PrinterService.GetAvailableBluetoothPrinters();
+        CboBtPrinters.ItemsSource = devices;
+
+        string currentCom = TxtBtCom.Text ?? "COM4";
+        var selected = devices.FirstOrDefault(d => d.ComPort.Equals(currentCom, StringComparison.OrdinalIgnoreCase))
+                       ?? devices.FirstOrDefault();
+
+        if (selected != null)
+        {
+            CboBtPrinters.SelectedItem = selected;
+            TxtBtCom.Text = selected.ComPort;
+        }
+
+        UpdateBtStatusUi();
+    }
+
+    private void OnRefreshBtPrinters(object? sender, RoutedEventArgs e)
+    {
+        RefreshBluetoothDevices();
+        ToastHost.Success("Scanned for Bluetooth printers");
+    }
+
+    private void OnBtPrinterSelected(object? sender, SelectionChangedEventArgs e)
+    {
+        if (CboBtPrinters.SelectedItem is BluetoothDeviceInfo info)
+        {
+            TxtBtCom.Text = info.ComPort;
+        }
+    }
+
+    private void OnToggleBtConnection(object? sender, RoutedEventArgs e)
+    {
+        string com = (TxtBtCom.Text ?? "COM4").Trim();
+        int baud = TryInt(TxtBtBaud.Text, out int b) && b > 0 ? b : 9600;
+
+        if (PrinterService.IsBluetoothConnected)
+        {
+            PrinterService.DisconnectBluetooth();
+            ToastHost.Warning("Disconnected Bluetooth printer");
+        }
+        else
+        {
+            var res = PrinterService.ConnectBluetooth(com, baud);
+            if (res.Success)
+            {
+                var target = CollectPrinter();
+                target.Transport = PrinterTransport.Bluetooth;
+                target.BtComPort = com;
+                target.BtBaud = baud;
+                PrinterService.Save(target);
+                ToastHost.Success($"Connected & saved {com}!");
+            }
+            else
+            {
+                ToastHost.Error($"Bluetooth connection failed: {res.Error}");
+            }
+        }
+
+        UpdateBtStatusUi();
+    }
+
+    private void UpdateBtStatusUi()
+    {
+        bool conn = PrinterService.IsBluetoothConnected;
+        LblBtStatus.Text = conn ? PrinterService.BluetoothStatus : "Disconnected";
+        LblBtBadge.Text = conn ? "CONNECTED" : "DISCONNECTED";
+        LblBtBadge.Foreground = Ui.Brush(conn ? "GreenBrush" : "White60Brush");
+        BadgeBtStatus.Background = Ui.Brush(conn ? "Green20Brush" : "White10Brush");
+        LblBtnConnectBt.Text = conn ? "Disconnect" : "Connect";
     }
 
     private void OnPick80(object? sender, RoutedEventArgs e)

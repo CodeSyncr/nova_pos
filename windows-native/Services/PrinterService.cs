@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Ports;
+using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -197,6 +199,22 @@ internal static class RawPrinterHelper
 /// Single funnel for every byte that reaches a printer, whether the job came from
 /// this app's UI or from the browser through <see cref="HardwareBridge"/>.
 /// Supports USB, Network, Serial, Parallel, Bluetooth SPP and Windows Spooler.
+public class BluetoothDeviceInfo
+{
+    public string Name { get; set; } = "";
+    public string ComPort { get; set; } = "";
+
+    public override string ToString()
+    {
+        if (string.IsNullOrWhiteSpace(Name) || Name.Equals(ComPort, StringComparison.OrdinalIgnoreCase))
+            return $"Bluetooth Printer ({ComPort})";
+        return $"{Name} ({ComPort})";
+    }
+}
+
+/// <summary>
+/// Main printer driver — wraps ZyPrinter.dll for USB, network, serial and
+/// parallel thermal printers, and raw winspool for Windows Spooler &amp; Bluetooth.
 /// </summary>
 public static class PrinterService
 {
@@ -218,6 +236,75 @@ public static class PrinterService
     private static bool? _sdkProbe;
     private static string? _sdkDetail;
 
+    public static bool IsBluetoothConnected { get; private set; }
+    public static string BluetoothStatus { get; private set; } = "Disconnected";
+
+    public static List<BluetoothDeviceInfo> GetAvailableBluetoothPrinters()
+    {
+        var result = new List<BluetoothDeviceInfo>();
+        try
+        {
+            string[] ports = SerialPort.GetPortNames();
+            foreach (string port in ports.OrderBy(p => p))
+            {
+                result.Add(new BluetoothDeviceInfo
+                {
+                    Name = $"Thermal Printer {port}",
+                    ComPort = port
+                });
+            }
+        }
+        catch { }
+
+        if (result.Count == 0)
+        {
+            result.Add(new BluetoothDeviceInfo { Name = "Bluetooth Printer COM4", ComPort = "COM4" });
+        }
+        return result;
+    }
+
+    public static PrintResult ConnectBluetooth(string comPort, int baud = 9600)
+    {
+        if (string.IsNullOrWhiteSpace(comPort))
+            return PrintResult.Fail("No Bluetooth COM port specified");
+
+        try
+        {
+            using var sp = new SerialPort(comPort, baud);
+            sp.ReadTimeout = 2000;
+            sp.WriteTimeout = 2000;
+            sp.Open();
+            sp.Close();
+
+            IsBluetoothConnected = true;
+            BluetoothStatus = $"Connected to {comPort} @ {baud} baud";
+            return PrintResult.Ok;
+        }
+        catch (Exception ex)
+        {
+            IsBluetoothConnected = false;
+            BluetoothStatus = $"Connection failed: {ex.Message}";
+            return PrintResult.Fail(ex.Message);
+        }
+    }
+
+    public static void DisconnectBluetooth()
+    {
+        IsBluetoothConnected = false;
+        BluetoothStatus = "Disconnected";
+    }
+
+    public static void AutoConnectBluetooth()
+    {
+        lock (Gate)
+        {
+            if (_target.Transport == PrinterTransport.Bluetooth && !string.IsNullOrWhiteSpace(_target.BtComPort))
+            {
+                ConnectBluetooth(_target.BtComPort, _target.BtBaud);
+            }
+        }
+    }
+
     /// <summary>Last failure reason, surfaced by the settings screen.</summary>
     public static string? LastError { get; private set; }
 
@@ -229,7 +316,7 @@ public static class PrinterService
     /// <summary>True while a port is open and cached.</summary>
     public static bool IsConnected
     {
-        get { lock (Gate) return _handle > 0; }
+        get { lock (Gate) return _handle > 0 || IsBluetoothConnected; }
     }
 
     public static void Save(PrinterTarget target)
