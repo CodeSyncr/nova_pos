@@ -206,10 +206,14 @@ public partial class MainWindow : Window
 
         ShowPage("home");
 
-        // First-time biometric setup modal prompt
-        if (!SessionManager.Current.BiometricPrompted)
+        // First-time biometric setup modal prompt - ONLY shown if fingerprint/biometrics was never setup or prompted
+        if (!SessionManager.Current.BiometricPrompted && !SessionManager.Current.BiometricEnabled)
         {
             BiometricSetupOverlay.IsVisible = true;
+        }
+        else
+        {
+            BiometricSetupOverlay.IsVisible = false;
         }
     }
 

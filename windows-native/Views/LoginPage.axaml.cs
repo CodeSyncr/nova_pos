@@ -119,8 +119,7 @@ public partial class LoginPage : UserControl
                     email,
                     password,
                     ParentWindow.Api.TenantId ?? "",
-                    ParentWindow.Api.TenantName ?? "Pizzeria Da Cafe",
-                    enableBiometric: true
+                    ParentWindow.Api.TenantName ?? "Pizzeria Da Cafe"
                 );
 
                 LblLogin.Text = "Signed in";

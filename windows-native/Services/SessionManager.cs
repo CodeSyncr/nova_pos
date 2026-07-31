@@ -31,15 +31,22 @@ public static class SessionManager
     public static bool IsBiometricConfigured =>
         HasSavedSession && _current.BiometricEnabled;
 
-    public static void SaveSession(string email, string password, string tenantId, string tenantName, bool enableBiometric = false)
+    public static void SaveSession(string email, string password, string tenantId, string tenantName, bool? enableBiometric = null)
     {
+        bool currentEnabled = _current.UserEmail.Equals(email, StringComparison.OrdinalIgnoreCase) ? _current.BiometricEnabled : false;
+        bool currentPrompted = _current.UserEmail.Equals(email, StringComparison.OrdinalIgnoreCase) ? _current.BiometricPrompted : false;
+
+        bool bioEnabled = enableBiometric ?? currentEnabled;
+        bool bioPrompted = bioEnabled || currentPrompted;
+
         _current = new SessionState
         {
             UserEmail = email,
             SavedPassword = password,
             TenantId = tenantId,
             TenantName = tenantName,
-            BiometricEnabled = enableBiometric,
+            BiometricEnabled = bioEnabled,
+            BiometricPrompted = bioPrompted,
             AutoLoginOnLaunch = true,
             LastLoginTime = DateTime.UtcNow
         };
