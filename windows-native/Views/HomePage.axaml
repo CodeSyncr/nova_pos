@@ -1,99 +1,266 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="clr-namespace:NovaPOS.Desktop.Controls"
              x:Class="NovaPOS.Desktop.Views.HomePage"
-             Background="#0A0A0A">
+             Background="#0A0A0A"
+             Foreground="White">
 
-    <ScrollViewer Padding="32">
-        <StackPanel Spacing="24">
-            <!-- Welcome Header -->
-            <StackPanel Spacing="4">
-                <TextBlock x:Name="LblWelcome" Text="Welcome to NovaPOS Terminal"
-                           FontSize="26" FontWeight="Bold" Foreground="White" />
-                <TextBlock Text="Realtime Native Control Center"
-                           FontSize="14" Foreground="#94A3B8" />
-            </StackPanel>
+    <!--
+      Mirrors src/app/(dashboard)/dashboard/page.tsx: storefront banner, the
+      editorial revenue band with hairline mini-stats, then the panel grid.
+    -->
+    <ScrollViewer Padding="0">
+        <StackPanel Margin="32,26,32,40" Spacing="24" MaxWidth="1800">
 
-            <!-- Metric Cards Row -->
-            <WrapPanel Orientation="Horizontal" x:Name="MetricsPanel">
-                <!-- Total Sales -->
-                <Border Background="#121212" CornerRadius="16"
-                        BorderBrush="#242424" BorderThickness="1"
-                        Width="280" Height="150" Margin="0,0,16,0">
-                    <Grid>
-                        <Border Background="#E0342A" Height="4"
-                                VerticalAlignment="Top"
-                                CornerRadius="16,16,0,0" />
-                        <StackPanel Margin="20,28,20,0">
-                            <TextBlock Text="Total Sales Today"
-                                       FontSize="12" Foreground="#94A3B8" />
-                            <TextBlock x:Name="LblSales" Text="Rs. 0.00"
-                                       FontSize="28" FontWeight="Bold"
-                                       Foreground="White" Margin="0,10,0,0" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- Pending Orders -->
-                <Border Background="#121212" CornerRadius="16"
-                        BorderBrush="#242424" BorderThickness="1"
-                        Width="280" Height="150" Margin="0,0,16,0">
-                    <Grid>
-                        <Border Background="#F59E0B" Height="4"
-                                VerticalAlignment="Top"
-                                CornerRadius="16,16,0,0" />
-                        <StackPanel Margin="20,28,20,0">
-                            <TextBlock Text="Pending Orders"
-                                       FontSize="12" Foreground="#94A3B8" />
-                            <TextBlock x:Name="LblPending" Text="0"
-                                       FontSize="28" FontWeight="Bold"
-                                       Foreground="White" Margin="0,10,0,0" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- Completed Orders -->
-                <Border Background="#121212" CornerRadius="16"
-                        BorderBrush="#242424" BorderThickness="1"
-                        Width="280" Height="150">
-                    <Grid>
-                        <Border Background="#10B981" Height="4"
-                                VerticalAlignment="Top"
-                                CornerRadius="16,16,0,0" />
-                        <StackPanel Margin="20,28,20,0">
-                            <TextBlock Text="Completed Orders"
-                                       FontSize="12" Foreground="#94A3B8" />
-                            <TextBlock x:Name="LblCompleted" Text="0"
-                                       FontSize="28" FontWeight="Bold"
-                                       Foreground="White" Margin="0,10,0,0" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-            </WrapPanel>
-
-            <!-- Hardware Diagnostics Card -->
-            <Border Background="#121212" CornerRadius="16"
-                    BorderBrush="#242424" BorderThickness="1"
-                    Padding="24" MaxWidth="900" HorizontalAlignment="Left">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="Hardware Diagnostics"
-                               FontSize="16" FontWeight="SemiBold" Foreground="White" />
-                    <TextBlock Text="Trigger raw testing actions to confirm native printer ZyPrinter.dll behaves correctly."
-                               FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap" />
-
-                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,8,0,0">
-                        <Button Content="Test Receipt Print"
-                                Background="#1C1C1C" Foreground="White"
-                                BorderBrush="#E0342A" BorderThickness="1"
-                                CornerRadius="10" Padding="20,12"
-                                Cursor="Hand" />
-                        <Button Content="Kick Cash Drawer"
-                                Background="#1C1C1C" Foreground="White"
-                                BorderBrush="#E0342A" BorderThickness="1"
-                                CornerRadius="10" Padding="20,12"
-                                Cursor="Hand" />
+            <!-- ── Banner ────────────────────────────────────────────────── -->
+            <Border CornerRadius="32"
+                    ClipToBounds="True"
+                    BorderBrush="{StaticResource White10Brush}"
+                    BorderThickness="1"
+                    Height="212">
+                <Panel>
+                    <Border>
+                        <Border.Background>
+                            <ImageBrush Source="/Assets/dashboard_bg.jpg"
+                                        Stretch="UniformToFill"
+                                        AlignmentX="Center"
+                                        AlignmentY="Center" />
+                        </Border.Background>
+                    </Border>
+                    <Border Background="{StaticResource BannerScrimBrush}" />
+                    <StackPanel VerticalAlignment="Center" Margin="36,0" Spacing="4">
+                        <TextBlock Name="LblGreeting"
+                                   Text="Good evening,"
+                                   FontSize="15"
+                                   Foreground="{StaticResource White70Brush}" />
+                        <TextBlock Name="LblName"
+                                   Text="there"
+                                   FontSize="38"
+                                   FontWeight="SemiBold"
+                                   Foreground="White" />
                     </StackPanel>
-                </StackPanel>
+                </Panel>
             </Border>
+
+            <!-- ── Editorial revenue band ────────────────────────────────── -->
+            <Border CornerRadius="28"
+                    ClipToBounds="True"
+                    BorderBrush="{StaticResource White08Brush}"
+                    BorderThickness="1"
+                    Background="{StaticResource HeroGradientBrush}">
+                <Grid ColumnDefinitions="1.55*,1*">
+
+                    <StackPanel Grid.Column="0" Margin="40,36,32,36">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Ellipse Width="6" Height="6"
+                                     Fill="{StaticResource BrandBrush}"
+                                     VerticalAlignment="Center" />
+                            <TextBlock Text="TODAY'S REVENUE"
+                                       FontSize="11"
+                                       FontWeight="Medium"
+                                       LetterSpacing="3.2"
+                                       Foreground="{StaticResource White40Brush}"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="14" Margin="0,22,0,0">
+                            <TextBlock Name="LblRevenue"
+                                       Text="₹0"
+                                       FontSize="72"
+                                       LineHeight="70"
+                                       FontWeight="SemiBold"
+                                       Foreground="White"
+                                       VerticalAlignment="Bottom" />
+                            <Border Name="TrendPill"
+                                    IsVisible="False"
+                                    CornerRadius="100"
+                                    Padding="10,4"
+                                    Margin="0,0,0,10"
+                                    VerticalAlignment="Bottom">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <ctl:Icon Name="IcoTrend"
+                                              Data="{StaticResource Icon.TrendingUp}"
+                                              Width="14" Height="14" />
+                                    <TextBlock Name="LblTrend"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <TextBlock Name="LblRevenueMeta"
+                                   Text="0 orders completed  ·  ₹0 avg ticket"
+                                   FontSize="13"
+                                   Foreground="{StaticResource White40Brush}"
+                                   Margin="0,20,0,0" />
+                    </StackPanel>
+
+                    <Border Grid.Column="1"
+                            BorderBrush="{StaticResource White06Brush}"
+                            BorderThickness="1,0,0,0">
+                        <StackPanel Name="MiniStats" VerticalAlignment="Stretch" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- ── Active orders + Top sellers ───────────────────────────── -->
+            <Grid ColumnDefinitions="*,24,*">
+                <Border Grid.Column="0"
+                        CornerRadius="28"
+                        BorderBrush="{StaticResource White08Brush}"
+                        BorderThickness="1"
+                        Background="{StaticResource PanelGradientBrush}"
+                        Padding="26">
+                    <StackPanel Spacing="16">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="LIVE" Classes="eyebrow" />
+                                <TextBlock Text="Active orders" Classes="panel-title" />
+                            </StackPanel>
+                            <TextBlock Name="LblActiveCount"
+                                       Grid.Column="1"
+                                       Text="0"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource BrandBrush}"
+                                       VerticalAlignment="Top" />
+                        </Grid>
+                        <StackPanel Name="ActiveOrdersBody" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2"
+                        CornerRadius="28"
+                        BorderBrush="{StaticResource White08Brush}"
+                        BorderThickness="1"
+                        Background="{StaticResource PanelGradientBrush}"
+                        Padding="26">
+                    <StackPanel Spacing="16">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="TODAY" Classes="eyebrow" />
+                            <TextBlock Text="Top sellers" Classes="panel-title" />
+                        </StackPanel>
+                        <StackPanel Name="TopSellersBody" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- ── Recent orders + Hardware ──────────────────────────────── -->
+            <Grid ColumnDefinitions="1.3*,24,0.7*">
+                <Border Grid.Column="0"
+                        CornerRadius="28"
+                        BorderBrush="{StaticResource White08Brush}"
+                        BorderThickness="1"
+                        Background="{StaticResource PanelGradientBrush}"
+                        Padding="26">
+                    <StackPanel Spacing="16">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="TIMELINE" Classes="eyebrow" />
+                                <TextBlock Text="Recent orders" Classes="panel-title" />
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Classes="ghost"
+                                    Padding="8,4"
+                                    CornerRadius="8"
+                                    FontSize="12"
+                                    VerticalAlignment="Top"
+                                    Click="OnViewAllOrders">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="View all" VerticalAlignment="Center" FontSize="12" />
+                                    <ctl:Icon Data="{StaticResource Icon.ArrowUpRight}" Width="14" Height="14" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                        <StackPanel Name="RecentOrdersBody" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2"
+                        CornerRadius="28"
+                        BorderBrush="{StaticResource White08Brush}"
+                        BorderThickness="1"
+                        Background="{StaticResource PanelGradientBrush}"
+                        Padding="26">
+                    <StackPanel Spacing="16">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="TERMINAL" Classes="eyebrow" />
+                            <TextBlock Text="Hardware" Classes="panel-title" />
+                        </StackPanel>
+
+                        <TextBlock Text="Drive the thermal printer and cash drawer straight from this machine."
+                                   FontSize="12"
+                                   Foreground="{StaticResource White40Brush}"
+                                   TextWrapping="Wrap" />
+
+                        <StackPanel Spacing="10">
+                            <Button Name="BtnTestPrint"
+                                    Classes="outline"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Left"
+                                    Padding="14,11"
+                                    Click="OnTestPrint">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <ctl:Icon Data="{StaticResource Icon.Printer}"
+                                              Width="16" Height="16"
+                                              Foreground="{StaticResource BrandBrush}" />
+                                    <TextBlock Name="LblTestPrint"
+                                               Text="Test receipt print"
+                                               FontSize="12"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button Name="BtnKickDrawer"
+                                    Classes="outline"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Left"
+                                    Padding="14,11"
+                                    Click="OnKickDrawer">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <ctl:Icon Data="{StaticResource Icon.Banknote}"
+                                              Width="16" Height="16"
+                                              Foreground="{StaticResource BrandBrush}" />
+                                    <TextBlock Name="LblKickDrawer"
+                                               Text="Kick cash drawer"
+                                               FontSize="12"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <Border Height="1" Background="{StaticResource White06Brush}" />
+
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Workspace"
+                                           FontSize="12"
+                                           Foreground="{StaticResource White40Brush}" />
+                                <TextBlock Name="LblTenant"
+                                           Grid.Column="1"
+                                           Text="—"
+                                           FontSize="12"
+                                           FontWeight="Medium"
+                                           Foreground="{StaticResource White80Brush}" />
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Signed in as"
+                                           FontSize="12"
+                                           Foreground="{StaticResource White40Brush}" />
+                                <TextBlock Name="LblEmail"
+                                           Grid.Column="1"
+                                           Text="—"
+                                           FontSize="12"
+                                           FontWeight="Medium"
+                                           Foreground="{StaticResource White80Brush}"
+                                           TextTrimming="CharacterEllipsis"
+                                           MaxWidth="180" />
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

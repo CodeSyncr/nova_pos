@@ -44,5 +44,9 @@ next-env.d.ts
 # dotnet / visual studio
 windows-native/bin/
 windows-native/obj/
+windows-native/dist/
+
+# per-till hardware configuration, written at runtime
+printer-settings.json
 .vs/
 *.user

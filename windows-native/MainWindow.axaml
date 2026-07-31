@@ -1,91 +1,145 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:NovaPOS.Desktop.Views"
+        xmlns:ctl="clr-namespace:NovaPOS.Desktop.Controls"
         x:Class="NovaPOS.Desktop.MainWindow"
-        Title="NovaPOS — Native Desktop Terminal"
-        Width="1280" Height="860"
-        MinWidth="1100" MinHeight="750"
+        Title="POS — Pizzeria Da Cafe"
+        Icon="/Assets/logo.png"
+        Width="1280" Height="820"
+        MinWidth="1024" MinHeight="680"
         Background="#0A0A0A"
+        WindowState="Maximized"
         WindowStartupLocation="CenterScreen">
 
-    <Grid ColumnDefinitions="72,*">
-        <!-- Sidebar Navigation -->
-        <Border Grid.Column="0"
-                Background="#121212"
-                BorderBrush="#242424"
-                BorderThickness="0,0,1,0">
-            <DockPanel>
-                <!-- Logo -->
-                <StackPanel DockPanel.Dock="Top" Margin="0,20,0,24" HorizontalAlignment="Center">
-                    <TextBlock Text="N"
-                               FontSize="26" FontWeight="Bold"
-                               Foreground="#E0342A"
-                               HorizontalAlignment="Center" />
+    <!--
+      Shell mirrors src/app/(dashboard)/layout.tsx: a rail that expands on hover
+      and floats above the page, with the page itself offset by the collapsed
+      rail width (lg:pl-[92px] on web).
+    -->
+    <ctl:ShellHost ClipToBounds="True">
+        <!-- Page host -->
+        <ctl:ShellHost Name="ContentArea" Margin="76,0,0,0" ClipToBounds="True">
+            <views:HomePage Name="PageHome" IsVisible="False" />
+            <views:POSPage Name="PagePOS" IsVisible="False" />
+            <views:OrdersPage Name="PageOrders" IsVisible="False" />
+            <views:SettingsPage Name="PageSettings" IsVisible="False" />
+        </ctl:ShellHost>
+
+        <!-- Login takes over the whole window, exactly like the web /login route -->
+        <views:LoginPage Name="PageLogin" />
+
+        <!-- Rail -->
+        <Border Name="Sidebar"
+                HorizontalAlignment="Left"
+                Width="76"
+                ClipToBounds="True"
+                Background="#0C0C0C"
+                BorderBrush="{StaticResource White10Brush}"
+                BorderThickness="0,0,1,0"
+                BoxShadow="0 20 80 0 #B303040C"
+                Padding="16,24"
+                PointerEntered="OnSidebarEnter"
+                PointerExited="OnSidebarExit">
+            <Border.Transitions>
+                <Transitions>
+                    <DoubleTransition Property="Width" Duration="0:0:0.2" Easing="CubicEaseOut" />
+                </Transitions>
+            </Border.Transitions>
+
+            <DockPanel LastChildFill="False">
+                <!-- Brand -->
+                <StackPanel DockPanel.Dock="Top"
+                            Orientation="Horizontal"
+                            Spacing="12"
+                            Margin="2,0,0,32">
+                    <Border Width="36" Height="36"
+                            CornerRadius="16"
+                            ClipToBounds="True"
+                            BorderBrush="{StaticResource White10Brush}"
+                            BorderThickness="1"
+                            BoxShadow="0 10 30 0 #59E0342A">
+                        <Image Source="/Assets/favicon.png" Stretch="UniformToFill" />
+                    </Border>
+                    <StackPanel Name="BrandText"
+                                VerticalAlignment="Center"
+                                Spacing="1"
+                                IsVisible="False">
+                        <TextBlock Text="POS"
+                                   FontSize="17"
+                                   FontWeight="SemiBold"
+                                   Foreground="White" />
+                        <TextBlock Name="LblCafe"
+                                   Classes="cursive"
+                                   FontSize="14"
+                                   Text="pizzeria da cafe" />
+                    </StackPanel>
                 </StackPanel>
 
-                <!-- Status dot at bottom -->
-                <StackPanel DockPanel.Dock="Bottom" Margin="0,0,0,16" HorizontalAlignment="Center">
-                    <TextBlock Text="●" FontSize="8" Foreground="#22C55E" HorizontalAlignment="Center" />
+                <!-- Navigation -->
+                <StackPanel DockPanel.Dock="Top" Spacing="4">
+                    <Button Name="BtnNavHome" Classes="nav" Click="OnNavHome" ToolTip.Tip="Home  (F1)">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <ctl:Icon Data="{StaticResource Icon.LayoutDashboard}" />
+                            <TextBlock Name="LblNavHome" Text="Home" VerticalAlignment="Center" IsVisible="False" />
+                        </StackPanel>
+                    </Button>
+                    <Button Name="BtnNavPOS" Classes="nav" Click="OnNavPOS" ToolTip.Tip="POS  (F2)">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <ctl:Icon Data="{StaticResource Icon.SquareTerminal}" />
+                            <TextBlock Name="LblNavPOS" Text="POS" VerticalAlignment="Center" IsVisible="False" />
+                        </StackPanel>
+                    </Button>
+                    <Button Name="BtnNavOrders" Classes="nav" Click="OnNavOrders" ToolTip.Tip="Orders  (F3)">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <ctl:Icon Data="{StaticResource Icon.Receipt}" />
+                            <TextBlock Name="LblNavOrders" Text="Orders" VerticalAlignment="Center" IsVisible="False" />
+                        </StackPanel>
+                    </Button>
+                    <Button Name="BtnNavSettings" Classes="nav" Click="OnNavSettings" ToolTip.Tip="Hardware  (F4)">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <ctl:Icon Data="{StaticResource Icon.Printer}" />
+                            <TextBlock Name="LblNavSettings" Text="Hardware" VerticalAlignment="Center" IsVisible="False" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
-                <!-- Nav Buttons -->
-                <StackPanel Spacing="4" Margin="6,0">
-                    <Button x:Name="BtnNavHome" Classes="nav-btn" Click="OnNavHome">
-                        <StackPanel HorizontalAlignment="Center" Spacing="2">
-                            <TextBlock Text="🏠" FontSize="18" HorizontalAlignment="Center" />
-                            <TextBlock Text="Home" FontSize="9" Foreground="#94A3B8" HorizontalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                    <Button x:Name="BtnNavPOS" Classes="nav-btn" Click="OnNavPOS">
-                        <StackPanel HorizontalAlignment="Center" Spacing="2">
-                            <TextBlock Text="🛒" FontSize="18" HorizontalAlignment="Center" />
-                            <TextBlock Text="POS" FontSize="9" Foreground="#94A3B8" HorizontalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                    <Button x:Name="BtnNavOrders" Classes="nav-btn" Click="OnNavOrders">
-                        <StackPanel HorizontalAlignment="Center" Spacing="2">
-                            <TextBlock Text="📋" FontSize="18" HorizontalAlignment="Center" />
-                            <TextBlock Text="Orders" FontSize="9" Foreground="#94A3B8" HorizontalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                    <Button x:Name="BtnNavLogin" Classes="nav-btn" Click="OnNavLogin">
-                        <StackPanel HorizontalAlignment="Center" Spacing="2">
-                            <TextBlock Text="🔑" FontSize="18" HorizontalAlignment="Center" />
-                            <TextBlock Text="Login" FontSize="9" Foreground="#94A3B8" HorizontalAlignment="Center" />
+                <!-- Footer -->
+                <StackPanel DockPanel.Dock="Bottom" Spacing="12">
+                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="14,0,0,0">
+                        <Ellipse Name="StatusDot"
+                                 Width="7" Height="7"
+                                 Fill="#34D399"
+                                 VerticalAlignment="Center"
+                                 ToolTip.Tip="Terminal online" />
+                        <TextBlock Name="LblStatus"
+                                   Text="Terminal online"
+                                   FontSize="11"
+                                   Foreground="{StaticResource White35Brush}"
+                                   VerticalAlignment="Center"
+                                   IsVisible="False" />
+                    </StackPanel>
+
+                    <Button Name="BtnLogout"
+                            Classes="danger"
+                            CornerRadius="12"
+                            Padding="12,10"
+                            HorizontalContentAlignment="Left"
+                            ToolTip.Tip="Sign out"
+                            Click="OnLogout">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <ctl:Icon Data="{StaticResource Icon.LogOut}" />
+                            <TextBlock Name="LblLogout"
+                                       Text="Logout"
+                                       VerticalAlignment="Center"
+                                       FontSize="12"
+                                       IsVisible="False" />
                         </StackPanel>
                     </Button>
                 </StackPanel>
             </DockPanel>
         </Border>
 
-        <!-- Main Content Area -->
-        <Panel Grid.Column="1" x:Name="ContentArea">
-            <views:LoginPage x:Name="PageLogin" />
-            <views:HomePage x:Name="PageHome" IsVisible="False" />
-            <views:POSPage x:Name="PagePOS" IsVisible="False" />
-            <views:OrdersPage x:Name="PageOrders" IsVisible="False" />
-        </Panel>
-    </Grid>
-
-    <Window.Styles>
-        <!-- Nav button base style -->
-        <Style Selector="Button.nav-btn">
-            <Setter Property="Width" Value="58" />
-            <Setter Property="Height" Value="52" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="0,4" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-        <Style Selector="Button.nav-btn:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#1E1E1E" />
-        </Style>
-        <Style Selector="Button.nav-btn.active /template/ ContentPresenter">
-            <Setter Property="Background" Value="#E0342A" />
-        </Style>
-        <Style Selector="Button.nav-btn.active TextBlock">
-            <Setter Property="Foreground" Value="White" />
-        </Style>
-    </Window.Styles>
+        <!-- Toast stack sits above every page, like the web ToastProvider -->
+        <ctl:ToastHost />
+    </ctl:ShellHost>
 </Window>

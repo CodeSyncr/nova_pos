@@ -1,200 +1,506 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="clr-namespace:NovaPOS.Desktop.Controls"
              x:Class="NovaPOS.Desktop.Views.POSPage"
-             Background="#0A0A0A">
+             Background="#0A0A0A"
+             Foreground="White">
 
-    <Grid ColumnDefinitions="*,380">
-        <!-- Left: Menu Area -->
-        <DockPanel Grid.Column="0" Margin="16">
-            <!-- Search Bar -->
-            <Border DockPanel.Dock="Top"
-                    Background="#141414"
-                    CornerRadius="16"
-                    BorderBrush="#242424" BorderThickness="1"
-                    Padding="14,0" Height="44" Margin="0,0,0,12">
-                <Grid ColumnDefinitions="Auto,*">
-                    <TextBlock Grid.Column="0" Text="🔍"
-                               FontSize="14"
-                               Foreground="#4D4D4D"
-                               VerticalAlignment="Center"
-                               Margin="0,0,10,0" />
-                    <TextBox Grid.Column="1"
-                             x:Name="TxtSearch"
-                             Watermark="Search menu…"
-                             Background="Transparent"
-                             BorderThickness="0"
-                             Foreground="White"
-                             FontSize="13"
-                             VerticalAlignment="Center" />
-                </Grid>
-            </Border>
+    <!--
+      Mirrors src/components/pos/pos-interface.tsx + order-cart.tsx: menu pane on
+      the left, a persistent 380px cart on the right topped by the pos_bg banner.
+    -->
+    <Panel>
+    <Grid ColumnDefinitions="*,20,380" Margin="24,22,24,24">
 
-            <!-- Category Pills -->
+        <!-- ══ Menu ═══════════════════════════════════════════════════════ -->
+        <DockPanel Grid.Column="0">
+
+            <!-- Search -->
+            <TextBox DockPanel.Dock="Top"
+                     Name="TxtSearch"
+                     Watermark="Search menu…"
+                     CornerRadius="16"
+                     Padding="14,12"
+                     Background="{StaticResource White03Brush}"
+                     BorderBrush="{StaticResource White08Brush}"
+                     Margin="0,0,0,14">
+                <TextBox.InnerLeftContent>
+                    <ctl:Icon Data="{StaticResource Icon.Search}"
+                              Width="16" Height="16"
+                              Foreground="{StaticResource White30Brush}"
+                              Margin="2,0,10,0" />
+                </TextBox.InnerLeftContent>
+            </TextBox>
+
+            <!-- Categories -->
             <ScrollViewer DockPanel.Dock="Top"
                           HorizontalScrollBarVisibility="Auto"
                           VerticalScrollBarVisibility="Disabled"
-                          Height="44" Margin="0,0,0,12">
-                <StackPanel x:Name="CategoriesPanel"
-                            Orientation="Horizontal" Spacing="8" />
+                          Margin="0,0,0,14">
+                <StackPanel Name="CategoriesPanel"
+                            Orientation="Horizontal"
+                            Spacing="8" />
             </ScrollViewer>
 
-            <!-- Items Grid -->
-            <ScrollViewer>
-                <WrapPanel x:Name="ItemsPanel"
-                           Orientation="Horizontal" />
-            </ScrollViewer>
+            <!-- Items -->
+            <Panel>
+                <ScrollViewer Name="ItemsScroller" VerticalScrollBarVisibility="Auto">
+                    <ctl:ResponsiveGrid Name="ItemsPanel"
+                                        MinItemWidth="200"
+                                        Gap="12"
+                                        ItemHeight="192"
+                                        Margin="0,0,0,8" />
+                </ScrollViewer>
+
+                <Border Name="ItemsEmpty"
+                        IsVisible="False"
+                        CornerRadius="16"
+                        BorderThickness="1"
+                        BorderBrush="{StaticResource White10Brush}"
+                        VerticalAlignment="Stretch">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10">
+                        <ctl:Icon Data="{StaticResource Icon.Inbox}"
+                                  Width="28" Height="28"
+                                  Foreground="{StaticResource White20Brush}"
+                                  HorizontalAlignment="Center" />
+                        <TextBlock Text="No items found"
+                                   FontSize="13"
+                                   Foreground="{StaticResource White40Brush}"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </Panel>
         </DockPanel>
 
-        <!-- Right: Cart Sidebar -->
-        <Border Grid.Column="1"
-                Background="#121212"
-                CornerRadius="24,0,0,24"
-                BorderBrush="#242424" BorderThickness="1,0,0,0">
+        <!-- ══ Cart ═══════════════════════════════════════════════════════ -->
+        <Border Grid.Column="2"
+                CornerRadius="28"
+                ClipToBounds="True"
+                BorderBrush="{StaticResource White08Brush}"
+                BorderThickness="1"
+                Background="{StaticResource PanelGradientBrush}">
             <DockPanel>
-                <!-- Cart Header -->
-                <Border DockPanel.Dock="Top"
-                        Background="#181818"
-                        CornerRadius="24,0,0,0"
-                        Height="80" Padding="20,0">
-                    <StackPanel VerticalAlignment="Center" Spacing="2">
+
+                <!-- Banner -->
+                <Panel DockPanel.Dock="Top" Height="150">
+                    <Border>
+                        <Border.Background>
+                            <ImageBrush Source="/Assets/pos_bg.jpg"
+                                        Stretch="UniformToFill"
+                                        AlignmentX="Center"
+                                        AlignmentY="Top" />
+                        </Border.Background>
+                    </Border>
+                    <Border Background="{StaticResource CartBannerScrimBrush}" />
+                    <Grid VerticalAlignment="Bottom"
+                          Margin="20,0,20,14"
+                          ColumnDefinitions="*,Auto">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="🛒" FontSize="14" Foreground="#E0342A"
-                                       VerticalAlignment="Center" />
-                            <TextBlock Text="Current order" FontSize="14"
-                                       FontWeight="SemiBold" Foreground="White"
+                            <ctl:Icon Data="{StaticResource Icon.ShoppingCart}"
+                                      Width="16" Height="16"
+                                      Foreground="{StaticResource BrandBrush}" />
+                            <TextBlock Text="Current order"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Foreground="White"
                                        VerticalAlignment="Center" />
                         </StackPanel>
-                        <TextBlock x:Name="LblCartCount" Text="0 items"
-                                   FontSize="11" Foreground="#94A3B8" />
-                    </StackPanel>
-                </Border>
-
-                <!-- Place Order Button at bottom -->
-                <Button DockPanel.Dock="Bottom"
-                        x:Name="BtnPlaceOrder"
-                        Content="Place POS Order"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center"
-                        Height="50"
-                        Background="#E0342A"
-                        Foreground="White"
-                        FontSize="14" FontWeight="Bold"
-                        CornerRadius="14"
-                        Margin="16,0,16,16"
-                        Cursor="Hand"
-                        Click="OnPlaceOrder" />
-
-                <!-- Total -->
-                <Border DockPanel.Dock="Bottom" Margin="16,8,16,8">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="Total" FontSize="16"
-                                   FontWeight="SemiBold" Foreground="White" />
-                        <TextBlock x:Name="LblTotal" Grid.Column="1"
-                                   Text="Rs. 0" FontSize="18"
-                                   FontWeight="Bold" Foreground="White" />
+                        <Border Name="CartCountPill"
+                                Grid.Column="1"
+                                IsVisible="False"
+                                Background="{StaticResource BrandBrush}"
+                                CornerRadius="100"
+                                Padding="9,2,9,3">
+                            <TextBlock Name="LblCartCount"
+                                       Text="0 items"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="White" />
+                        </Border>
                     </Grid>
+                </Panel>
+
+                <!-- Footer: summary + CTA -->
+                <Border Name="CartFooter"
+                        DockPanel.Dock="Bottom"
+                        IsVisible="False"
+                        BorderBrush="{StaticResource White06Brush}"
+                        BorderThickness="0,1,0,0"
+                        Padding="20,16,20,18">
+                    <StackPanel Spacing="6">
+                        <Grid Name="RowTax" IsVisible="False" ColumnDefinitions="*,Auto">
+                            <TextBlock Name="LblTaxLabel"
+                                       Text="Tax"
+                                       FontSize="13"
+                                       Foreground="{StaticResource White50Brush}" />
+                            <TextBlock Name="LblTax"
+                                       Grid.Column="1"
+                                       Text="₹0"
+                                       FontSize="13"
+                                       Foreground="{StaticResource White50Brush}" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                            <TextBlock Text="Total"
+                                       FontSize="13"
+                                       FontWeight="Medium"
+                                       Foreground="White"
+                                       VerticalAlignment="Bottom" />
+                            <TextBlock Name="LblTotal"
+                                       Grid.Column="1"
+                                       Text="₹0"
+                                       FontSize="24"
+                                       FontWeight="Bold"
+                                       Foreground="White" />
+                        </Grid>
+
+                        <Border Margin="0,10,0,0"
+                                CornerRadius="16"
+                                BoxShadow="0 12 30 -10 #B3E0342A">
+                            <Button Name="BtnPlaceOrder"
+                                    Classes="brand"
+                                    Height="46"
+                                    CornerRadius="16"
+                                    HorizontalAlignment="Stretch"
+                                    Click="OnPlaceOrder">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <ctl:Icon Name="IcoPlace"
+                                              Data="{StaticResource Icon.CircleCheckBig}"
+                                              Width="16" Height="16" />
+                                    <TextBlock Name="LblPlace"
+                                               Text="Place order"
+                                               FontSize="13"
+                                               FontWeight="SemiBold"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </Border>
+
+                        <TextBlock Name="LblCartHint"
+                                   IsVisible="False"
+                                   Text="Select a table to continue"
+                                   FontSize="11"
+                                   Foreground="{StaticResource BrandBrush}"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,6,0,0" />
+                    </StackPanel>
                 </Border>
 
-                <!-- Customer & Order Type Section -->
-                <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="16,8,16,4">
-                    <Separator Background="#242424" Height="1" />
+                <!-- Scrollable cart body -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20,20,20,20" Spacing="16">
 
-                    <!-- Order Type Tabs -->
-                    <TextBlock Text="Order Type" FontSize="10"
-                               FontWeight="SemiBold" Foreground="#94A3B8" />
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Button x:Name="BtnDineIn" Content="Dine In"
-                                Classes="order-tab active"
-                                Click="OnSelectDineIn" />
-                        <Button x:Name="BtnTakeaway" Content="Takeaway"
-                                Classes="order-tab"
-                                Click="OnSelectTakeaway" />
-                        <Button x:Name="BtnDelivery" Content="Delivery"
-                                Classes="order-tab"
-                                Click="OnSelectDelivery" />
+                        <!-- Order type -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="ORDER TYPE" Classes="caption" />
+                            <Border CornerRadius="16"
+                                    Padding="4"
+                                    Background="{StaticResource White02Brush}"
+                                    BorderBrush="{StaticResource White08Brush}"
+                                    BorderThickness="1">
+                                <Grid ColumnDefinitions="*,4,*,4,*">
+                                    <Button Name="BtnDineIn" Grid.Column="0" Classes="segment active"
+                                            Content="Dine in" Click="OnSelectDineIn" />
+                                    <Button Name="BtnTakeaway" Grid.Column="2" Classes="segment"
+                                            Content="Takeaway" Click="OnSelectTakeaway" />
+                                    <Button Name="BtnDelivery" Grid.Column="4" Classes="segment"
+                                            Content="Delivery" Click="OnSelectDelivery" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Table picker -->
+                        <StackPanel Name="TableSection" Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <ctl:Icon Data="{StaticResource Icon.Table}"
+                                          Width="12" Height="12"
+                                          Foreground="{StaticResource White40Brush}" />
+                                <TextBlock Text="TABLE" Classes="caption" VerticalAlignment="Center" />
+                                <TextBlock Name="LblTableRequired"
+                                           Text="*"
+                                           FontSize="11"
+                                           Foreground="{StaticResource BrandBrush}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                          VerticalScrollBarVisibility="Disabled">
+                                <StackPanel Name="TablesPanel" Orientation="Horizontal" Spacing="6" />
+                            </ScrollViewer>
+                        </StackPanel>
+
+                        <!-- Items -->
+                        <Border Name="CartEmpty"
+                                CornerRadius="16"
+                                BorderThickness="1"
+                                BorderBrush="{StaticResource White10Brush}"
+                                Padding="20,34">
+                            <StackPanel Spacing="6" HorizontalAlignment="Center">
+                                <ctl:Icon Data="{StaticResource Icon.ShoppingCart}"
+                                          Width="26" Height="26"
+                                          Foreground="{StaticResource White20Brush}"
+                                          HorizontalAlignment="Center" />
+                                <TextBlock Text="Your cart is empty"
+                                           FontSize="13"
+                                           Foreground="{StaticResource White40Brush}"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="Tap menu items to add them"
+                                           FontSize="11"
+                                           Foreground="{StaticResource White25Brush}"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Name="CartItemsPanel" Spacing="8" />
+
+                        <!-- Customer -->
+                        <StackPanel Name="CustomerSection" IsVisible="False" Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <ctl:Icon Data="{StaticResource Icon.User}"
+                                          Width="12" Height="12"
+                                          Foreground="{StaticResource White40Brush}" />
+                                <TextBlock Text="CUSTOMER" Classes="caption" VerticalAlignment="Center" />
+                                <TextBlock Text="· optional"
+                                           FontSize="11"
+                                           Foreground="{StaticResource White25Brush}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Grid ColumnDefinitions="*,8,*">
+                                <TextBox Name="TxtCustPhone" Grid.Column="0" Classes="subtle" Watermark="Phone" />
+                                <TextBox Name="TxtCustName" Grid.Column="2" Classes="subtle" Watermark="Name" />
+                            </Grid>
+                        </StackPanel>
                     </StackPanel>
-
-                    <!-- Table dropdown -->
-                    <StackPanel x:Name="TableSection" Spacing="4">
-                        <TextBlock Text="Table" FontSize="10"
-                                   FontWeight="SemiBold" Foreground="#94A3B8" />
-                        <ComboBox x:Name="CbTable"
-                                  Background="#141414"
-                                  BorderBrush="#242424"
-                                  Foreground="White"
-                                  CornerRadius="10"
-                                  HorizontalAlignment="Stretch" />
-                    </StackPanel>
-
-                    <!-- Customer Name -->
-                    <TextBlock Text="Customer" FontSize="10"
-                               FontWeight="SemiBold" Foreground="#94A3B8" />
-                    <TextBox x:Name="TxtCustName"
-                             Text="Walk-in Customer"
-                             Background="#141414"
-                             BorderBrush="#242424"
-                             Foreground="White"
-                             CornerRadius="10" Padding="12,8"
-                             FontSize="12" />
-
-                    <!-- Customer Phone -->
-                    <TextBlock Text="Phone" FontSize="10"
-                               FontWeight="SemiBold" Foreground="#94A3B8" />
-                    <TextBox x:Name="TxtCustPhone"
-                             Text="9999999999"
-                             Background="#141414"
-                             BorderBrush="#242424"
-                             Foreground="White"
-                             CornerRadius="10" Padding="12,8"
-                             FontSize="12" />
-                </StackPanel>
-
-                <!-- Cart Items List -->
-                <ListBox x:Name="CartList"
-                         Background="Transparent"
-                         Margin="8,8" />
+                </ScrollViewer>
             </DockPanel>
         </Border>
     </Grid>
 
-    <UserControl.Styles>
-        <!-- Order type tab buttons -->
-        <Style Selector="Button.order-tab">
-            <Setter Property="Background" Value="#1C1C1C" />
-            <Setter Property="Foreground" Value="#94A3B8" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="100" />
-            <Setter Property="Padding" Value="16,6" />
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-        <Style Selector="Button.order-tab.active /template/ ContentPresenter">
-            <Setter Property="Background" Value="#E0342A" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
-        <Style Selector="Button.order-tab:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#2A2A2A" />
-        </Style>
+    <!--
+      ══ Customisation sheet ══════════════════════════════════════════════════
+      Mirrors src/components/pos/item-customization-modal.tsx: the chef-panda
+      artwork sits bottom-left behind a warm glow and a smoke gradient, with the
+      variant pills and the searchable add-on picker floating above it.
+    -->
+    <Panel Name="CustomiseOverlay" IsVisible="False">
+        <Border Background="#99000000" PointerPressed="OnCustomiseBackdrop" />
 
-        <!-- Category pill style -->
-        <Style Selector="Button.cat-pill">
-            <Setter Property="Background" Value="#0D0D0D" />
-            <Setter Property="Foreground" Value="#8C8C8C" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="100" />
-            <Setter Property="Padding" Value="16,6" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="FontWeight" Value="Medium" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-        <Style Selector="Button.cat-pill.active /template/ ContentPresenter">
-            <Setter Property="Background" Value="#E0342A" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
-        <Style Selector="Button.cat-pill:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#1A1A1A" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
-    </UserControl.Styles>
+        <Border Width="580" Height="520"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                CornerRadius="28"
+                ClipToBounds="True"
+                Background="#0A0A0A"
+                BorderBrush="{StaticResource White10Brush}"
+                BorderThickness="1"
+                BoxShadow="0 24 70 0 #B3000000">
+            <Panel>
+                <!-- Artwork -->
+                <Border Width="230" Height="364"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Bottom"
+                        IsHitTestVisible="False">
+                    <Border.Background>
+                        <ImageBrush Source="/Assets/menu_bg.jpg"
+                                    Stretch="Uniform"
+                                    AlignmentX="Left"
+                                    AlignmentY="Bottom" />
+                    </Border.Background>
+                </Border>
+
+                <!-- Warm glow beneath the artwork -->
+                <Border IsHitTestVisible="False">
+                    <Border.Background>
+                        <RadialGradientBrush Center="25%,86%" GradientOrigin="25%,86%" Radius="0.5">
+                            <GradientStop Color="#38E0342A" Offset="0" />
+                            <GradientStop Color="#00E0342A" Offset="1" />
+                        </RadialGradientBrush>
+                    </Border.Background>
+                </Border>
+
+                <!-- Smoke: keeps the controls readable over the art -->
+                <Border IsHitTestVisible="False">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,100%" EndPoint="0%,0%">
+                            <GradientStop Color="#8C0A0A0A" Offset="0" />
+                            <GradientStop Color="#1A0A0A0A" Offset="0.14" />
+                            <GradientStop Color="#730A0A0A" Offset="0.36" />
+                            <GradientStop Color="#FF0A0A0A" Offset="0.74" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+
+                <DockPanel>
+                    <!-- Header -->
+                    <Grid DockPanel.Dock="Top"
+                          ColumnDefinitions="*,Auto,Auto"
+                          Margin="20,18,18,10">
+                        <StackPanel Spacing="2">
+                            <TextBlock Name="LblModalName"
+                                       Text="Item"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Foreground="White"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Name="LblModalBase"
+                                       Text="Base ₹0"
+                                       FontSize="13"
+                                       Foreground="{StaticResource White40Brush}" />
+                        </StackPanel>
+
+                        <Border Grid.Column="1"
+                                CornerRadius="100"
+                                Padding="2"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Background="{StaticResource White03Brush}"
+                                BorderBrush="{StaticResource White10Brush}"
+                                BorderThickness="1">
+                            <StackPanel Orientation="Horizontal" Spacing="1">
+                                <Button Classes="step" Width="28" Height="28" Click="OnModalQtyMinus">
+                                    <ctl:Icon Data="{StaticResource Icon.Minus}" Width="14" Height="14" />
+                                </Button>
+                                <TextBlock Name="LblModalQty"
+                                           Text="1"
+                                           Width="26"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           Foreground="White"
+                                           TextAlignment="Center"
+                                           VerticalAlignment="Center" />
+                                <Button Classes="step" Width="28" Height="28" Click="OnModalQtyPlus">
+                                    <ctl:Icon Data="{StaticResource Icon.Plus}" Width="14" Height="14" />
+                                </Button>
+                            </StackPanel>
+                        </Border>
+
+                        <Button Grid.Column="2"
+                                Classes="step"
+                                Width="30" Height="30"
+                                VerticalAlignment="Center"
+                                Foreground="{StaticResource White40Brush}"
+                                Click="OnCloseCustomise">
+                            <ctl:Icon Data="{StaticResource Icon.X}" Width="18" Height="18" />
+                        </Button>
+                    </Grid>
+
+                    <!-- Footer -->
+                    <Border DockPanel.Dock="Bottom"
+                            BorderBrush="{StaticResource White06Brush}"
+                            BorderThickness="0,1,0,0"
+                            Padding="20,14,20,16">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="1" VerticalAlignment="Center">
+                                <TextBlock Text="Total"
+                                           FontSize="11"
+                                           Foreground="{StaticResource White40Brush}" />
+                                <TextBlock Name="LblModalTotal"
+                                           Text="₹0"
+                                           FontSize="20"
+                                           FontWeight="Bold"
+                                           Foreground="White" />
+                            </StackPanel>
+
+                            <Border Grid.Column="1" CornerRadius="16" BoxShadow="0 12 30 -10 #B3E0342A">
+                                <Button Classes="brand"
+                                        CornerRadius="16"
+                                        Padding="22,13"
+                                        Click="OnModalAddToCart">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ctl:Icon Data="{StaticResource Icon.Plus}" Width="16" Height="16" />
+                                        <TextBlock Text="Add to cart"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- Body -->
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="20,0,20,16" Spacing="18">
+                            <TextBlock Name="LblModalDescription"
+                                       IsVisible="False"
+                                       FontSize="13"
+                                       LineHeight="19"
+                                       Foreground="{StaticResource White50Brush}"
+                                       TextWrapping="Wrap" />
+
+                            <!-- Variants -->
+                            <StackPanel Name="VariantSection" Spacing="8" IsVisible="False">
+                                <TextBlock Text="VARIANT" Classes="caption" />
+                                <ctl:ResponsiveGrid Name="VariantsPanel" MinItemWidth="120" Gap="6" />
+                            </StackPanel>
+
+                            <!-- Add-ons -->
+                            <StackPanel Name="AddOnSection" Spacing="8" IsVisible="False">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="ADD-ONS" Classes="caption" VerticalAlignment="Center" />
+                                    <Border Name="AddOnCountPill"
+                                            IsVisible="False"
+                                            CornerRadius="100"
+                                            Padding="6,1,6,2"
+                                            Background="{StaticResource Brand15Brush}"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Name="LblAddOnCount"
+                                                   Text="0"
+                                                   FontSize="10"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource BrandBrush}" />
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Selected chips -->
+                                <ctl:ResponsiveGrid Name="AddOnChipsPanel" MinItemWidth="110" Gap="6" />
+
+                                <!-- Searchable picker -->
+                                <Border CornerRadius="16"
+                                        ClipToBounds="True"
+                                        Background="{StaticResource White02Brush}"
+                                        BorderBrush="{StaticResource White10Brush}"
+                                        BorderThickness="1">
+                                    <StackPanel>
+                                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="12,9">
+                                            <ctl:Icon Data="{StaticResource Icon.Search}"
+                                                      Width="16" Height="16"
+                                                      Foreground="{StaticResource White30Brush}"
+                                                      VerticalAlignment="Center" />
+                                            <TextBox Name="TxtAddOnSearch"
+                                                     Grid.Column="1"
+                                                     Watermark="Search add-ons…"
+                                                     Background="Transparent"
+                                                     BorderThickness="0"
+                                                     CornerRadius="0"
+                                                     Padding="8,0"
+                                                     FontSize="13"
+                                                     GotFocus="OnAddOnSearchFocus" />
+                                            <Button Grid.Column="2"
+                                                    Classes="step"
+                                                    Width="26" Height="26"
+                                                    Foreground="{StaticResource White40Brush}"
+                                                    Click="OnToggleAddOnList">
+                                                <ctl:Icon Name="IcoAddOnChevron"
+                                                          Data="{StaticResource Icon.ChevronDown}"
+                                                          Width="16" Height="16" />
+                                            </Button>
+                                        </Grid>
+
+                                        <Border Name="AddOnListHost"
+                                                IsVisible="False"
+                                                BorderBrush="{StaticResource White06Brush}"
+                                                BorderThickness="0,1,0,0">
+                                            <ScrollViewer MaxHeight="168" VerticalScrollBarVisibility="Auto">
+                                                <StackPanel Name="AddOnListPanel" Margin="6" Spacing="2" />
+                                            </ScrollViewer>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </Panel>
+        </Border>
+    </Panel>
+    </Panel>
 </UserControl>
