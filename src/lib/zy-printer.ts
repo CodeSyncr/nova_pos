@@ -93,7 +93,7 @@ export async function printViaBridge(
 		const res = await fetch(`${BRIDGE_URL}/print`, {
 			method: 'POST',
 			headers,
-			body: buffer
+			body: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer
 		})
 
 		if (!res.ok) return false
