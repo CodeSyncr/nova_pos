@@ -4,6 +4,8 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { createCustomer } from './customers'
 import { deductInventoryForOrder, refundInventoryForOrder } from './inventory'
+import { evaluateOrderDiscounts, recordDiscountUsages } from './discounts'
+import { computeOrderTotals } from '@/lib/discount-engine'
 
 type CartItem = {
 	menuItemId: string
@@ -27,6 +29,10 @@ export async function createOrder(
 		tax: number
 		total: number
 		notes?: string
+		/** Auto discounts the cashier switched off for this order. */
+		excludedDiscountIds?: string[]
+		/** Set when a coupon code is already on the order. */
+		couponApplied?: boolean
 	}
 ) {
 	const supabase = await createSupabaseServerClient()
@@ -37,6 +43,51 @@ export async function createOrder(
 	if (!user) {
 		throw new Error('You must be signed in to create an order.')
 	}
+
+	// Rule-based discounts are resolved here, before the customer record is
+	// touched below, so a first-time buyer is still evaluated as "new".
+	const itemCount = data.items.reduce(
+		(sum, item) => sum + (Number(item.quantity) || 0),
+		0
+	)
+
+	const discountEvaluation = await evaluateOrderDiscounts(tenantId, {
+		subtotal: data.subtotal,
+		itemCount,
+		orderType: data.orderType || 'dine_in',
+		menuItemIds: data.items.map((item) => item.menuItemId).filter(Boolean),
+		customerPhone: data.customerPhone ?? null,
+		couponApplied: data.couponApplied === true,
+		excludedDiscountIds: data.excludedDiscountIds ?? []
+	})
+
+	// Tax rate comes from tenant settings rather than the request, so the stored
+	// totals cannot be dictated by the client.
+	const { data: tenantSettingsRow } = await supabase
+		.from('tenants')
+		.select('settings')
+		.eq('id', tenantId)
+		.maybeSingle()
+
+	const taxRatePercent =
+		Number(
+			(tenantSettingsRow?.settings as Record<string, unknown> | null)?.taxRate
+		) || 0
+
+	const totals = computeOrderTotals({
+		subtotal: data.subtotal,
+		taxRatePercent,
+		discountAmount: discountEvaluation.totalDiscount
+	})
+
+	// A single applied discount keeps its type/value on the order for the
+	// existing edit + reporting screens. A stacked set has no single type, so
+	// those columns record the effective total instead and the per-discount
+	// breakdown lives in `applied_discounts`.
+	const singleDiscount =
+		discountEvaluation.applied.length === 1
+			? discountEvaluation.applied[0]
+			: null
 
 	// If customer name and phone provided, ensure customer exists
 	if (data.customerName && data.customerPhone) {
@@ -72,13 +123,22 @@ export async function createOrder(
 			customer_name: data.customerName || null,
 			customer_phone: data.customerPhone || null,
 			customer_email: data.customerEmail || null,
-			subtotal: data.subtotal,
-			tax: data.tax,
-			discount_amount: 0,
-			discount_type: null,
-			discount_value: null,
+			subtotal: totals.subtotal,
+			tax: totals.tax,
+			discount_amount: totals.discount,
+			discount_type: singleDiscount
+				? singleDiscount.discountType
+				: totals.discount > 0
+					? 'fixed'
+					: null,
+			discount_value: singleDiscount
+				? singleDiscount.discountValue
+				: totals.discount > 0
+					? totals.discount
+					: null,
+			applied_discounts: discountEvaluation.applied,
 			payment_method: null,
-			total: data.total,
+			total: totals.total,
 			notes: data.notes || null,
 			created_by: user.id,
 			status: 'pending'
@@ -137,6 +197,19 @@ export async function createOrder(
 	// This can be enhanced later with a proper transaction or by fetching IDs
 	// TODO: Implement order_item_toppings inserts after fetching order_item IDs
 
+	// Log redemptions so usage_limit / per_customer_limit stay accurate.
+	if (discountEvaluation.applied.length > 0) {
+		await recordDiscountUsages(
+			tenantId,
+			order.id,
+			discountEvaluation.applied.map((entry) => ({
+				id: entry.id,
+				amount: entry.amount
+			})),
+			data.customerPhone ?? null
+		)
+	}
+
 	revalidatePath('/orders')
 	revalidatePath('/pos')
 
@@ -156,7 +229,13 @@ export async function createOrder(
 		// Non-critical, don't fail order creation
 	}
 
-	return { orderId: order.id, success: true }
+	return {
+		orderId: order.id,
+		success: true,
+		// Returned so the cart can reconcile against the authoritative figures.
+		totals,
+		appliedDiscounts: discountEvaluation.applied
+	}
 }
 
 export async function updateOrderStatus(
@@ -248,8 +327,12 @@ export async function completeOrderWithPayment(
 		throw new Error('Order not found')
 	}
 
-	// Calculate discount
-	let discountAmount = 0
+	// Default to whatever is already on the order. Rule-based discounts are
+	// applied and stored when the order is created, so starting from 0 here would
+	// silently drop them from the total at payment time.
+	let discountAmount = Number(order.discount_amount) || 0
+
+	// An explicit manual discount replaces the stored one.
 	if (discountType && discountValue !== undefined) {
 		const currentSubtotal = order.subtotal
 		const currentTax = order.tax

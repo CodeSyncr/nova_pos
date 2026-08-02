@@ -14,12 +14,14 @@ import {
 	Shield,
 	LayoutGrid,
 	FileText,
-	Flame
+	Flame,
+	BadgePercent
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { LoyaltySettingsTab } from '@/components/settings/loyalty-settings-tab'
 import { CouponsTab } from '@/components/settings/coupons-tab'
+import { DiscountsTab } from '@/components/settings/discounts-tab'
 import { GeneralSettingsTab } from '@/components/settings/general-settings-tab'
 import { BillDesignerTab } from '@/components/settings/bill-designer-tab'
 import { OrganizationSettingsTab } from '@/components/settings/organization-settings-tab'
@@ -86,6 +88,13 @@ const tabs = [
 		icon: Ticket,
 		color: 'from-[#E0342A]/20 to-[#E0342A]/5',
 		description: 'Discount codes & promotions'
+	},
+	{
+		id: 'discounts',
+		label: 'Discounts',
+		icon: BadgePercent,
+		color: 'from-[#E0342A]/20 to-[#E0342A]/5',
+		description: 'Rule-based offers applied automatically'
 	},
 	{
 		id: 'general',
@@ -370,6 +379,16 @@ export default function SettingsPage() {
 
 						{activeTab === 'coupons' && (
 							<CouponsTab tenantId={tenant.id} onRefresh={loadTenant} />
+						)}
+
+						{activeTab === 'discounts' && (
+							<DiscountsTab
+								tenantId={tenant.id}
+								currencySymbol={
+									((tenant.settings?.currencySymbol as string) ?? '₹') || '₹'
+								}
+								onRefresh={loadTenant}
+							/>
 						)}
 
 						{activeTab === 'general' && (
