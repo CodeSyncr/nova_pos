@@ -8,6 +8,7 @@ public class TouchConfig
 {
     public double DragThreshold { get; set; } = 12.0; // Pixels of movement before tap is treated as scroll
     public bool EnableTouchOptimization { get; set; } = true;
+    public bool AutoShowTouchKeyboard { get; set; } = true;
 }
 
 public static class TouchSettings

@@ -12,6 +12,7 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+        OnScreenKeyboardService.Initialize();
     }
 
     public override async void OnFrameworkInitializationCompleted()

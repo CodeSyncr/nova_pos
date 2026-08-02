@@ -1,6 +1,10 @@
 # NovaPOS Windows Build & Installer Generator
 $ErrorActionPreference = "Stop"
 
+# Stop any running instances of NovaPOS to prevent file locking
+Stop-Process -Name "NovaPOS" -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 500
+
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host "  NovaPOS Windows Desktop Installer & Update Build" -ForegroundColor Cyan
 Write-Host "  Version: 1.2.0 | Target: win-x86 (SingleFile)" -ForegroundColor Cyan
