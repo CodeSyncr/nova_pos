@@ -11,6 +11,12 @@ import { MenuItemImage } from './menu-item-image'
 import { createOrder } from '@/app/actions/orders'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+import {
+	computeOrderTotals,
+	evaluateDiscounts,
+	type DiscountRecord,
+	type OrderContext
+} from '@/lib/discount-engine'
 
 type MenuCategory = {
 	id: string
@@ -95,6 +101,8 @@ type POSInterfaceProps = {
 	currencySymbol: string
 	taxRate: number
 	toppings?: Topping[]
+	discounts?: DiscountRecord[]
+	timeZone?: string | null
 }
 
 const mockTables: Table[] = [
@@ -113,7 +121,9 @@ export function POSInterface({
 	tenant,
 	currencySymbol,
 	taxRate,
-	toppings = []
+	toppings = [],
+	discounts = [],
+	timeZone = null
 }: POSInterfaceProps) {
 	const router = useRouter()
 	const categoriesWithDynamicToppings = useMemo(() => {
@@ -345,8 +355,98 @@ export function POSInterface({
 	}, [cart])
 
 	const subtotal = cartTotal
-	const tax = subtotal * (taxRate / 100)
-	const total = subtotal + tax
+
+	// Auto discounts the cashier removed for this order only.
+	const [dismissedDiscountIds, setDismissedDiscountIds] = useState<string[]>([])
+
+	// Re-evaluated every minute so happy-hour style windows open and close during
+	// a shift without needing a page reload.
+	const [now, setNow] = useState(() => new Date())
+	useEffect(() => {
+		const id = setInterval(() => setNow(new Date()), 60_000)
+		return () => clearInterval(id)
+	}, [])
+
+	// menuItemId -> categoryId, for the `contains_category` rule.
+	const categoryByMenuItemId = useMemo(() => {
+		const map: Record<string, string> = {}
+		for (const category of categories) {
+			for (const item of category.menu_items || []) {
+				map[item.id] = category.id
+			}
+		}
+		return map
+	}, [categories])
+
+	// Does the entered phone already belong to a saved customer? (drives name auto-fill,
+	// the "returning" tag, and the customer_type discount rule)
+	const customerExists = useMemo(() => {
+		const phone = customerPhone.trim()
+		if (!phone) return false
+		return customers.some((c) => c.phone && c.phone.trim() === phone)
+	}, [customerPhone, customers])
+
+	const discountEvaluation = useMemo(() => {
+		const menuItemIds = Array.from(new Set(cart.map((item) => item.menuItemId)))
+		const categoryIds = Array.from(
+			new Set(
+				menuItemIds
+					.map((id) => categoryByMenuItemId[id])
+					.filter((id): id is string => Boolean(id))
+			)
+		)
+
+		const ctx: OrderContext = {
+			subtotal,
+			itemCount: cart.reduce((sum, item) => sum + item.quantity, 0),
+			orderType,
+			categoryIds,
+			menuItemIds,
+			isReturningCustomer: customerExists,
+			customerPhone: customerPhone.trim() || null,
+			couponApplied: false,
+			now,
+			timeZone,
+			excludedDiscountIds: dismissedDiscountIds
+		}
+
+		return evaluateDiscounts(discounts, ctx)
+	}, [
+		cart,
+		subtotal,
+		orderType,
+		categoryByMenuItemId,
+		customerExists,
+		customerPhone,
+		now,
+		timeZone,
+		discounts,
+		dismissedDiscountIds
+	])
+
+	// Tax is charged on the discounted base; the pre-discount subtotal is what
+	// gets stored on the order.
+	const totals = useMemo(
+		() =>
+			computeOrderTotals({
+				subtotal,
+				taxRatePercent: taxRate,
+				discountAmount: discountEvaluation.totalDiscount
+			}),
+		[subtotal, taxRate, discountEvaluation.totalDiscount]
+	)
+
+	const discountAmount = totals.discount
+	const tax = totals.tax
+	const total = totals.total
+
+	const toggleDiscount = (discountId: string) => {
+		setDismissedDiscountIds((prev) =>
+			prev.includes(discountId)
+				? prev.filter((id) => id !== discountId)
+				: [...prev, discountId]
+		)
+	}
 
 	const handlePlaceOrder = async () => {
 		// Validate: For dine_in, require table. For takeaway/delivery, table is optional
@@ -383,13 +483,17 @@ export function POSInterface({
 				})),
 				subtotal,
 				tax,
-				total
+				total,
+				// Discounts are re-evaluated and re-priced on the server; these are the
+				// ones the cashier chose to drop.
+				excludedDiscountIds: dismissedDiscountIds
 			})
 			setCart([])
 			setSelectedTable(null)
 			setOrderType('dine_in')
 			setCustomerName('')
 			setCustomerPhone('')
+			setDismissedDiscountIds([])
 			router.push('/orders')
 		} catch (error) {
 			console.error('Error placing order:', error)
@@ -457,13 +561,6 @@ export function POSInterface({
 
 	const cartCount = cart.reduce((s, c) => s + c.quantity, 0)
 
-	// Does the entered phone already belong to a saved customer? (drives name auto-fill + "returning" tag)
-	const customerExists = useMemo(() => {
-		const phone = customerPhone.trim()
-		if (!phone) return false
-		return customers.some((c) => c.phone && c.phone.trim() === phone)
-	}, [customerPhone, customers])
-
 	const cartProps = {
 		cart,
 		currencySymbol,
@@ -471,6 +568,9 @@ export function POSInterface({
 		subtotal,
 		tax,
 		total,
+		discountAmount,
+		appliedDiscounts: discountEvaluation.applied,
+		onToggleDiscount: toggleDiscount,
 		orderType,
 		setOrderType,
 		selectedTable,

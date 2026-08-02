@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createSupabaseServerComponentClient } from '@/lib/supabase/server'
 import { POSInterface } from '@/components/pos/pos-interface'
+import type { DiscountRecord } from '@/lib/discount-engine'
 
 type TenantRecord = {
 	id: string
@@ -79,9 +80,47 @@ export default async function POSPage() {
 		.select('id, name, price, description, category')
 		.eq('tenant_id', tenant.id)
 
+	// Rule-based discounts for the auto-apply preview in the cart. Narrowed to
+	// rows that are switched on and inside their validity window; the engine
+	// re-checks day/time windows, usage caps and rules on every cart change.
+	const nowIso = new Date().toISOString()
+	const { data: discounts } = await supabase
+		.from('discounts')
+		.select(
+			`
+        id,
+        name,
+        description,
+        discount_type,
+        discount_value,
+        max_discount_amount,
+        rules,
+        rule_match,
+        auto_apply,
+        priority,
+        is_stackable,
+        stackable_with_coupons,
+        valid_from,
+        valid_until,
+        active_days,
+        start_time,
+        end_time,
+        usage_limit,
+        usage_count,
+        per_customer_limit,
+        is_active
+      `
+		)
+		.eq('tenant_id', tenant.id)
+		.eq('is_active', true)
+		.lte('valid_from', nowIso)
+		.or(`valid_until.is.null,valid_until.gte.${nowIso}`)
+		.order('priority', { ascending: false })
+
 	const currencySymbol =
 		((tenant.settings?.currencySymbol as string) ?? '₹') || '₹'
 	const taxRate = ((tenant.settings?.taxRate as number) ?? 0) || 0
+	const timeZone = (tenant.settings?.timezone as string | undefined) ?? null
 
 	return (
 		<POSInterface
@@ -90,6 +129,8 @@ export default async function POSPage() {
 			currencySymbol={currencySymbol}
 			taxRate={taxRate}
 			toppings={toppings ?? []}
+			discounts={(discounts ?? []) as unknown as DiscountRecord[]}
+			timeZone={timeZone}
 		/>
 	)
 }
