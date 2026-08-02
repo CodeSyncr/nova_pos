@@ -212,7 +212,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 									<X className="h-5 w-5" />
 								</button>
 							</div>
-							<nav className="space-y-1 text-sm font-medium text-white/70">
+							<nav className="flex-1 min-h-0 space-y-1 overflow-y-auto pr-1 text-sm font-medium text-white/70 [&::-webkit-scrollbar]:hidden">
 								{filteredNavItems.map((item) => {
 									const Icon = item.icon
 									const isActive = pathname === item.href
@@ -237,7 +237,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
 							<button
 								onClick={handleLogout}
-								className="mt-auto flex items-center gap-3 rounded-2xl border border-red-400/40 bg-red-400/5 px-3 py-3 text-sm font-medium text-red-400 transition hover:border-red-400 hover:bg-red-400/10 hover:text-red-300"
+								className="mt-auto shrink-0 flex items-center gap-3 rounded-2xl border border-red-400/40 bg-red-400/5 px-3 py-3 text-sm font-medium text-red-400 transition hover:border-red-400 hover:bg-red-400/10 hover:text-red-300"
 							>
 								<LogOut className="h-4 w-4 shrink-0" />
 								Logout
@@ -259,7 +259,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 				>
 					<div
 						className={cn(
-							'mb-8 flex items-center px-2 transition-all duration-200',
+							'mb-8 flex items-center px-2 transition-all duration-200 shrink-0',
 							collapsed ? 'justify-center' : 'justify-start gap-3'
 						)}
 					>
@@ -275,7 +275,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 							</div>
 						)}
 					</div>
-					<nav className="space-y-1 text-sm font-medium text-white/70">
+					<nav className="flex-1 min-h-0 space-y-1 overflow-y-auto pr-1 text-sm font-medium text-white/70 [&::-webkit-scrollbar]:hidden">
 						{filteredNavItems.map((item) => {
 							const Icon = item.icon
 							const isActive = pathname === item.href
@@ -297,7 +297,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 						})}
 					</nav>
 
-					<div className="mt-auto flex flex-col items-center gap-2 pb-4">
+					<div className="mt-auto shrink-0 flex flex-col items-center gap-2 pt-2 pb-4">
 						{/* Logout */}
 						{collapsed ? (
 							<button
