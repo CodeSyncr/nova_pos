@@ -24,7 +24,8 @@ import {
 	UserCog,
 	ClipboardList,
 	Percent,
-	Brain
+	Brain,
+	Megaphone
 } from 'lucide-react'
 import { canAccessRoute } from '@/lib/permissions'
 import { OrderNotifications } from '@/components/order-notifications'
@@ -41,6 +42,7 @@ const navItems = [
 	{ href: '/customers', label: 'Customers', icon: Users },
 	{ href: '/staff', label: 'Staff', icon: UserCog },
 	{ href: '/analytics', label: 'Analytics', icon: BarChart3 },
+	{ href: '/marketing', label: 'Marketing', icon: Megaphone },
 	{ href: '/reports', label: 'Reports', icon: FileBarChart },
 	{ href: '/tax', label: 'ITR Module', icon: Percent },
 	{ href: '/advisor', label: 'AI Advisor', icon: Brain },

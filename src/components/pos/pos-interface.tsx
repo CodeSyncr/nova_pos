@@ -223,6 +223,10 @@ export function POSInterface({
 	}, [customerPhone, customers, customerName])
 
 	const handleItemClick = (item: MenuItem) => {
+		if (!item.is_active) {
+			alert(`${item.name} is currently marked out of stock.`)
+			return
+		}
 		if (
 			item.menu_item_variants.length > 1 ||
 			item.menu_item_toppings.length > 0
@@ -230,6 +234,26 @@ export function POSInterface({
 			setCustomizingItem(item)
 		} else {
 			addToCart(item)
+		}
+	}
+
+	const handleToggleStock = async (e: React.MouseEvent, item: MenuItem) => {
+		e.stopPropagation()
+		const newStatus = !item.is_active
+		try {
+			const res = await fetch('/api/menu', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					tenantId: tenant.id,
+					itemId: item.id,
+					isAvailable: newStatus
+				})
+			})
+			if (!res.ok) throw new Error('Failed to update stock status')
+			router.refresh()
+		} catch (err) {
+			alert(err instanceof Error ? err.message : 'Failed to update stock status')
 		}
 	}
 
@@ -564,31 +588,68 @@ export function POSInterface({
 										(c.variant?.id || null) === defaultVariantId
 								)
 
+								const isOutOfStock = !item.is_active
+
 								return (
 									<div
 										key={item.id}
 										onClick={() => handleItemClick(item)}
-										className="group relative h-44 cursor-pointer overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] transition hover:border-[#E0342A]/40 sm:h-48"
+										className={cn(
+											"group relative h-44 cursor-pointer overflow-hidden rounded-2xl border transition sm:h-48",
+											isOutOfStock
+												? "border-red-500/30 bg-red-950/10 opacity-75 hover:border-red-500/50"
+												: "border-white/[0.08] bg-white/[0.03] hover:border-[#E0342A]/40"
+										)}
 									>
 										<MenuItemImage src={item.image_url} alt={item.name} />
-										<div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/55 to-transparent" />
-										{(item.menu_item_variants.length > 0 ||
-											item.menu_item_toppings.length > 0) && (
+										<div className={cn(
+											"pointer-events-none absolute inset-0",
+											isOutOfStock
+												? "bg-black/65"
+												: "bg-gradient-to-t from-black via-black/55 to-transparent"
+										)} />
+										{isOutOfStock ? (
+											<span className="absolute left-2 top-2 rounded-md bg-[#E0342A] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white shadow">
+												Out of Stock
+											</span>
+										) : (item.menu_item_variants.length > 0 ||
+											item.menu_item_toppings.length > 0) ? (
 											<span className="absolute left-2 top-2 rounded-md bg-black/45 px-1.5 py-0.5 text-[10px] font-medium text-white/85 backdrop-blur-sm">
 												customizable
 											</span>
-										)}
+										) : null}
+
+										{/* Quick stock toggle button on top right of card */}
+										<button
+											type="button"
+											onClick={(e) => handleToggleStock(e, item)}
+											className={cn(
+												"absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold backdrop-blur-sm transition border",
+												isOutOfStock
+													? "border-red-500/40 bg-red-500/20 text-red-300 hover:bg-red-500/30"
+													: "border-white/20 bg-black/50 text-white/70 hover:border-emerald-500/40 hover:bg-emerald-500/20 hover:text-emerald-300"
+											)}
+											title={isOutOfStock ? "Click to mark In Stock" : "Click to mark Out of Stock"}
+										>
+											<span className={cn("h-1.5 w-1.5 rounded-full", isOutOfStock ? "bg-red-400" : "bg-emerald-400")} />
+											{isOutOfStock ? "Restock" : "In Stock"}
+										</button>
+
 										<div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
 											<div className="min-w-0">
-												<h3 className="line-clamp-2 text-sm font-semibold leading-tight text-white drop-shadow">
+												<h3 className={cn("line-clamp-2 text-sm font-semibold leading-tight drop-shadow", isOutOfStock ? "text-white/60" : "text-white")}>
 													{item.name}
 												</h3>
-												<span className="mt-0.5 block text-sm font-bold tabular-nums text-white">
+												<span className={cn("mt-0.5 block text-sm font-bold tabular-nums", isOutOfStock ? "text-white/50" : "text-white")}>
 													{currencySymbol}
 													{item.base_price.toFixed(0)}
 												</span>
 											</div>
-											{totalQuantity > 0 ? (
+											{isOutOfStock ? (
+												<span className="rounded-lg bg-white/10 px-2 py-1 text-[11px] font-medium text-white/50">
+													Unavailable
+												</span>
+											) : totalQuantity > 0 ? (
 												<div
 													className="flex items-center gap-1 rounded-full border border-white/20 bg-black/40 p-0.5 backdrop-blur-sm"
 													onClick={(e) => e.stopPropagation()}
@@ -646,7 +707,7 @@ export function POSInterface({
 												</button>
 											)}
 										</div>
-								</div>
+									</div>
 								)
 							})}
 						</div>

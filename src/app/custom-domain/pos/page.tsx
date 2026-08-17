@@ -106,7 +106,6 @@ export default async function CustomDomainPOSPage() {
       `
 		)
 		.eq('tenant_id', tenantId)
-		.eq('menu_items.is_active', true)
 		.order('position', { ascending: true })
 
 	const { data: toppings } = await supabaseServer

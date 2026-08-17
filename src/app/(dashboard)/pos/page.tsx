@@ -69,7 +69,6 @@ export default async function POSPage() {
       `
 		)
 		.eq('tenant_id', tenant.id)
-		.eq('menu_items.is_active', true)
 		.order('position', { ascending: true })
 
 	const { data: toppings } = await supabase

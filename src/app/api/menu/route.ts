@@ -9,7 +9,7 @@ function corsResponse(data: any, status = 200) {
 		status,
 		headers: {
 			'Access-Control-Allow-Origin': '*',
-			'Access-Control-Allow-Methods': 'GET, OPTIONS',
+			'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
 			'Access-Control-Allow-Headers': 'Content-Type',
 			'Cache-Control': 'no-store, max-age=0'
 		}
@@ -21,7 +21,7 @@ export async function OPTIONS() {
 		status: 204,
 		headers: {
 			'Access-Control-Allow-Origin': '*',
-			'Access-Control-Allow-Methods': 'GET, OPTIONS',
+			'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
 			'Access-Control-Allow-Headers': 'Content-Type'
 		}
 	})
@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
 	const { searchParams } = new URL(request.url)
 	const tenantId = searchParams.get('tenantId')
 	const tableParam = searchParams.get('table')
+	const includeAll = searchParams.get('includeAll') === 'true' || searchParams.get('pos') === 'true'
 
 	if (!tenantId) {
 		return corsResponse({ error: 'tenantId query parameter is required' }, 400)
@@ -82,10 +83,10 @@ export async function GET(request: NextRequest) {
 		// Sort categories by position
 		rawCategories.sort((a: any, b: any) => (a.position || 0) - (b.position || 0))
 
-		// Process categories and filter active items
+		// Process categories and filter items based on availability
 		const processedCategories = rawCategories.map((cat: any) => {
-			const items = (cat.menu_items || [])
-				.filter((item: any) => item.is_active)
+			const rawItems = cat.menu_items || []
+			const items = (includeAll ? rawItems : rawItems.filter((item: any) => item.is_active !== false && item.is_available !== false))
 				.map((item: any) => {
 					return {
 						id: item.id,
@@ -93,7 +94,8 @@ export async function GET(request: NextRequest) {
 						description: item.description,
 						base_price: parseFloat(item.base_price || item.price || 0),
 						image_url: item.image_url,
-						is_vegan: item.is_vegan ?? false
+						is_vegan: item.is_vegan ?? false,
+						is_available: item.is_active !== false && item.is_available !== false
 					}
 				})
 			return {
@@ -127,6 +129,58 @@ export async function GET(request: NextRequest) {
 			} : null,
 			categories: processedCategories,
 			toppings: toppingsData || []
+		})
+	} catch (err) {
+		const message = err instanceof Error ? err.message : 'Internal Server Error'
+		return corsResponse({ error: message }, 500)
+	}
+}
+
+export async function POST(request: NextRequest) {
+	return handleStockUpdate(request)
+}
+
+export async function PATCH(request: NextRequest) {
+	return handleStockUpdate(request)
+}
+
+async function handleStockUpdate(request: NextRequest) {
+	const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+	const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+	if (!supabaseUrl || !supabaseKey) {
+		return corsResponse({ error: 'Server configuration error: Service role key missing' }, 500)
+	}
+
+	try {
+		const body = await request.json()
+		const { tenantId, itemId, isAvailable, isActive } = body
+		const activeState = isAvailable !== undefined ? isAvailable : isActive
+
+		if (!tenantId || !itemId || activeState === undefined) {
+			return corsResponse({ error: 'tenantId, itemId, and isAvailable (or isActive) are required' }, 400)
+		}
+
+		const supabase = createClient(supabaseUrl, supabaseKey)
+
+		// Update menu item availability / active state
+		const { data, error } = await supabase
+			.from('menu_items')
+			.update({ is_active: Boolean(activeState) })
+			.eq('id', itemId)
+			.eq('tenant_id', tenantId)
+			.select()
+			.single()
+
+		if (error) {
+			return corsResponse({ error: error.message }, 500)
+		}
+
+		return corsResponse({
+			success: true,
+			itemId: itemId,
+			isAvailable: Boolean(activeState),
+			item: data
 		})
 	} catch (err) {
 		const message = err instanceof Error ? err.message : 'Internal Server Error'

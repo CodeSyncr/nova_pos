@@ -12,7 +12,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { deleteMenuItem } from '@/app/actions/menu'
+import { deleteMenuItem, updateMenuItem } from '@/app/actions/menu'
 import { MenuItemForm } from './menu-item-form'
 import { useToast } from '@/components/ui/toast'
 import {
@@ -134,6 +134,25 @@ export function MenuItemsTab({
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : 'Failed to delete menu item'
+			)
+		}
+	}
+
+	const handleToggleStock = async (itemId: string, currentActive: boolean) => {
+		const newStatus = !currentActive
+		try {
+			await updateMenuItem(itemId, { isActive: newStatus })
+			onRefresh()
+			toast.success(
+				newStatus
+					? 'Item is now marked In Stock (Live)'
+					: 'Item is now marked Out of Stock'
+			)
+		} catch (error) {
+			toast.error(
+				error instanceof Error
+					? error.message
+					: 'Failed to update stock status'
 			)
 		}
 	}
@@ -274,15 +293,37 @@ export function MenuItemsTab({
 																			<h4 className="text-base font-semibold text-white truncate">
 																				{item.name}
 																			</h4>
-																			<Badge
-																				className={`flex-shrink-0 ${
+																			<button
+																				type="button"
+																				onClick={() =>
+																					handleToggleStock(
+																						item.id,
+																						item.is_active
+																					)
+																				}
+																				disabled={readOnly}
+																				className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold transition border ${
 																					item.is_active
-																						? 'border-white/20 bg-white/10 text-white'
-																						: 'border-white/20 bg-white/10 text-white/80'
+																						? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25'
+																						: 'bg-red-500/15 border-red-500/30 text-red-400 hover:bg-red-500/25'
 																				}`}
+																				title={
+																					item.is_active
+																						? 'Click to mark Out of Stock'
+																						: 'Click to mark In Stock'
+																				}
 																			>
-																				{item.is_active ? 'Live' : 'Draft'}
-																			</Badge>
+																				<span
+																					className={`h-1.5 w-1.5 rounded-full ${
+																						item.is_active
+																							? 'bg-emerald-400'
+																							: 'bg-red-400'
+																					}`}
+																				/>
+																				{item.is_active
+																					? 'In Stock'
+																					: 'Out of Stock'}
+																			</button>
 																			{item.is_vegan && (
 																				<Badge className="border-green-500/30 bg-green-500/15 text-green-400 flex-shrink-0">
 																					🌱 Vegan
