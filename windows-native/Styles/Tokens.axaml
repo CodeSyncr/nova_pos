@@ -1,0 +1,158 @@
+<!--
+  Design tokens mirrored 1:1 from the web app.
+
+  Source of truth: src/app/globals.css (:root custom properties) plus the
+  hard-coded brand red (#E0342A) and the white-alpha surface/text scale that the
+  Tailwind classes use (bg-white/[0.03], text-white/40, border-white/10, ...).
+  Alpha values are expressed directly instead of being flattened onto black so
+  layered surfaces composite the same way they do in the browser.
+-->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ── Typography ────────────────────────────────────────────────────── -->
+    <FontFamily x:Key="FontSans">avares://NovaPOS/Assets/Fonts#Urbanist</FontFamily>
+    <FontFamily x:Key="FontCursive">avares://NovaPOS/Assets/Fonts#Dancing Script</FontFamily>
+
+    <!-- ── Base palette (globals.css custom properties) ──────────────────── -->
+    <!-- background: hsl(0 0% 4%) -->
+    <Color x:Key="BgColor">#0A0A0A</Color>
+    <!-- card: hsl(0 0% 7%) -->
+    <Color x:Key="CardColor">#121212</Color>
+    <!-- muted: hsl(0 0% 11%) -->
+    <Color x:Key="MutedColor">#1C1C1C</Color>
+    <!-- border: hsl(0 0% 16%) -->
+    <Color x:Key="BorderColor">#292929</Color>
+    <Color x:Key="BrandColor">#E0342A</Color>
+    <Color x:Key="BrandHoverColor">#C42A21</Color>
+
+    <SolidColorBrush x:Key="BgBrush" Color="#0A0A0A" />
+    <SolidColorBrush x:Key="CardBrush" Color="#121212" />
+    <SolidColorBrush x:Key="MutedBrush" Color="#1C1C1C" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#292929" />
+
+    <SolidColorBrush x:Key="BrandBrush" Color="#E0342A" />
+    <SolidColorBrush x:Key="BrandHoverBrush" Color="#C42A21" />
+
+    <!-- ── Brand red at the opacities the web UI uses ────────────────────── -->
+    <SolidColorBrush x:Key="Brand08Brush" Color="#14E0342A" />
+    <SolidColorBrush x:Key="Brand10Brush" Color="#1AE0342A" />
+    <SolidColorBrush x:Key="Brand12Brush" Color="#1FE0342A" />
+    <SolidColorBrush x:Key="Brand15Brush" Color="#26E0342A" />
+    <SolidColorBrush x:Key="Brand20Brush" Color="#33E0342A" />
+    <SolidColorBrush x:Key="Brand25Brush" Color="#40E0342A" />
+    <SolidColorBrush x:Key="Brand30Brush" Color="#4DE0342A" />
+    <SolidColorBrush x:Key="Brand40Brush" Color="#66E0342A" />
+    <SolidColorBrush x:Key="Brand50Brush" Color="#80E0342A" />
+    <SolidColorBrush x:Key="Brand80Brush" Color="#CCE0342A" />
+    <SolidColorBrush x:Key="Brand85Brush" Color="#D9E0342A" />
+
+    <!-- ── White alpha scale (Tailwind white/NN) ─────────────────────────── -->
+    <SolidColorBrush x:Key="White02Brush" Color="#05FFFFFF" />
+    <SolidColorBrush x:Key="White03Brush" Color="#08FFFFFF" />
+    <SolidColorBrush x:Key="White04Brush" Color="#0AFFFFFF" />
+    <SolidColorBrush x:Key="White05Brush" Color="#0DFFFFFF" />
+    <SolidColorBrush x:Key="White06Brush" Color="#0FFFFFFF" />
+    <SolidColorBrush x:Key="White08Brush" Color="#14FFFFFF" />
+    <SolidColorBrush x:Key="White10Brush" Color="#1AFFFFFF" />
+    <SolidColorBrush x:Key="White15Brush" Color="#26FFFFFF" />
+    <SolidColorBrush x:Key="White20Brush" Color="#33FFFFFF" />
+    <SolidColorBrush x:Key="White25Brush" Color="#40FFFFFF" />
+    <SolidColorBrush x:Key="White30Brush" Color="#4DFFFFFF" />
+    <SolidColorBrush x:Key="White35Brush" Color="#59FFFFFF" />
+    <SolidColorBrush x:Key="White40Brush" Color="#66FFFFFF" />
+    <SolidColorBrush x:Key="White45Brush" Color="#73FFFFFF" />
+    <SolidColorBrush x:Key="White50Brush" Color="#80FFFFFF" />
+    <SolidColorBrush x:Key="White55Brush" Color="#8CFFFFFF" />
+    <SolidColorBrush x:Key="White60Brush" Color="#99FFFFFF" />
+    <SolidColorBrush x:Key="White65Brush" Color="#A6FFFFFF" />
+    <SolidColorBrush x:Key="White70Brush" Color="#B3FFFFFF" />
+    <SolidColorBrush x:Key="White80Brush" Color="#CCFFFFFF" />
+    <SolidColorBrush x:Key="White90Brush" Color="#E6FFFFFF" />
+    <SolidColorBrush x:Key="WhiteBrush" Color="#FFFFFFFF" />
+
+    <!-- ── Black alpha (image scrims / floating chips) ───────────────────── -->
+    <SolidColorBrush x:Key="Black40Brush" Color="#66000000" />
+    <SolidColorBrush x:Key="Black45Brush" Color="#73000000" />
+    <SolidColorBrush x:Key="Black60Brush" Color="#99000000" />
+    <SolidColorBrush x:Key="Black70Brush" Color="#B3000000" />
+
+    <!-- ── Status accents (Tailwind red-400 for the destructive affordances) -->
+    <SolidColorBrush x:Key="Red400Brush" Color="#F87171" />
+    <SolidColorBrush x:Key="Red400_05Brush" Color="#0DF87171" />
+    <SolidColorBrush x:Key="Red400_10Brush" Color="#1AF87171" />
+    <SolidColorBrush x:Key="Red400_40Brush" Color="#66F87171" />
+    <SolidColorBrush x:Key="Emerald400Brush" Color="#34D399" />
+
+    <!-- ── Gradients reused across panels ────────────────────────────────── -->
+    <!-- bg-gradient-to-b from-white/[0.04] to-transparent -->
+    <LinearGradientBrush x:Key="PanelGradientBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Color="#0AFFFFFF" Offset="0" />
+        <GradientStop Color="#00FFFFFF" Offset="1" />
+    </LinearGradientBrush>
+
+    <!-- bg-gradient-to-br from-white/[0.06] via-white/[0.02] to-transparent -->
+    <LinearGradientBrush x:Key="HeroGradientBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#0FFFFFFF" Offset="0" />
+        <GradientStop Color="#05FFFFFF" Offset="0.5" />
+        <GradientStop Color="#00FFFFFF" Offset="1" />
+    </LinearGradientBrush>
+
+    <!-- bg-gradient-to-r from-black via-black/75 to-black/20 (banner scrim) -->
+    <LinearGradientBrush x:Key="BannerScrimBrush" StartPoint="0%,0%" EndPoint="100%,0%">
+        <GradientStop Color="#FF000000" Offset="0" />
+        <GradientStop Color="#BF000000" Offset="0.5" />
+        <GradientStop Color="#33000000" Offset="1" />
+    </LinearGradientBrush>
+
+    <!-- bg-gradient-to-t from-black via-black/55 to-transparent (item cards) -->
+    <LinearGradientBrush x:Key="CardScrimBrush" StartPoint="0%,100%" EndPoint="0%,0%">
+        <GradientStop Color="#FF000000" Offset="0" />
+        <GradientStop Color="#8C000000" Offset="0.5" />
+        <GradientStop Color="#00000000" Offset="1" />
+    </LinearGradientBrush>
+
+    <!-- bg-gradient-to-t from-black via-black/20 to-transparent (cart banner) -->
+    <LinearGradientBrush x:Key="CartBannerScrimBrush" StartPoint="0%,100%" EndPoint="0%,0%">
+        <GradientStop Color="#FF000000" Offset="0" />
+        <GradientStop Color="#33000000" Offset="0.55" />
+        <GradientStop Color="#00000000" Offset="1" />
+    </LinearGradientBrush>
+
+    <!-- bg-gradient-to-r from-[#E0342A]/10 via-[#E0342A]/5 to-transparent -->
+    <LinearGradientBrush x:Key="BrandWashBrush" StartPoint="0%,0%" EndPoint="100%,0%">
+        <GradientStop Color="#1AE0342A" Offset="0" />
+        <GradientStop Color="#0DE0342A" Offset="0.5" />
+        <GradientStop Color="#00E0342A" Offset="1" />
+    </LinearGradientBrush>
+
+    <!-- Login sheet scrim: fades the hero image into the form column -->
+    <LinearGradientBrush x:Key="LoginScrimBrush" StartPoint="0%,0%" EndPoint="100%,0%">
+        <GradientStop Color="#00000000" Offset="0" />
+        <GradientStop Color="#59000000" Offset="0.55" />
+        <GradientStop Color="#FF000000" Offset="1" />
+    </LinearGradientBrush>
+
+    <!--
+      Scrollbars: globals.css hides them outright. A desktop app still wants a
+      hit target, so they're kept but toned down to the white-alpha scale instead
+      of Fluent's bright default.
+    -->
+    <SolidColorBrush x:Key="ScrollBarBackground" Color="Transparent" />
+    <SolidColorBrush x:Key="ScrollBarBackgroundPointerOver" Color="#08FFFFFF" />
+    <SolidColorBrush x:Key="ScrollBarBackgroundDisabled" Color="Transparent" />
+    <SolidColorBrush x:Key="ScrollBarBorderBrush" Color="Transparent" />
+    <SolidColorBrush x:Key="ScrollBarTrackFill" Color="Transparent" />
+    <SolidColorBrush x:Key="ScrollBarTrackStroke" Color="Transparent" />
+    <SolidColorBrush x:Key="ScrollBarTrackFillPointerOver" Color="Transparent" />
+    <SolidColorBrush x:Key="ScrollBarTrackStrokePointerOver" Color="Transparent" />
+    <SolidColorBrush x:Key="ScrollBarThumbFill" Color="#26FFFFFF" />
+    <SolidColorBrush x:Key="ScrollBarThumbFillPointerOver" Color="#40FFFFFF" />
+    <SolidColorBrush x:Key="ScrollBarThumbFillPressed" Color="#59FFFFFF" />
+    <SolidColorBrush x:Key="ScrollBarThumbFillDisabled" Color="Transparent" />
+    <SolidColorBrush x:Key="ScrollBarPanningThumbBackground" Color="#26FFFFFF" />
+    <SolidColorBrush x:Key="ScrollBarButtonArrowForeground" Color="#4DFFFFFF" />
+    <SolidColorBrush x:Key="ScrollBarButtonArrowForegroundPointerOver" Color="#99FFFFFF" />
+    <SolidColorBrush x:Key="ScrollBarButtonBackground" Color="Transparent" />
+    <SolidColorBrush x:Key="ScrollBarButtonBackgroundPointerOver" Color="#0FFFFFFF" />
+</ResourceDictionary>

@@ -14,12 +14,14 @@ import {
 	Shield,
 	LayoutGrid,
 	FileText,
-	Flame
+	Flame,
+	BadgePercent
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { LoyaltySettingsTab } from '@/components/settings/loyalty-settings-tab'
 import { CouponsTab } from '@/components/settings/coupons-tab'
+import { DiscountsTab } from '@/components/settings/discounts-tab'
 import { GeneralSettingsTab } from '@/components/settings/general-settings-tab'
 import { BillDesignerTab } from '@/components/settings/bill-designer-tab'
 import { OrganizationSettingsTab } from '@/components/settings/organization-settings-tab'
@@ -88,6 +90,13 @@ const tabs = [
 		description: 'Discount codes & promotions'
 	},
 	{
+		id: 'discounts',
+		label: 'Discounts',
+		icon: BadgePercent,
+		color: 'from-[#E0342A]/20 to-[#E0342A]/5',
+		description: 'Rule-based offers applied automatically'
+	},
+	{
 		id: 'general',
 		label: 'General',
 		icon: Settings,
@@ -149,34 +158,35 @@ export default function SettingsPage() {
 			}
 
 			// Try querying with new custom domain columns
-			let { data: profileTenant, error } = await supabase
+			let { data: pts, error } = await supabase
 				.from('profile_tenants')
 				.select(
 					'tenant:tenants(id, name, slug, settings, branding, contact, social, custom_domain, landing_page, logo_url)'
 				)
 				.eq('profile_id', user.id)
-				.single()
+				.limit(1)
 
+			let profileTenant = pts && pts.length > 0 ? pts[0] : null
 			let migrationRequired = false
 
-			if (error) {
-				console.warn('Primary query failed, attempting fallback query without custom domain columns:', error)
-				// If query failed (e.g. column not found), attempt fallback
+			if (error || !profileTenant) {
 				const fallback = await supabase
 					.from('profile_tenants')
 					.select(
 						'tenant:tenants(id, name, slug, settings, branding, contact, social, logo_url)'
 					)
 					.eq('profile_id', user.id)
-					.single()
+					.limit(1)
 
-				if (fallback.error || !fallback.data) {
-					router.push('/onboarding')
+				const fbPt = fallback.data && fallback.data.length > 0 ? fallback.data[0] : null
+
+				if (fallback.error || !fbPt) {
+					router.push('/dashboard')
 					return
 				}
 
 				// Map fallback to look like the main type
-				const fbTenant = (fallback.data as any).tenant
+				const fbTenant = (fbPt as any).tenant
 				const mappedTenant = Array.isArray(fbTenant) ? fbTenant[0] : fbTenant
 
 				profileTenant = {
@@ -190,7 +200,7 @@ export default function SettingsPage() {
 			}
 
 			if (!profileTenant?.tenant) {
-				router.push('/onboarding')
+				router.push('/dashboard')
 				return
 			}
 
@@ -369,6 +379,16 @@ export default function SettingsPage() {
 
 						{activeTab === 'coupons' && (
 							<CouponsTab tenantId={tenant.id} onRefresh={loadTenant} />
+						)}
+
+						{activeTab === 'discounts' && (
+							<DiscountsTab
+								tenantId={tenant.id}
+								currencySymbol={
+									((tenant.settings?.currencySymbol as string) ?? '₹') || '₹'
+								}
+								onRefresh={loadTenant}
+							/>
 						)}
 
 						{activeTab === 'general' && (

@@ -76,7 +76,7 @@ export default async function DashboardPage() {
 		redirect('/login')
 	}
 
-	const { data, error } = await supabase
+	const { data: pts } = await supabase
 		.from('profile_tenants')
 		.select(
 			`
@@ -90,12 +90,13 @@ export default async function DashboardPage() {
       `
 		)
 		.eq('profile_id', user.id)
-		.single()
+		.limit(1)
 
+	const data = pts && pts.length > 0 ? pts[0] : null
 	const tenantData = Array.isArray(data?.tenant) ? data.tenant[0] : data?.tenant
 	const tenant = tenantData as unknown as (TenantRecord & { slug?: string | null }) | null
 
-	if (error || !tenant) {
+	if (!tenant) {
 		redirect('/tenant')
 	}
 

@@ -7,9 +7,12 @@ import {
 	Table as TableIcon,
 	User,
 	CheckCircle2,
-	ShoppingCart
+	ShoppingCart,
+	BadgePercent,
+	X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { AppliedDiscount } from '@/lib/discount-engine'
 
 type Variant = {
 	id: string
@@ -45,6 +48,9 @@ type OrderCartProps = {
 	subtotal: number
 	tax: number
 	total: number
+	discountAmount: number
+	appliedDiscounts: AppliedDiscount[]
+	onToggleDiscount: (discountId: string) => void
 	orderType: OrderType
 	setOrderType: (t: OrderType) => void
 	selectedTable: TableT | null
@@ -75,6 +81,9 @@ export function OrderCart({
 	subtotal,
 	tax,
 	total,
+	discountAmount,
+	appliedDiscounts,
+	onToggleDiscount,
 	orderType,
 	setOrderType,
 	selectedTable,
@@ -259,9 +268,50 @@ export function OrderCart({
 			{cart.length > 0 && (
 				<div className="shrink-0 border-t border-white/[0.06] px-5 py-4">
 					<div className="space-y-1.5">
+						<div className="flex justify-between text-sm text-white/50">
+							<span>Subtotal</span>
+							<span className="tabular-nums">{fmt(subtotal)}</span>
+						</div>
+
+						{/* Auto-applied rule based discounts */}
+						{appliedDiscounts.map((discount) => (
+							<div
+								key={discount.id}
+								className="flex items-center justify-between gap-2 text-sm text-emerald-400"
+							>
+								<span className="flex min-w-0 items-center gap-1.5">
+									<BadgePercent className="h-3.5 w-3.5 shrink-0" />
+									<span className="truncate" title={discount.name}>
+										{discount.name}
+									</span>
+									{discount.discountType === 'percent' && (
+										<span className="shrink-0 text-emerald-400/60">
+											({discount.discountValue}%)
+										</span>
+									)}
+									<button
+										onClick={() => onToggleDiscount(discount.id)}
+										aria-label={`Remove ${discount.name} discount`}
+										title="Remove for this order"
+										className="shrink-0 rounded-full p-0.5 text-emerald-400/50 transition hover:bg-white/10 hover:text-emerald-300"
+									>
+										<X className="h-3 w-3" />
+									</button>
+								</span>
+								<span className="shrink-0 tabular-nums">
+									-{fmt(discount.amount)}
+								</span>
+							</div>
+						))}
+
 						{taxRate > 0 && (
 							<div className="flex justify-between text-sm text-white/50">
-								<span>Tax ({taxRate}%)</span>
+								<span>
+									Tax ({taxRate}%)
+									{discountAmount > 0 && (
+										<span className="text-white/30"> on discounted</span>
+									)}
+								</span>
 								<span className="tabular-nums">{fmt(tax)}</span>
 							</div>
 						)}
@@ -269,6 +319,11 @@ export function OrderCart({
 							<span className="text-sm font-medium text-white">Total</span>
 							<span className="text-2xl font-bold tabular-nums text-white">{fmt(total)}</span>
 						</div>
+						{discountAmount > 0 && (
+							<p className="text-right text-[11px] text-emerald-400/70">
+								You saved {fmt(discountAmount)}
+							</p>
+						)}
 					</div>
 					<button
 						onClick={onPlaceOrder}

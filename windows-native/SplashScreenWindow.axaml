@@ -1,0 +1,87 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="NovaPOS.Desktop.SplashScreenWindow"
+        Title="NovaPOS Terminal"
+        Width="620" Height="380"
+        WindowStartupLocation="CenterScreen"
+        SystemDecorations="None"
+        CanResize="False"
+        Topmost="True"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent">
+
+    <Border CornerRadius="28"
+            Background="#0D0D0D"
+            BorderBrush="#2A2A2A"
+            BorderThickness="1"
+            BoxShadow="0 30 100 0 #D0000000"
+            ClipToBounds="True">
+        <Grid>
+            <!-- Background Accent Glow -->
+            <Ellipse Width="400" Height="400"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                     Margin="0,-100,0,0">
+                <Ellipse.Fill>
+                    <RadialGradientBrush Center="50%,50%" GradientOrigin="50%,50%" RadiusX="50%" RadiusY="50%">
+                        <GradientStop Color="#25E0342A" Offset="0" />
+                        <GradientStop Color="#00E0342A" Offset="1" />
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+
+            <DockPanel Margin="48,40">
+                <!-- Bottom Info Footer -->
+                <DockPanel DockPanel.Dock="Bottom" Margin="0,24,0,0">
+                    <TextBlock Text="v1.3.0 · .NET 10.0"
+                               FontSize="11" FontWeight="Medium"
+                               Foreground="#525252"
+                               DockPanel.Dock="Right"
+                               VerticalAlignment="Center" />
+                    <TextBlock x:Name="LblStatus"
+                               Text="Initializing POS system..."
+                               FontSize="12" FontWeight="Medium"
+                               Foreground="#A3A3A3"
+                               VerticalAlignment="Center" />
+                </DockPanel>
+
+                <!-- Loading Progress Bar -->
+                <ProgressBar x:Name="ProgressBar"
+                             DockPanel.Dock="Bottom"
+                             Height="4"
+                             Minimum="0" Maximum="100" Value="10"
+                             Foreground="#E0342A"
+                             Background="#1A1A1A"
+                             CornerRadius="2"
+                             Margin="0,0,0,0" />
+
+                <!-- Center Content: Logo & Title -->
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
+                    <Border Width="88" Height="88"
+                            CornerRadius="24"
+                            ClipToBounds="True"
+                            Background="#141414"
+                            BorderBrush="#E0342A"
+                            BorderThickness="1.5"
+                            BoxShadow="0 12 36 0 #66E0342A"
+                            HorizontalAlignment="Center">
+                        <Image Source="/Assets/logo.png"
+                               Stretch="UniformToFill"
+                               Margin="8" />
+                    </Border>
+
+                    <StackPanel Spacing="6" HorizontalAlignment="Center">
+                        <TextBlock Text="NovaPOS"
+                                   FontSize="32" FontWeight="Bold"
+                                   Foreground="White"
+                                   HorizontalAlignment="Center"
+                                   LetterSpacing="0.5" />
+                        <TextBlock Text="Pizzeria Da Cafe · Native Terminal"
+                                   FontSize="13" FontWeight="Medium"
+                                   Foreground="#737373"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </DockPanel>
+        </Grid>
+    </Border>
+</Window>

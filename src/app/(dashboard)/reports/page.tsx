@@ -102,14 +102,15 @@ export default function ReportsPage() {
 			const { data: { user } } = await supabase.auth.getUser()
 			if (!user) { router.push('/login'); return }
 
-			const { data: pt } = await supabase
+			const { data: pts } = await supabase
 				.from('profile_tenants')
 				.select('tenant:tenants(id, settings)')
 				.eq('profile_id', user.id)
-				.single()
+				.limit(1)
 
+			const pt = pts && pts.length > 0 ? pts[0] : null
 			const tenant = Array.isArray((pt as any)?.tenant) ? (pt as any).tenant[0] : (pt as any)?.tenant
-			if (!tenant) { router.push('/onboarding'); return }
+			if (!tenant) { router.push('/dashboard'); return }
 
 			setTenantId(tenant.id)
 			const settings = tenant.settings as Record<string, unknown> | null

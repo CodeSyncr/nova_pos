@@ -1,0 +1,169 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="clr-namespace:NovaPOS.Desktop.Controls"
+             x:Class="NovaPOS.Desktop.Views.LoginPage"
+             Background="#0A0A0A"
+             Foreground="White">
+
+    <Grid ColumnDefinitions="*,*">
+        <!-- Hero column -->
+        <Border Grid.Column="0" ClipToBounds="True">
+            <Border.Background>
+                <ImageBrush Source="/Assets/login_bg.jpg"
+                            Stretch="UniformToFill"
+                            AlignmentX="Center"
+                            AlignmentY="Center" />
+            </Border.Background>
+            <Border Background="{StaticResource LoginScrimBrush}" />
+        </Border>
+
+        <!-- Form column -->
+        <Panel Grid.Column="1" Background="#0A0A0A">
+            <StackPanel Width="360"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+
+                <!-- Brand -->
+                <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,32">
+                    <Border Width="40" Height="40"
+                            CornerRadius="16"
+                            ClipToBounds="True"
+                            BorderBrush="{StaticResource White10Brush}"
+                            BorderThickness="1"
+                            BoxShadow="0 10 30 0 #59E0342A">
+                        <Image Source="/Assets/favicon.png" Stretch="UniformToFill" />
+                    </Border>
+                    <TextBlock Text="pizzeria da cafe"
+                               Classes="cursive"
+                               FontSize="24"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <TextBlock Text="Sign in"
+                           FontSize="24"
+                           FontWeight="SemiBold"
+                           Foreground="White" />
+                <TextBlock Text="Welcome back to Pizzeria Da Cafe"
+                           FontSize="13"
+                           Foreground="{StaticResource White40Brush}"
+                           Margin="0,4,0,24" />
+
+                <!-- Biometric Sign-In Quick Card -->
+                <Border Name="CardBiometric"
+                        IsVisible="False"
+                        Margin="0,0,0,20"
+                        CornerRadius="16"
+                        Padding="16,14"
+                        Background="#151515"
+                        BorderBrush="#E0342A"
+                        BorderThickness="1.5"
+                        BoxShadow="0 10 30 -6 #59E0342A">
+                    <StackPanel Spacing="10">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <ctl:Icon Data="{StaticResource Icon.Sparkles}" Width="20" Height="20" Foreground="#E0342A" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Margin="10,0,0,0" Spacing="2">
+                                <TextBlock Text="BIOMETRIC QUICK SIGN-IN" Classes="caption" Foreground="#E0342A" />
+                                <TextBlock Name="LblSavedAccount" Text="yashkumar12125@gmail.com" FontSize="12" FontWeight="SemiBold" Foreground="White" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Button Name="BtnBiometricLogin"
+                                Content="Sign in with Windows Hello / Fingerprint"
+                                Background="#E0342A"
+                                Foreground="White"
+                                FontWeight="SemiBold"
+                                CornerRadius="12"
+                                Height="40"
+                                HorizontalAlignment="Stretch"
+                                Click="OnBiometricLoginClick" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Email -->
+                <TextBlock Text="EMAIL" Classes="label" Margin="0,0,0,6" />
+                <TextBox Name="TxtEmail"
+                         Watermark="you@pizzeriadacafe.com"
+                         Padding="12,12"
+                         KeyDown="OnFieldKeyDown">
+                    <TextBox.InnerLeftContent>
+                        <ctl:Icon Data="{StaticResource Icon.Mail}"
+                                  Width="16" Height="16"
+                                  Foreground="{StaticResource White30Brush}"
+                                  Margin="2,0,10,0" />
+                    </TextBox.InnerLeftContent>
+                </TextBox>
+
+                <!-- Password -->
+                <TextBlock Text="PASSWORD" Classes="label" Margin="0,16,0,6" />
+                <TextBox Name="TxtPassword"
+                         Watermark="••••••••"
+                         PasswordChar="•"
+                         Padding="12,12"
+                         KeyDown="OnFieldKeyDown">
+                    <TextBox.InnerLeftContent>
+                        <ctl:Icon Data="{StaticResource Icon.Lock}"
+                                  Width="16" Height="16"
+                                  Foreground="{StaticResource White30Brush}"
+                                  Margin="2,0,10,0" />
+                    </TextBox.InnerLeftContent>
+                    <TextBox.InnerRightContent>
+                        <Button Name="BtnReveal"
+                                Classes="step"
+                                Width="28" Height="28"
+                                Margin="6,0,0,0"
+                                Click="OnToggleReveal"
+                                ToolTip.Tip="Show password">
+                            <ctl:Icon Name="IcoReveal"
+                                      Data="{StaticResource Icon.Eye}"
+                                      Width="16" Height="16" />
+                        </Button>
+                    </TextBox.InnerRightContent>
+                </TextBox>
+
+                <!-- Error -->
+                <Border Name="ErrorBox"
+                        IsVisible="False"
+                        Margin="0,16,0,0"
+                        CornerRadius="10"
+                        Padding="12,8"
+                        Background="{StaticResource Brand10Brush}"
+                        BorderBrush="{StaticResource Brand30Brush}"
+                        BorderThickness="1">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <ctl:Icon Data="{StaticResource Icon.CircleAlert}"
+                                  Width="14" Height="14"
+                                  Foreground="#FCA5A5"
+                                  VerticalAlignment="Top"
+                                  Margin="0,1,0,0" />
+                        <TextBlock Name="LblError"
+                                   FontSize="12"
+                                   Foreground="#FCA5A5"
+                                   TextWrapping="Wrap"
+                                   MaxWidth="300" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Submit -->
+                <Border Margin="0,20,0,0"
+                        CornerRadius="12"
+                        BoxShadow="0 10 30 -8 #99E0342A">
+                    <Button Name="BtnLogin"
+                            Classes="brand"
+                            Height="46"
+                            CornerRadius="12"
+                            FontSize="13"
+                            HorizontalAlignment="Stretch"
+                            Click="OnLoginClick">
+                        <StackPanel Name="LoginContent" Orientation="Horizontal" Spacing="8">
+                            <TextBlock Name="LblLogin" Text="Sign in" VerticalAlignment="Center" />
+                            <ctl:Icon Name="IcoLogin"
+                                      Data="{StaticResource Icon.ArrowRight}"
+                                      Width="16" Height="16" />
+                        </StackPanel>
+                    </Button>
+                </Border>
+
+            </StackPanel>
+        </Panel>
+    </Grid>
+</UserControl>

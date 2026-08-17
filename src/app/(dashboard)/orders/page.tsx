@@ -36,7 +36,8 @@ import {
 	Loader2,
 	Printer,
 	Bluetooth,
-	Gift
+	Gift,
+	Zap
 } from 'lucide-react'
 import {
 	updateOrderStatus,
@@ -46,6 +47,12 @@ import {
 } from '@/app/actions/orders'
 import { createMembershipCard } from '@/app/actions/customers'
 import { cn } from '@/lib/utils'
+import {
+	evaluateDiscounts,
+	computeOrderTotals,
+	type DiscountRecord,
+	type OrderContext
+} from '@/lib/discount-engine'
 import { useToast } from '@/components/ui/toast'
 import { generateAndUploadBill, getOrGenerateBillUrl, openWhatsApp, printBluetoothBill } from '@/lib/bill-generator'
 import { DEFAULT_WHATSAPP_TEMPLATE, DEFAULT_THERMAL_TEMPLATE } from '@/lib/bill-template'
@@ -226,6 +233,9 @@ export default function OrdersPage() {
 	const [editCustomerName, setEditCustomerName] = useState('')
 	const [editCustomerPhone, setEditCustomerPhone] = useState('')
 	const [customers, setCustomers] = useState<any[]>([])
+	const [discountRules, setDiscountRules] = useState<DiscountRecord[]>([])
+	const [dismissedEditDiscountIds, setDismissedEditDiscountIds] = useState<string[]>([])
+	const [timeZone, setTimeZone] = useState<string | null>(null)
 
 	const customerExists = useMemo(() => {
 		const phone = editCustomerPhone.trim()
@@ -378,6 +388,92 @@ export default function OrdersPage() {
 		]
 	}, [tables])
 
+	// menuItemId -> categoryId, for the `contains_category` discount rule.
+	const categoryByMenuItemId = useMemo(() => {
+		const map: Record<string, string> = {}
+		for (const item of menuItems) {
+			if (item.category_id) map[item.id] = item.category_id
+		}
+		return map
+	}, [menuItems])
+
+	// Live subtotal from edited items
+	const editSubtotal = useMemo(
+		() => editedItems.reduce((sum, item) => sum + item.totalPrice, 0),
+		[editedItems]
+	)
+
+	// Re-evaluate rule-based discounts reactively when edit state changes
+	const editDiscountEvaluation = useMemo(() => {
+		if (!editingOrder || editedItems.length === 0 || discountRules.length === 0) {
+			return { applied: [], skipped: [], totalDiscount: 0, couponAllowed: true }
+		}
+
+		const menuItemIds = Array.from(new Set(editedItems.map((item) => item.menuItemId).filter(Boolean)))
+		const categoryIds = Array.from(
+			new Set(
+				menuItemIds
+					.map((id) => categoryByMenuItemId[id])
+					.filter((id): id is string => Boolean(id))
+			)
+		)
+
+		const ctx: OrderContext = {
+			subtotal: editSubtotal,
+			itemCount: editedItems.reduce((sum, item) => sum + item.quantity, 0),
+			orderType: editOrderType,
+			categoryIds,
+			menuItemIds,
+			isReturningCustomer: customerExists,
+			customerPhone: editCustomerPhone.trim() || null,
+			couponApplied: false,
+			now: new Date(),
+			timeZone,
+			excludedDiscountIds: dismissedEditDiscountIds
+		}
+
+		return evaluateDiscounts(discountRules, ctx)
+	}, [
+		editingOrder,
+		editedItems,
+		editSubtotal,
+		editOrderType,
+		categoryByMenuItemId,
+		customerExists,
+		editCustomerPhone,
+		timeZone,
+		discountRules,
+		dismissedEditDiscountIds
+	])
+
+	// Effective discount: auto engine wins when active, else fall back to manual
+	const editEffectiveDiscount = useMemo(() => {
+		if (editDiscountEvaluation.applied.length > 0) {
+			return editDiscountEvaluation.totalDiscount
+		}
+		// Fall back to manual discount
+		if (editDiscountType && editDiscountValue) {
+			const value = parseFloat(editDiscountValue) || 0
+			if (editDiscountType === 'percent') {
+				return editSubtotal * (value / 100)
+			}
+			return Math.min(value, editSubtotal)
+		}
+		return 0
+	}, [editDiscountEvaluation, editDiscountType, editDiscountValue, editSubtotal])
+
+	// Live totals using computeOrderTotals from the discount engine
+	const editTotals = useMemo(
+		() =>
+			computeOrderTotals({
+				subtotal: editSubtotal,
+				taxRatePercent: taxRate,
+				discountAmount: editEffectiveDiscount,
+				spaceRentalAmount: editingOrder?.space_rental_amount || 0
+			}),
+		[editSubtotal, taxRate, editEffectiveDiscount, editingOrder]
+	)
+
 	useEffect(() => {
 		loadOrders()
 		const interval = setInterval(loadOrders, 5000) // Refresh every 5 seconds
@@ -418,6 +514,7 @@ export default function OrdersPage() {
 		setTaxRate(tax)
 		setTenantName(tenant?.name || '')
 		setTenantId(tenantRow.tenant_id)
+		setTimeZone((settings.timezone as string | undefined) ?? null)
 		if (settings && typeof settings === 'object') {
 			const templates = (settings as any).billTemplates
 			if (templates?.whatsapp) {
@@ -529,6 +626,43 @@ export default function OrdersPage() {
 			.order('full_name', { ascending: true })
 
 		if (customersData) setCustomers(customersData)
+
+		// Load active discount rules for auto-apply in edit modal
+		const nowIso = new Date().toISOString()
+		const { data: discountsData } = await supabase
+			.from('discounts')
+			.select(
+				`
+				id,
+				name,
+				description,
+				discount_type,
+				discount_value,
+				max_discount_amount,
+				rules,
+				rule_match,
+				auto_apply,
+				priority,
+				is_stackable,
+				stackable_with_coupons,
+				valid_from,
+				valid_until,
+				active_days,
+				start_time,
+				end_time,
+				usage_limit,
+				usage_count,
+				per_customer_limit,
+				is_active
+			`
+			)
+			.eq('tenant_id', tenantRow.tenant_id)
+			.eq('is_active', true)
+			.lte('valid_from', nowIso)
+			.or(`valid_until.is.null,valid_until.gte.${nowIso}`)
+			.order('priority', { ascending: false })
+
+		if (discountsData) setDiscountRules(discountsData as unknown as DiscountRecord[])
 
 		let query = supabase
 			.from('orders')
@@ -910,6 +1044,7 @@ export default function OrdersPage() {
 		setEditOrderType(order.order_type as 'dine_in' | 'takeaway' | 'delivery')
 		setEditDiscountType(order.discount_type as 'percent' | 'fixed' | null)
 		setEditDiscountValue(order.discount_value?.toString() || '')
+		setDismissedEditDiscountIds([])
 		setShowAddItem(false)
 		setItemSearchQuery('')
 	}
@@ -1051,24 +1186,23 @@ export default function OrdersPage() {
 		if (!editingOrder) return
 		setSavingEdit(true)
 
-		const subtotal = editedItems.reduce((sum, item) => sum + item.totalPrice, 0)
-		const tax = subtotal * (taxRate / 100)
+		const subtotal = editTotals.subtotal
+		const tax = editTotals.tax
+		const discountAmount = editTotals.discount
+		const spaceRentalAmount = editTotals.spaceRental
+		const total = editTotals.total
 
-		// Calculate discount
-		let discountAmount = 0
-		if (editDiscountType && editDiscountValue) {
-			const value = parseFloat(editDiscountValue) || 0
-			const totalBeforeDiscount = subtotal + tax
+		let discountType: string | undefined = undefined
+		let discountValue: number | undefined = undefined
 
-			if (editDiscountType === 'percent') {
-				discountAmount = totalBeforeDiscount * (value / 100)
-			} else {
-				discountAmount = Math.min(value, totalBeforeDiscount)
-			}
+		if (editDiscountEvaluation.applied.length > 0) {
+			const firstApplied = editDiscountEvaluation.applied[0]
+			discountType = firstApplied.discountType
+			discountValue = firstApplied.discountValue
+		} else if (editDiscountType && editDiscountValue) {
+			discountType = editDiscountType
+			discountValue = parseFloat(editDiscountValue) || undefined
 		}
-
-		const spaceRentalAmount = editingOrder.space_rental_amount || 0
-		const total = subtotal + tax - discountAmount + spaceRentalAmount
 
 		try {
 			await updateOrder(editingOrder.id, {
@@ -1082,10 +1216,8 @@ export default function OrdersPage() {
 				tax,
 				total,
 				discountAmount: discountAmount > 0 ? discountAmount : undefined,
-				discountType: editDiscountType || undefined,
-				discountValue: editDiscountValue
-					? parseFloat(editDiscountValue)
-					: undefined,
+				discountType: discountType || undefined,
+				discountValue: discountValue,
 				spaceRentalAmount
 			})
 			setEditingOrder(null)
@@ -1096,6 +1228,7 @@ export default function OrdersPage() {
 			setEditOrderType('dine_in')
 			setEditDiscountType(null)
 			setEditDiscountValue('')
+			setDismissedEditDiscountIds([])
 			loadOrders()
 			toast.success('Order updated successfully')
 		} catch (error) {
@@ -1908,137 +2041,166 @@ export default function OrdersPage() {
 
 							{/* Discount Section */}
 							<div className="space-y-3 rounded-lg border border-white/10 bg-white/5 p-4">
-								<div className="flex items-center justify-between">
-									<span className="text-sm font-semibold text-white">
-										Discount
-									</span>
-									<div className="flex gap-1">
-										<Button
-											type="button"
-											size="sm"
-											variant={
-												editDiscountType === 'percent' ? 'default' : 'ghost'
-											}
-											onClick={() => {
-												setEditDiscountType('percent')
-												if (!editDiscountValue) setEditDiscountValue('')
-											}}
-											className="h-7 text-xs"
-										>
-											<Percent className="h-3 w-3" />
-										</Button>
-										<Button
-											type="button"
-											size="sm"
-											variant={
-												editDiscountType === 'fixed' ? 'default' : 'ghost'
-											}
-											onClick={() => {
-												setEditDiscountType('fixed')
-												if (!editDiscountValue) setEditDiscountValue('')
-											}}
-											className="h-7 text-xs"
-										>
-											<DollarSign className="h-3 w-3" />
-										</Button>
-										{editDiscountType && (
-											<Button
-												type="button"
-												size="sm"
-												variant="ghost"
-												onClick={() => {
-													setEditDiscountType(null)
-													setEditDiscountValue('')
-												}}
-												className="h-7 text-xs"
+								{/* Auto-applied Discounts list */}
+								{editDiscountEvaluation.applied.length > 0 ? (
+									<div className="space-y-2">
+										<div className="flex items-center justify-between">
+											<span className="text-sm font-semibold text-white flex items-center gap-1.5">
+												<Zap className="h-4 w-4 text-emerald-400" />
+												Auto Discount Applied
+											</span>
+										</div>
+										{editDiscountEvaluation.applied.map((discount) => (
+											<div
+												key={discount.id}
+												className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-300"
 											>
-												<X className="h-3 w-3" />
-											</Button>
-										)}
+												<div className="flex items-center gap-1.5 min-w-0">
+													<span className="truncate">{discount.name}</span>
+													{discount.discountType === 'percent' && (
+														<span className="text-emerald-400/60 shrink-0">
+															({discount.discountValue}%)
+														</span>
+													)}
+												</div>
+												<div className="flex items-center gap-2">
+													<span className="font-semibold tabular-nums">
+														-{currencySymbol}{discount.amount.toFixed(2)}
+													</span>
+													<button
+														type="button"
+														onClick={() =>
+															setDismissedEditDiscountIds((prev) =>
+																[...prev, discount.id]
+															)
+														}
+														className="rounded p-0.5 hover:bg-emerald-500/20 text-emerald-400 cursor-pointer"
+														title="Remove auto discount for this order"
+													>
+														<X className="h-3.5 w-3.5" />
+													</button>
+												</div>
+											</div>
+										))}
 									</div>
-								</div>
-								{editDiscountType && (
-									<input
-										type="number"
-										step={editDiscountType === 'percent' ? '0.1' : '0.01'}
-										min="0"
-										max={editDiscountType === 'percent' ? '100' : undefined}
-										value={editDiscountValue}
-										onChange={(e) => setEditDiscountValue(e.target.value)}
-										placeholder={
-											editDiscountType === 'percent'
-												? 'Enter %'
-												: 'Enter amount'
-										}
-										className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
-									/>
+								) : (
+									<>
+										<div className="flex items-center justify-between">
+											<span className="text-sm font-semibold text-white">
+												Manual Discount
+											</span>
+											<div className="flex gap-1">
+												<Button
+													type="button"
+													size="sm"
+													variant={
+														editDiscountType === 'percent' ? 'default' : 'ghost'
+													}
+													onClick={() => {
+														setEditDiscountType('percent')
+														if (!editDiscountValue) setEditDiscountValue('')
+													}}
+													className="h-7 text-xs"
+												>
+													<Percent className="h-3 w-3" />
+												</Button>
+												<Button
+													type="button"
+													size="sm"
+													variant={
+														editDiscountType === 'fixed' ? 'default' : 'ghost'
+													}
+													onClick={() => {
+														setEditDiscountType('fixed')
+														if (!editDiscountValue) setEditDiscountValue('')
+													}}
+													className="h-7 text-xs"
+												>
+													<DollarSign className="h-3 w-3" />
+												</Button>
+												{editDiscountType && (
+													<Button
+														type="button"
+														size="sm"
+														variant="ghost"
+														onClick={() => {
+															setEditDiscountType(null)
+															setEditDiscountValue('')
+														}}
+														className="h-7 text-xs"
+													>
+														<X className="h-3 w-3" />
+													</Button>
+												)}
+											</div>
+										</div>
+										{editDiscountType && (
+											<input
+												type="number"
+												step={editDiscountType === 'percent' ? '0.1' : '0.01'}
+												min="0"
+												max={editDiscountType === 'percent' ? '100' : undefined}
+												value={editDiscountValue}
+												onChange={(e) => setEditDiscountValue(e.target.value)}
+												placeholder={
+													editDiscountType === 'percent'
+														? 'Enter %'
+														: 'Enter amount'
+												}
+												className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+											/>
+										)}
+										{dismissedEditDiscountIds.length > 0 && (
+											<button
+												type="button"
+												onClick={() => setDismissedEditDiscountIds([])}
+												className="text-xs text-white/50 underline hover:text-white/80 cursor-pointer"
+											>
+												Re-enable auto discounts
+											</button>
+										)}
+									</>
 								)}
 							</div>
 
 							{/* Summary */}
-							<div className="rounded-lg border border-white/10 bg-white/5 p-4">
-								{taxRate > 0 && (
-									<div className="mb-3 flex items-center justify-between text-sm">
-										<span className="text-white/60">Tax</span>
-										<span className="font-medium text-white">
-											{currencySymbol}
-											{(
-												editedItems.reduce(
-													(sum, item) => sum + item.totalPrice,
-													0
-												) *
-												(taxRate / 100)
-											).toFixed(2)}
+							<div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-2">
+								<div className="flex items-center justify-between text-sm text-white/60">
+									<span>Subtotal</span>
+									<span className="font-medium text-white tabular-nums">
+										{currencySymbol}{editTotals.subtotal.toFixed(2)}
+									</span>
+								</div>
+								{editTotals.tax > 0 && (
+									<div className="flex items-center justify-between text-sm text-white/60">
+										<span>Tax ({taxRate}%)</span>
+										<span className="font-medium text-white tabular-nums">
+											{currencySymbol}{editTotals.tax.toFixed(2)}
 										</span>
 									</div>
 								)}
-								{editDiscountType &&
-									editDiscountValue &&
-									(() => {
-										const subtotal = editedItems.reduce(
-											(sum, item) => sum + item.totalPrice,
-											0
-										)
-										const tax = subtotal * (taxRate / 100)
-										const totalBeforeDiscount = subtotal + tax
-										const value = parseFloat(editDiscountValue) || 0
-										const discount =
-											editDiscountType === 'percent'
-												? totalBeforeDiscount * (value / 100)
-												: Math.min(value, totalBeforeDiscount)
-										return (
-											<div className="mb-3 flex items-center justify-between text-sm">
-												<span className="text-white/70">Discount</span>
-												<span className="font-medium text-white/70">
-													-{currencySymbol}
-													{discount.toFixed(2)}
-												</span>
-											</div>
-										)
-									})()}
+								{editTotals.discount > 0 && (
+									<div className="flex items-center justify-between text-sm text-emerald-400">
+										<span>Discount</span>
+										<span className="font-medium tabular-nums">
+											-{currencySymbol}{editTotals.discount.toFixed(2)}
+										</span>
+									</div>
+								)}
+								{editTotals.spaceRental > 0 && (
+									<div className="flex items-center justify-between text-sm text-white/60">
+										<span>Space Rental</span>
+										<span className="font-medium text-white tabular-nums">
+											+{currencySymbol}{editTotals.spaceRental.toFixed(2)}
+										</span>
+									</div>
+								)}
 								<div className="border-t border-white/10 pt-3 flex items-center justify-between">
 									<span className="text-base font-semibold text-white">
 										Total
 									</span>
-									<span className="text-xl font-bold text-white">
-										{currencySymbol}
-										{(() => {
-											const subtotal = editedItems.reduce(
-												(sum, item) => sum + item.totalPrice,
-												0
-											)
-											const tax = subtotal * (taxRate / 100)
-											const totalBeforeDiscount = subtotal + tax
-											let discount = 0
-											if (editDiscountType && editDiscountValue) {
-												const value = parseFloat(editDiscountValue) || 0
-												discount =
-													editDiscountType === 'percent'
-														? totalBeforeDiscount * (value / 100)
-														: Math.min(value, totalBeforeDiscount)
-											}
-											return (totalBeforeDiscount - discount).toFixed(2)
-										})()}
+									<span className="text-xl font-bold text-white tabular-nums">
+										{currencySymbol}{editTotals.total.toFixed(2)}
 									</span>
 								</div>
 							</div>

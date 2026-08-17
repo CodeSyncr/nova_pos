@@ -1,0 +1,453 @@
+<!--
+  Control styles that reproduce the web app's Tailwind component vocabulary:
+  the same radii, paddings, alpha surfaces, hover transitions and focus rings.
+
+  Buttons and text boxes get bespoke templates so the Fluent theme's own hover /
+  focus chrome doesn't fight the design (Fluent draws a thick accent underline on
+  focused inputs, which the web UI doesn't have).
+-->
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctl="clr-namespace:NovaPOS.Desktop.Controls">
+
+    <!--
+      Fluent paints a dashed focus adorner around every control that takes focus,
+      so clicking a button or scrolling a list leaves a stray "selection" box
+      behind. The web UI has no such affordance — it styles focus on inputs only.
+      Clear it everywhere, then re-add a deliberate ring for keyboard focus
+      (buttons) and the brand border on focused text fields further down.
+    -->
+    <Style Selector=":is(Control)">
+        <Setter Property="FocusAdorner" Value="{x:Null}" />
+    </Style>
+
+    <!-- ══ Roots ═══════════════════════════════════════════════════════════ -->
+    <Style Selector="Window">
+        <Setter Property="FontFamily" Value="{StaticResource FontSans}" />
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+        <Setter Property="Background" Value="{StaticResource BgBrush}" />
+    </Style>
+
+    <Style Selector="UserControl">
+        <Setter Property="FontFamily" Value="{StaticResource FontSans}" />
+    </Style>
+
+    <!-- ══ Icon (lucide parity) ════════════════════════════════════════════ -->
+    <Style Selector="ctl|Icon">
+        <Setter Property="Width" Value="16" />
+        <Setter Property="Height" Value="16" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Viewbox Stretch="Uniform">
+                    <Canvas Width="24" Height="24">
+                        <Path Data="{TemplateBinding Data}"
+                              Stroke="{TemplateBinding Foreground}"
+                              StrokeThickness="{TemplateBinding StrokeWidth}"
+                              StrokeLineCap="Round"
+                              StrokeJoin="Round" />
+                    </Canvas>
+                </Viewbox>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <!-- ══ Text ════════════════════════════════════════════════════════════ -->
+    <!-- Eyebrow: text-[10px] font-semibold uppercase tracking-[0.3em] -->
+    <Style Selector="TextBlock.eyebrow">
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LetterSpacing" Value="2.6" />
+        <Setter Property="Foreground" Value="{StaticResource Brand80Brush}" />
+    </Style>
+
+    <!-- Field label: text-xs font-medium uppercase tracking-wider text-white/40 -->
+    <Style Selector="TextBlock.label">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="LetterSpacing" Value="0.8" />
+        <Setter Property="Foreground" Value="{StaticResource White40Brush}" />
+    </Style>
+
+    <!-- Section caption: text-[10px] font-semibold uppercase tracking-[0.2em] -->
+    <Style Selector="TextBlock.caption">
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LetterSpacing" Value="1.8" />
+        <Setter Property="Foreground" Value="{StaticResource White40Brush}" />
+    </Style>
+
+    <Style Selector="TextBlock.panel-title">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.cursive">
+        <Setter Property="FontFamily" Value="{StaticResource FontCursive}" />
+        <Setter Property="Foreground" Value="{StaticResource BrandBrush}" />
+        <Setter Property="FontSize" Value="22" />
+    </Style>
+
+    <!-- ══ Buttons ═════════════════════════════════════════════════════════ -->
+    <Style Selector="Button">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="16,9" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="Root"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        Padding="{TemplateBinding Padding}">
+                    <Border.Transitions>
+                        <Transitions>
+                            <BrushTransition Property="Background" Duration="0:0:0.15" />
+                            <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                        </Transitions>
+                    </Border.Transitions>
+                    <ContentPresenter Name="PART_ContentPresenter"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                      RecognizesAccessKey="True" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <Style Selector="Button:disabled">
+        <Setter Property="Opacity" Value="0.5" />
+        <Setter Property="Cursor" Value="Arrow" />
+    </Style>
+
+    <Style Selector="Button:pressed">
+        <Setter Property="RenderTransform" Value="scale(0.98)" />
+    </Style>
+
+    <!-- Keyboard-only focus ring (Tab navigation), never on pointer clicks. -->
+    <Style Selector="Button:focus-visible /template/ Border#Root">
+        <Setter Property="BorderBrush" Value="{StaticResource Brand50Brush}" />
+    </Style>
+
+    <!-- Primary: bg-[#E0342A] hover:bg-[#C42A21] -->
+    <Style Selector="Button.brand">
+        <Setter Property="Background" Value="{StaticResource BrandBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+    </Style>
+    <Style Selector="Button.brand:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource BrandHoverBrush}" />
+    </Style>
+
+    <!-- Secondary: bg-white/10 hover:bg-white/15 border-white/5 -->
+    <Style Selector="Button.soft">
+        <Setter Property="Background" Value="{StaticResource White10Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource White05Brush}" />
+    </Style>
+    <Style Selector="Button.soft:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource White15Brush}" />
+    </Style>
+
+    <!-- Outline: border-white/[0.08] bg-white/[0.01] hover:bg-white/5 -->
+    <Style Selector="Button.outline">
+        <Setter Property="Background" Value="{StaticResource White02Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource White08Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource White80Brush}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.outline:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource White05Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource White15Brush}" />
+    </Style>
+
+    <!-- Ghost -->
+    <Style Selector="Button.ghost">
+        <Setter Property="Foreground" Value="{StaticResource White60Brush}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.ghost:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource White05Brush}" />
+    </Style>
+    <Style Selector="Button.ghost:pointerover">
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+    </Style>
+
+    <!-- Category / filter pill: rounded-full px-4 py-1.5 -->
+    <Style Selector="Button.pill">
+        <Setter Property="CornerRadius" Value="100" />
+        <Setter Property="Padding" Value="14,6" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Background" Value="{StaticResource White05Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource White55Brush}" />
+    </Style>
+    <Style Selector="Button.pill:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource White10Brush}" />
+    </Style>
+    <Style Selector="Button.pill:pointerover">
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+    </Style>
+    <Style Selector="Button.pill.active">
+        <Setter Property="Background" Value="{StaticResource BrandBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+    </Style>
+    <Style Selector="Button.pill.active:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource BrandBrush}" />
+    </Style>
+
+    <!-- Segmented control item (order type) -->
+    <Style Selector="Button.segment">
+        <Setter Property="CornerRadius" Value="11" />
+        <Setter Property="Padding" Value="8,7" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Foreground" Value="{StaticResource White50Brush}" />
+    </Style>
+    <Style Selector="Button.segment:pointerover">
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+    </Style>
+    <Style Selector="Button.segment.active">
+        <Setter Property="Background" Value="{StaticResource BrandBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+    </Style>
+    <Style Selector="Button.segment.active:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource BrandBrush}" />
+    </Style>
+
+    <!-- Table chip -->
+    <Style Selector="Button.chip">
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="11,5" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Background" Value="{StaticResource White02Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource White08Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource White70Brush}" />
+    </Style>
+    <Style Selector="Button.chip:pointerover /template/ Border#Root">
+        <Setter Property="BorderBrush" Value="{StaticResource White20Brush}" />
+    </Style>
+    <Style Selector="Button.chip:pointerover">
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+    </Style>
+    <Style Selector="Button.chip.busy">
+        <Setter Property="Background" Value="{StaticResource Brand08Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brand25Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource White90Brush}" />
+    </Style>
+    <Style Selector="Button.chip.active">
+        <Setter Property="Background" Value="{StaticResource BrandBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource BrandBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+    </Style>
+    <Style Selector="Button.chip.active:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource BrandBrush}" />
+    </Style>
+
+    <!-- Sidebar nav item: rounded-2xl border border-transparent px-3 py-2.5 -->
+    <Style Selector="Button.nav">
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Foreground" Value="{StaticResource White70Brush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="Button.nav:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource White05Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource White20Brush}" />
+    </Style>
+    <Style Selector="Button.nav:pointerover">
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+    </Style>
+    <Style Selector="Button.nav.active">
+        <Setter Property="Background" Value="{StaticResource White10Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource White40Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+    </Style>
+
+    <!-- Destructive soft (logout) -->
+    <Style Selector="Button.danger">
+        <Setter Property="Background" Value="{StaticResource Red400_05Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Red400_40Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource Red400Brush}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.danger:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource Red400_10Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Red400Brush}" />
+    </Style>
+
+    <!-- Small square icon button -->
+    <Style Selector="Button.icon">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Width" Value="36" />
+        <Setter Property="Height" Value="36" />
+        <Setter Property="Background" Value="{StaticResource White02Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource White05Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource White50Brush}" />
+    </Style>
+    <Style Selector="Button.icon:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource Red400_10Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Red400_40Brush}" />
+    </Style>
+    <Style Selector="Button.icon:pointerover">
+        <Setter Property="Foreground" Value="{StaticResource Red400Brush}" />
+    </Style>
+
+    <!-- Quantity stepper button -->
+    <Style Selector="Button.step">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Width" Value="26" />
+        <Setter Property="Height" Value="26" />
+        <Setter Property="CornerRadius" Value="100" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="{StaticResource White70Brush}" />
+    </Style>
+    <Style Selector="Button.step:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource White10Brush}" />
+    </Style>
+    <Style Selector="Button.step:pointerover">
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+    </Style>
+
+    <!-- Round add button on menu cards -->
+    <Style Selector="Button.add">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="CornerRadius" Value="100" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Background" Value="{StaticResource BrandBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+    </Style>
+    <Style Selector="Button.add:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource BrandHoverBrush}" />
+    </Style>
+
+    <!-- Window chrome buttons -->
+    <Style Selector="Button.chrome">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Width" Value="44" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="{StaticResource White50Brush}" />
+    </Style>
+    <Style Selector="Button.chrome:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource White08Brush}" />
+    </Style>
+    <Style Selector="Button.chrome:pointerover">
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+    </Style>
+    <Style Selector="Button.chrome.close:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource BrandBrush}" />
+    </Style>
+
+    <!-- ══ Inputs ══════════════════════════════════════════════════════════ -->
+    <Style Selector="TextBox">
+        <Setter Property="Foreground" Value="{StaticResource WhiteBrush}" />
+        <Setter Property="Background" Value="{StaticResource White04Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource White10Brush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="14,10" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="CaretBrush" Value="{StaticResource BrandBrush}" />
+        <Setter Property="SelectionBrush" Value="{StaticResource Brand40Brush}" />
+        <Setter Property="SelectionForegroundBrush" Value="White" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="Root"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        Padding="{TemplateBinding Padding}">
+                    <Border.Transitions>
+                        <Transitions>
+                            <BrushTransition Property="Background" Duration="0:0:0.15" />
+                            <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                        </Transitions>
+                    </Border.Transitions>
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <ContentPresenter Grid.Column="0"
+                                          Content="{TemplateBinding InnerLeftContent}"
+                                          VerticalAlignment="Center" />
+                        <Panel Grid.Column="1">
+                            <TextBlock Name="PART_Watermark"
+                                       Text="{TemplateBinding Watermark}"
+                                       Foreground="{StaticResource White25Brush}"
+                                       FontSize="{TemplateBinding FontSize}"
+                                       VerticalAlignment="Center"
+                                       IsVisible="{TemplateBinding Text, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                            <TextPresenter Name="PART_TextPresenter"
+                                           Text="{TemplateBinding Text, Mode=TwoWay}"
+                                           CaretIndex="{TemplateBinding CaretIndex}"
+                                           SelectionStart="{TemplateBinding SelectionStart}"
+                                           SelectionEnd="{TemplateBinding SelectionEnd}"
+                                           SelectionBrush="{TemplateBinding SelectionBrush}"
+                                           SelectionForegroundBrush="{TemplateBinding SelectionForegroundBrush}"
+                                           CaretBrush="{TemplateBinding CaretBrush}"
+                                           PasswordChar="{TemplateBinding PasswordChar}"
+                                           RevealPassword="{TemplateBinding RevealPassword}"
+                                           TextAlignment="{TemplateBinding TextAlignment}"
+                                           TextWrapping="{TemplateBinding TextWrapping}"
+                                           LineHeight="{TemplateBinding LineHeight}"
+                                           VerticalAlignment="Center" />
+                        </Panel>
+                        <ContentPresenter Grid.Column="2"
+                                          Content="{TemplateBinding InnerRightContent}"
+                                          VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <!-- focus:border-[#E0342A] focus:bg-white/[0.06] -->
+    <Style Selector="TextBox:focus /template/ Border#Root">
+        <Setter Property="Background" Value="{StaticResource White06Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource BrandBrush}" />
+    </Style>
+    <Style Selector="TextBox:pointerover /template/ Border#Root">
+        <Setter Property="BorderBrush" Value="{StaticResource White20Brush}" />
+    </Style>
+    <Style Selector="TextBox:focus:pointerover /template/ Border#Root">
+        <Setter Property="BorderBrush" Value="{StaticResource BrandBrush}" />
+    </Style>
+
+    <!-- Subtle variant used inside the cart panel -->
+    <Style Selector="TextBox.subtle">
+        <Setter Property="Background" Value="{StaticResource White02Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource White08Brush}" />
+        <Setter Property="Padding" Value="12,8" />
+    </Style>
+    <Style Selector="TextBox.subtle:focus /template/ Border#Root">
+        <Setter Property="BorderBrush" Value="{StaticResource Brand40Brush}" />
+        <Setter Property="Background" Value="{StaticResource White04Brush}" />
+    </Style>
+
+    <!-- ══ Tooltips ════════════════════════════════════════════════════════ -->
+    <Style Selector="ToolTip">
+        <Setter Property="Background" Value="#141414" />
+        <Setter Property="BorderBrush" Value="{StaticResource White10Brush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{StaticResource White80Brush}" />
+    </Style>
+</Styles>

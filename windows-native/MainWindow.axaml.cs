@@ -1,0 +1,258 @@
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using NovaPOS.Desktop.Controls;
+using NovaPOS.Desktop.Services;
+
+namespace NovaPOS.Desktop;
+
+public partial class MainWindow : Window
+{
+    private const double RailCollapsed = 76;
+    private const double RailExpanded = 288;
+
+    public ApiService Api { get; } = new();
+
+    /// <summary>
+    /// Local print bridge for the web app. Owned here so it lives exactly as long
+    /// as the window and can be reconfigured from the hardware settings page.
+    /// </summary>
+    public HardwareBridge Bridge { get; } = new();
+
+    private Button? _activeNav;
+
+    public MainWindow()
+    {
+        InitializeComponent();
+
+        PageLogin.ParentWindow = this;
+        PageHome.ParentWindow = this;
+        PagePOS.ParentWindow = this;
+        PageOrders.ParentWindow = this;
+        PageSettings.ParentWindow = this;
+
+        Sidebar.IsVisible = false;
+        SetActiveNav(BtnNavHome);
+
+        // Function-key navigation: terminals are usually driven from the keyboard.
+        AddHandler(KeyDownEvent, OnShellKeyDown, handledEventsToo: true);
+
+        ApplyBridgeSettings();
+
+        JoystickService.Initialize();
+        JoystickService.ActionTriggered += OnJoystickAction;
+
+        Closed += OnWindowClosed;
+        TryAutoRestoreSession();
+    }
+
+    private async void TryAutoRestoreSession()
+    {
+        if (SessionManager.HasSavedSession && SessionManager.Current.AutoLoginOnLaunch)
+        {
+            var session = SessionManager.Current;
+            var res = await Api.LoginAsync(session.UserEmail, session.SavedPassword);
+            if (res.success)
+            {
+                OnLoginSuccess();
+            }
+        }
+    }
+
+    private void OnJoystickAction(JoystickAction action)
+    {
+        if (!Api.IsAuthenticated) return;
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            switch (action)
+            {
+                case JoystickAction.Left:
+                    if (PagePOS.IsVisible) PagePOS.SelectPreviousCategory();
+                    break;
+                case JoystickAction.Right:
+                    if (PagePOS.IsVisible) PagePOS.SelectNextCategory();
+                    break;
+                case JoystickAction.ButtonB:
+                    ShowPage("home");
+                    break;
+                case JoystickAction.ButtonY:
+                    if (PagePOS.IsVisible) PagePOS.TriggerCheckout();
+                    break;
+            }
+        });
+    }
+
+    /// <summary>
+    /// Starts, stops or moves the print bridge to match the saved printer settings.
+    /// Called at startup and whenever those settings are saved.
+    /// </summary>
+    public void ApplyBridgeSettings()
+    {
+        var target = PrinterService.Target;
+
+        if (!target.BridgeEnabled)
+        {
+            Bridge.Stop();
+            return;
+        }
+
+        // Restart when the port moved; Start() is a no-op if it's already serving.
+        if (Bridge.IsRunning && Bridge.Port != target.BridgePort) Bridge.Stop();
+
+        if (!Bridge.Start(target.BridgePort) && Bridge.LastError != null)
+        {
+            ToastHost.Warning($"Print bridge could not open port {target.BridgePort}: {Bridge.LastError}");
+        }
+    }
+
+    /// <summary>Releases the printer port and the SDK's socket layer on the way out.</summary>
+    private void OnWindowClosed(object? sender, System.EventArgs e)
+    {
+        Bridge.Stop();
+        JoystickService.Stop();
+        PrinterService.Shutdown();
+    }
+
+    private void OnShellKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (!Api.IsAuthenticated) return;
+
+        switch (e.Key)
+        {
+            case Key.F1: ShowPage("home"); break;
+            case Key.F2: ShowPage("pos"); break;
+            case Key.F3: ShowPage("orders"); break;
+            case Key.F4: ShowPage("settings"); break;
+            case Key.F11:
+                WindowState = WindowState == WindowState.FullScreen
+                    ? WindowState.Maximized
+                    : WindowState.FullScreen;
+                break;
+            default: return;
+        }
+
+        e.Handled = true;
+    }
+
+    // ── Rail hover expansion (matches the web sidebar's mouse-enter behaviour) ─
+    private void OnSidebarEnter(object? sender, PointerEventArgs e) => SetRailExpanded(true);
+
+    private void OnSidebarExit(object? sender, PointerEventArgs e) => SetRailExpanded(false);
+
+    /// <summary>
+    /// Labels are removed rather than clipped, the way the web rail drops its
+    /// <c>span</c>s when collapsed — a half-cut glyph reads as a rendering bug.
+    /// </summary>
+    private void SetRailExpanded(bool expanded)
+    {
+        Sidebar.Width = expanded ? RailExpanded : RailCollapsed;
+
+        BrandText.IsVisible = expanded;
+        LblNavHome.IsVisible = expanded;
+        LblNavPOS.IsVisible = expanded;
+        LblNavOrders.IsVisible = expanded;
+        LblNavSettings.IsVisible = expanded;
+        LblStatus.IsVisible = expanded;
+        LblLogout.IsVisible = expanded;
+    }
+
+    private void SetActiveNav(Button button)
+    {
+        _activeNav?.Classes.Remove("active");
+        button.Classes.Add("active");
+        _activeNav = button;
+    }
+
+    public void ShowPage(string page)
+    {
+        bool login = page == "login";
+
+        PageLogin.IsVisible = login;
+        Sidebar.IsVisible = !login;
+        ContentArea.IsVisible = !login;
+
+        PageHome.IsVisible = page == "home";
+        PagePOS.IsVisible = page == "pos";
+        PageOrders.IsVisible = page == "orders";
+        PageSettings.IsVisible = page == "settings";
+
+        switch (page)
+        {
+            case "home":
+                SetActiveNav(BtnNavHome);
+                PageHome.OnNavigate();
+                break;
+            case "pos":
+                SetActiveNav(BtnNavPOS);
+                PagePOS.OnNavigate();
+                break;
+            case "orders":
+                SetActiveNav(BtnNavOrders);
+                PageOrders.OnNavigate();
+                break;
+            case "settings":
+                SetActiveNav(BtnNavSettings);
+                PageSettings.OnNavigate();
+                break;
+        }
+    }
+
+    public void OnLoginSuccess()
+    {
+        LblCafe.Text = string.IsNullOrWhiteSpace(Api.TenantName)
+            ? "pizzeria da cafe"
+            : Api.TenantName.ToLowerInvariant();
+
+        ShowPage("home");
+
+        // First-time biometric setup modal prompt - ONLY shown if fingerprint/biometrics was never setup or prompted
+        if (!SessionManager.Current.BiometricPrompted && !SessionManager.Current.BiometricEnabled)
+        {
+            BiometricSetupOverlay.IsVisible = true;
+        }
+        else
+        {
+            BiometricSetupOverlay.IsVisible = false;
+        }
+    }
+
+    private async void OnEnableBiometricsNow(object? sender, RoutedEventArgs e)
+    {
+        bool ok = await BiometricAuthService.AuthenticateAsync("Setup Windows Hello for NovaPOS Terminal");
+        if (ok)
+        {
+            SessionManager.SetBiometricEnabled(true);
+            ToastHost.Success("Windows Hello Biometric login enabled!");
+        }
+        else
+        {
+            SessionManager.SetBiometricPrompted(true);
+            ToastHost.Warning("Biometric verification cancelled.");
+        }
+        BiometricSetupOverlay.IsVisible = false;
+    }
+
+    private void OnSkipBiometrics(object? sender, RoutedEventArgs e)
+    {
+        SessionManager.SetBiometricPrompted(true);
+        BiometricSetupOverlay.IsVisible = false;
+    }
+
+    private void OnNavHome(object? sender, RoutedEventArgs e) => Navigate("home");
+
+    private void OnNavPOS(object? sender, RoutedEventArgs e) => Navigate("pos");
+
+    private void OnNavOrders(object? sender, RoutedEventArgs e) => Navigate("orders");
+
+    private void OnNavSettings(object? sender, RoutedEventArgs e) => Navigate("settings");
+
+    private void Navigate(string page) => ShowPage(Api.IsAuthenticated ? page : "login");
+
+    private void OnLogout(object? sender, RoutedEventArgs e)
+    {
+        Api.Logout();
+        SetRailExpanded(false);
+        ShowPage("login");
+    }
+}

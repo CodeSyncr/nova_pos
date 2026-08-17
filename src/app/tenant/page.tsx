@@ -106,27 +106,11 @@ export default function TenantPage() {
 				return
 			}
 
-			if (!data?.tenant_id) {
-				setIsCheckingTenant(false)
-				return
-			}
-
-			const { data: tenant } = await supabase
-				.from('tenants')
-				.select('onboarding_complete')
-				.eq('id', data.tenant_id)
-				.maybeSingle()
-
-			if (!tenant) {
-				setIsCheckingTenant(false)
-				return
-			}
-
-			if (tenant.onboarding_complete) {
+			if (data?.tenant_id) {
 				router.replace('/dashboard')
-			} else {
-				setIsCheckingTenant(false)
+				return
 			}
+			setIsCheckingTenant(false)
 		}
 
 		void ensureNewTenantFlow()

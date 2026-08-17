@@ -962,3 +962,115 @@ export async function printBluetoothBill(config: BillConfig): Promise<void> {
 		await characteristic.writeValue(chunk)
 	}
 }
+
+/**
+ * Encodes order receipt as ESC/POS and prints via the native Windows
+ * NovaPOS hardware bridge (ZyPrinter.dll). Requires NovaPOS.exe to be
+ * running on the machine with the bridge active on port 18181.
+ */
+export async function printBillNative(
+	config: BillConfig,
+	printerConfig?: import('./zy-printer').PrinterConfig
+): Promise<boolean> {
+	const { printViaBridge } = await import('./zy-printer')
+
+	const { order, template: t, tenantName, currencySymbol } = config
+	const charWidth = 48
+	const sym = (currencySymbol === '\u20B9' || currencySymbol === '₹') ? 'Rs' : currencySymbol
+	const formatAmt = (n: number) => `${sym} ${n.toFixed(2)}`
+
+	const encoder = new EscPosEncoder()
+	encoder.initialize()
+
+	// Header
+	encoder.alignCenter()
+	encoder.bold(true)
+	encoder.sizeDouble()
+	encoder.line(t.headerText || tenantName)
+	encoder.sizeNormal()
+	encoder.bold(false)
+
+	if (t.taglineText) encoder.line(t.taglineText)
+	if (t.showAddress && t.addressText) encoder.line(t.addressText)
+	if (t.showPhone && t.phoneText) encoder.line(t.phoneText)
+
+	encoder.divider(charWidth)
+
+	// Order meta
+	encoder.alignLeft()
+	encoder.row('Order #', `#${order.id.slice(0, 8).toUpperCase()}`, charWidth)
+
+	const formatDate = (iso: string) => {
+		const d = new Date(iso)
+		return (
+			d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) +
+			' ' +
+			d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+		)
+	}
+	encoder.row('Date', formatDate(order.created_at), charWidth)
+
+	if (t.showOrderType) encoder.row('Type', order.order_type.replace('_', ' ').toUpperCase(), charWidth)
+	if (t.showTable && order.table_number) encoder.row('Table', order.table_number, charWidth)
+	if (order.customer_name) encoder.row('Customer', order.customer_name, charWidth)
+	if (order.payment_method) encoder.row('Payment', order.payment_method.toUpperCase(), charWidth)
+
+	encoder.divider(charWidth)
+
+	// Items header
+	encoder.bold(true)
+	encoder.threeColumnRow('ITEM', 'QTY', 'AMOUNT', charWidth)
+	encoder.bold(false)
+	encoder.divider(charWidth)
+
+	// Items
+	order.order_items.forEach((item) => {
+		encoder.itemRow(item.name, item.quantity, formatAmt(item.total_price), charWidth)
+	})
+
+	encoder.divider(charWidth)
+
+	// Totals
+	if (t.showTaxLine && order.tax > 0) encoder.row('Tax', formatAmt(order.tax), charWidth)
+	if (order.space_rental_amount && order.space_rental_amount > 0) {
+		encoder.row('Space Rental', formatAmt(order.space_rental_amount), charWidth)
+	}
+	if (order.discount_amount && order.discount_amount > 0) {
+		encoder.row('Discount', `-${formatAmt(order.discount_amount)}`, charWidth)
+	}
+
+	encoder.bold(true)
+	encoder.row('TOTAL', formatAmt(order.total), charWidth)
+	encoder.bold(false)
+
+	encoder.divider(charWidth)
+
+	// UPI QR if unpaid
+	if (!order.payment_method) {
+		encoder.alignCenter()
+		encoder.bold(true)
+		encoder.line('SCAN TO PAY VIA UPI')
+		encoder.bold(false)
+		encoder.line('UPI ID: pizzeriadacafe@kotak')
+		encoder.line(`Amount: ${formatAmt(order.total)}`)
+		encoder.line()
+
+		const upiUrl = `upi://pay?pa=pizzeriadacafe@kotak&pn=Pizzeria%20Da%20Cafe&am=${order.total.toFixed(2)}&cu=INR`
+		encoder.qrcode(upiUrl)
+		encoder.line()
+		encoder.divider(charWidth)
+	}
+
+	// Footer
+	if (t.showThankYou && t.footerText) {
+		encoder.alignCenter()
+		encoder.line(t.footerText)
+	}
+
+	encoder.alignCenter()
+	encoder.line(`ID: ${order.id.slice(0, 12)}`)
+	encoder.cut()
+
+	return await printViaBridge(encoder.encode(), printerConfig || { type: 'usb' })
+}
+
