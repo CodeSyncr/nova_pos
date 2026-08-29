@@ -1,7 +1,50 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 export const runtime = 'edge'
+
+/**
+ * Confirms the caller is signed in and belongs to `tenantId`.
+ *
+ * The write handlers below previously ran on the service-role key with no
+ * caller check, which meant anyone who knew a tenant id and item id could
+ * toggle another restaurant's menu items — the ids are not secret, they appear
+ * in public menu URLs.
+ *
+ * Reads stay public (a menu is meant to be public); only writes are gated.
+ * Identity comes from the session cookie for the POS UI, or a Bearer token for
+ * the iOS app — createSupabaseServerClient accepts either.
+ *
+ * Returns null when authorized, or the response to send back when not.
+ */
+async function authorizeTenantWrite(tenantId: string): Promise<NextResponse | null> {
+	const supabase = await createSupabaseServerClient()
+
+	const {
+		data: { user }
+	} = await supabase.auth.getUser()
+
+	if (!user) {
+		return corsResponse({ error: 'Authentication required.' }, 401)
+	}
+
+	const { data: membership, error } = await supabase
+		.from('profile_tenants')
+		.select('tenant_id')
+		.eq('tenant_id', tenantId)
+		.eq('profile_id', user.id)
+		.maybeSingle()
+
+	if (error) {
+		return corsResponse({ error: 'Could not verify tenant access.' }, 500)
+	}
+	if (!membership) {
+		return corsResponse({ error: 'You do not have access to this tenant.' }, 403)
+	}
+
+	return null
+}
 
 // CORS helper to wrap responses
 function corsResponse(data: any, status = 200) {
@@ -10,7 +53,7 @@ function corsResponse(data: any, status = 200) {
 		headers: {
 			'Access-Control-Allow-Origin': '*',
 			'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
-			'Access-Control-Allow-Headers': 'Content-Type',
+			'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 			'Cache-Control': 'no-store, max-age=0'
 		}
 	})
@@ -22,7 +65,7 @@ export async function OPTIONS() {
 		headers: {
 			'Access-Control-Allow-Origin': '*',
 			'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
-			'Access-Control-Allow-Headers': 'Content-Type'
+			'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 		}
 	})
 }
@@ -160,6 +203,11 @@ async function handleStockUpdate(request: NextRequest) {
 		if (!tenantId || !itemId || activeState === undefined) {
 			return corsResponse({ error: 'tenantId, itemId, and isAvailable (or isActive) are required' }, 400)
 		}
+
+		// Gate the write on a real, tenant-scoped identity before reaching for
+		// the service-role key.
+		const denied = await authorizeTenantWrite(tenantId)
+		if (denied) return denied
 
 		const supabase = createClient(supabaseUrl, supabaseKey)
 

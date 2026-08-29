@@ -194,6 +194,13 @@ const statusConfig: Record<
 	}
 }
 
+/**
+ * How many recent orders the board loads. The query embeds line items, so an
+ * unbounded fetch scaled with the tenant's whole order history. Raise this if
+ * staff need to scroll further back on the board itself.
+ */
+const ORDERS_PAGE_LIMIT = 500
+
 export default function OrdersPage() {
 	const router = useRouter()
 	const [orders, setOrders] = useState<Order[]>([])
@@ -730,7 +737,11 @@ export default function OrdersPage() {
 			query = query.eq('status', statusFilter)
 		}
 
-		const { data: ordersData } = await query
+		// Bounded on purpose: this query pulls each order's line items too, so
+		// unbounded it grew with the tenant's entire history and got slower every
+		// day. Ordered newest-first, so this is the most recent ORDERS_PAGE_LIMIT.
+		// Older orders remain reachable through Reports.
+		const { data: ordersData } = await query.limit(ORDERS_PAGE_LIMIT)
 
 		setOrders((ordersData as Order[]) || [])
 		setLoading(false)

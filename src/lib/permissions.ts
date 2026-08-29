@@ -48,6 +48,8 @@ const routeToCategory: Record<string, string> = {
 	'/analytics': 'analytics',
 	'/marketing': 'marketing',
 	'/reports': 'reports',
+	'/pos-payments': 'reports',
+	'/zomato': 'orders',
 	'/settings': 'settings'
 }
 

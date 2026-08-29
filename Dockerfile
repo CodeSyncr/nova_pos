@@ -86,6 +86,23 @@ ENV HOSTNAME="0.0.0.0"
 # Uncomment the following line in case you want to disable telemetry during the run time.
 # ENV NEXT_TELEMETRY_DISABLED=1
 
+# ── Zomato browser login (Playwright) ───────────────────────────────────────
+# The Zomato partner login sits behind Akamai, which cannot be satisfied by a
+# plain HTTP client. It runs headless — no virtual display needed — but only
+# with the FULL Chromium build and HTTP/1.1; see src/lib/zomato-browser.ts for
+# why each launch flag matters.
+#
+# `--with-deps` pulls the shared libraries Chromium needs. Browsers land in
+# PLAYWRIGHT_BROWSERS_PATH so the non-root `node` user can read them (the
+# default cache lives under root's home).
+#
+# All of this serves one feature. Removing these lines leaves the app working:
+# the Zomato page falls back to pasting a browser session by hand, and the OTP
+# form reports that browser login is unavailable.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN npx --yes playwright@1.62.1 install --with-deps chromium \
+    && chmod -R a+rX /ms-playwright
+
 # Copy production assets
 COPY --from=builder --chown=node:node /app/public ./public
 
