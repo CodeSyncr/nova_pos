@@ -25,7 +25,9 @@ import {
 	ClipboardList,
 	Percent,
 	Brain,
-	Megaphone
+	Megaphone,
+	CreditCard,
+	Bike
 } from 'lucide-react'
 import { canAccessRoute } from '@/lib/permissions'
 import { OrderNotifications } from '@/components/order-notifications'
@@ -43,6 +45,8 @@ const navItems = [
 	{ href: '/staff', label: 'Staff', icon: UserCog },
 	{ href: '/analytics', label: 'Analytics', icon: BarChart3 },
 	{ href: '/marketing', label: 'Marketing', icon: Megaphone },
+	{ href: '/zomato', label: 'Zomato', icon: Bike },
+	{ href: '/pos-payments', label: 'POS Payments', icon: CreditCard },
 	{ href: '/reports', label: 'Reports', icon: FileBarChart },
 	{ href: '/tax', label: 'ITR Module', icon: Percent },
 	{ href: '/advisor', label: 'AI Advisor', icon: Brain },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import webPush from 'web-push'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -13,6 +14,58 @@ webPush.setVapidDetails(
 	vapidPrivateKey
 )
 
+/**
+ * Confirms the caller may fan a notification out to `tenantId`.
+ *
+ * This endpoint pushes an attacker-controllable title, body and click-through
+ * URL to every subscribed device on a tenant, so leaving it open is a phishing
+ * vector aimed at staff. It accepts either:
+ *   - a signed-in user who belongs to the tenant (session cookie or Bearer), or
+ *   - PUSH_NOTIFY_SECRET as a Bearer token, for server-to-server callers.
+ *
+ * TRANSITION: the shipped iOS app sends no credentials yet. Until an updated
+ * build is out, an unauthenticated call is still allowed so order notifications
+ * keep working — set PUSH_NOTIFY_STRICT=true to close that door once the app
+ * update has rolled out. Unauthenticated calls are logged meanwhile so you can
+ * see whether anything still relies on the legacy path.
+ */
+async function authorizePush(request: NextRequest, tenantId: string): Promise<NextResponse | null> {
+	const auth = request.headers.get('authorization') ?? ''
+	const sharedSecret = process.env.PUSH_NOTIFY_SECRET
+
+	if (sharedSecret && auth === `Bearer ${sharedSecret}`) return null
+
+	try {
+		const supabase = await createSupabaseServerClient()
+		const {
+			data: { user }
+		} = await supabase.auth.getUser()
+
+		if (user) {
+			const { data: membership } = await supabase
+				.from('profile_tenants')
+				.select('tenant_id')
+				.eq('tenant_id', tenantId)
+				.eq('profile_id', user.id)
+				.maybeSingle()
+
+			if (membership) return null
+		}
+	} catch {
+		// Fall through to the legacy decision below.
+	}
+
+	if (process.env.PUSH_NOTIFY_STRICT === 'true') {
+		return NextResponse.json({ error: 'Authentication required.' }, { status: 401 })
+	}
+
+	console.warn(
+		`[push-notify] unauthenticated call for tenant ${tenantId} allowed by legacy mode. ` +
+			'Set PUSH_NOTIFY_STRICT=true once all clients send credentials.'
+	)
+	return null
+}
+
 export async function POST(request: NextRequest) {
 	try {
 		const { tenantId, excludeUserId, title, body, url } = await request.json()
@@ -20,6 +73,9 @@ export async function POST(request: NextRequest) {
 		if (!tenantId || !title) {
 			return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 		}
+
+		const denied = await authorizePush(request, tenantId)
+		if (denied) return denied
 
 		const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 			auth: { autoRefreshToken: false, persistSession: false }

@@ -15,11 +15,28 @@ if (vapidPublicKey && vapidPrivateKey) {
 	)
 }
 
+/**
+ * Optional shared secret. When CRON_SECRET is set the caller must present it,
+ * so this endpoint cannot be triggered by anyone who knows the URL. Left
+ * optional so existing deployments that have not configured one keep working —
+ * set it, since this fans out push notifications to every subscribed device.
+ */
+function authorizeCron(request: NextRequest): NextResponse | null {
+	const cronSecret = process.env.CRON_SECRET
+	if (!cronSecret) return null
+	if (request.headers.get('authorization') === `Bearer ${cronSecret}`) return null
+	return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+}
+
 export async function GET(request: NextRequest) {
+	const denied = authorizeCron(request)
+	if (denied) return denied
 	return handleReminders()
 }
 
 export async function POST(request: NextRequest) {
+	const denied = authorizeCron(request)
+	if (denied) return denied
 	return handleReminders()
 }
 
