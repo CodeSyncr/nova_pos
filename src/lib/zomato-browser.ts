@@ -371,6 +371,58 @@ async function readVisibleError(scope: Page | Frame): Promise<string | null> {
 }
 
 /**
+ * Drives the browser to the partner dashboard and waits for the merchant token.
+ *
+ * Verifying the OTP authenticates the ACCOUNT, but the dashboard's own token
+ * (`X-Zomato-Mx-Auth-Token`, issued by MerchantOutletService) only appears once
+ * a partner page actually loads. The login iframe finishing is therefore not
+ * enough — the top-level page must navigate.
+ *
+ * Returns the token, or null if it never arrives.
+ */
+async function waitForMerchantToken(
+	page: Page,
+	context: BrowserContext,
+	timeoutMs = 45_000
+): Promise<string | null> {
+	const tokenFrom = async () =>
+		(await context.cookies()).find((c) => c.name === 'X-Zomato-Mx-Auth-Token')?.value ?? null
+
+	// It may already have been set by the redirect the iframe triggered.
+	const immediate = await tokenFrom()
+	if (immediate) return immediate
+
+	// Pages that mint the token, cheapest first.
+	const destinations = [
+		'https://www.zomato.com/partners/onlineordering/orderHistory/',
+		'https://www.zomato.com/partners/'
+	]
+
+	const deadline = Date.now() + timeoutMs
+
+	for (const url of destinations) {
+		if (Date.now() > deadline) break
+
+		await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => undefined)
+
+		// The dashboard fetches the token after hydration, so poll rather than
+		// reading once.
+		while (Date.now() < deadline) {
+			const token = await tokenFrom()
+			if (token) return token
+
+			// Bounced back to login means the session did not take; trying the
+			// next destination will not help.
+			if (page.url().includes('/partners/login')) break
+
+			await page.waitForTimeout(1000)
+		}
+	}
+
+	return await tokenFrom()
+}
+
+/**
  * Enters the OTP and, on success, returns the resulting merchant session.
  *
  * The browser is closed either way — the session lives in the cookies we take
@@ -409,27 +461,32 @@ export async function completeBrowserLogin(
 
 		assertOtpAccepted(result, await readVisibleError(frame))
 
-		// A successful login leaves the partner login screen for the dashboard.
-		await page
-			.waitForURL((url) => !url.pathname.includes('/partners/login'), { timeout: 45_000 })
-			.catch(() => undefined)
-		await page.waitForTimeout(3000)
+		// The OTP is verified inside the accounts.zomato.com iframe, which leaves
+		// the TOP page still sitting on /partners/login. The merchant token is
+		// only minted once the partner dashboard itself loads, so the parent has
+		// to be driven there — waiting on the iframe alone yields no token.
+		const authToken = await waitForMerchantToken(page, context)
 
-		const cookies = await context.cookies()
-		const byName = (name: string) => cookies.find((c) => c.name === name)?.value ?? null
-
-		const authToken = byName('X-Zomato-Mx-Auth-Token')
 		if (!authToken) {
 			const failure = await readVisibleError(frame)
+			const seen = (await context.cookies())
+				.map((c) => c.name)
+				.filter((n) => /zomato|zat|csrf|PHPSESSID/i.test(n))
+				.join(', ')
+
 			throw new ZomatoError(
 				failure
 					? `Zomato rejected the login: ${failure}`
-					: 'Login did not complete — Zomato issued no merchant token. ' +
-						'Use the browser session paste instead.',
+					: 'Login did not complete — Zomato issued no merchant token' +
+						(seen ? ` (session cookies present: ${seen})` : '') +
+						'. Use the browser session paste instead.',
 				'verify-otp',
 				true
 			)
 		}
+
+		const cookies = await context.cookies()
+		const byName = (name: string) => cookies.find((c) => c.name === name)?.value ?? null
 
 		const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ')
 
