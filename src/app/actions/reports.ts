@@ -1,7 +1,15 @@
 'use server'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import type { DateRange } from '@/lib/date-utils'
+
+type OrderItemRow = {
+	name: string
+	quantity: number
+	unit_price: number
+	total_price: number
+}
 
 export type SalesReportRow = {
 	date: string
@@ -73,16 +81,23 @@ export async function getSalesReport(
 	const { data: { user } } = await supabase.auth.getUser()
 	if (!user) throw new Error('Unauthorized')
 
-	const { data: orders, error } = await supabase
-		.from('orders')
-		.select('created_at, subtotal, tax, discount_amount, total')
-		.eq('tenant_id', tenantId)
-		.eq('status', 'completed')
-		.gte('created_at', dateRange.startDate)
-		.lte('created_at', dateRange.endDate)
-		.order('created_at', { ascending: true })
-
-	if (error) throw new Error(error.message)
+	const orders = await fetchAllRows<{
+		created_at: string | null
+		subtotal: number | null
+		tax: number | null
+		discount_amount: number | null
+		total: number | null
+	}>(() =>
+		supabase
+			.from('orders')
+			.select('created_at, subtotal, tax, discount_amount, total')
+			.eq('tenant_id', tenantId)
+			.eq('status', 'completed')
+			.gte('created_at', dateRange.startDate)
+			.lte('created_at', dateRange.endDate)
+			.order('created_at', { ascending: true })
+			.order('id', { ascending: true })
+	)
 
 	// Group by date
 	const dailyMap = new Map<string, SalesReportRow>()
@@ -121,15 +136,16 @@ export async function getItemSalesReport(
 	const { data: { user } } = await supabase.auth.getUser()
 	if (!user) throw new Error('Unauthorized')
 
-	const { data: orders, error } = await supabase
-		.from('orders')
-		.select('order_items(name, quantity, unit_price, total_price)')
-		.eq('tenant_id', tenantId)
-		.eq('status', 'completed')
-		.gte('created_at', dateRange.startDate)
-		.lte('created_at', dateRange.endDate)
-
-	if (error) throw new Error(error.message)
+	const orders = await fetchAllRows<{ order_items: OrderItemRow[] | null }>(() =>
+		supabase
+			.from('orders')
+			.select('order_items(name, quantity, unit_price, total_price)')
+			.eq('tenant_id', tenantId)
+			.eq('status', 'completed')
+			.gte('created_at', dateRange.startDate)
+			.lte('created_at', dateRange.endDate)
+			.order('id', { ascending: true })
+	)
 
 	const itemMap = new Map<string, { quantity: number; revenue: number }>()
 
@@ -184,15 +200,18 @@ export async function getCategorySalesReport(
 	})
 
 	// Get orders with items
-	const { data: orders, error } = await supabase
-		.from('orders')
-		.select('order_items(name, quantity, total_price)')
-		.eq('tenant_id', tenantId)
-		.eq('status', 'completed')
-		.gte('created_at', dateRange.startDate)
-		.lte('created_at', dateRange.endDate)
-
-	if (error) throw new Error(error.message)
+	const orders = await fetchAllRows<{
+		order_items: Array<Pick<OrderItemRow, 'name' | 'quantity' | 'total_price'>> | null
+	}>(() =>
+		supabase
+			.from('orders')
+			.select('order_items(name, quantity, total_price)')
+			.eq('tenant_id', tenantId)
+			.eq('status', 'completed')
+			.gte('created_at', dateRange.startDate)
+			.lte('created_at', dateRange.endDate)
+			.order('id', { ascending: true })
+	)
 
 	const categoryMap = new Map<string, { itemNames: Set<string>; quantity: number; revenue: number }>()
 
@@ -232,16 +251,23 @@ export async function getCustomerReport(
 	const { data: { user } } = await supabase.auth.getUser()
 	if (!user) throw new Error('Unauthorized')
 
-	const { data: orders, error } = await supabase
-		.from('orders')
-		.select('customer_name, customer_phone, customer_email, total, created_at')
-		.eq('tenant_id', tenantId)
-		.eq('status', 'completed')
-		.gte('created_at', dateRange.startDate)
-		.lte('created_at', dateRange.endDate)
-		.not('customer_phone', 'is', null)
-
-	if (error) throw new Error(error.message)
+	const orders = await fetchAllRows<{
+		customer_name: string | null
+		customer_phone: string | null
+		customer_email: string | null
+		total: number | null
+		created_at: string | null
+	}>(() =>
+		supabase
+			.from('orders')
+			.select('customer_name, customer_phone, customer_email, total, created_at')
+			.eq('tenant_id', tenantId)
+			.eq('status', 'completed')
+			.gte('created_at', dateRange.startDate)
+			.lte('created_at', dateRange.endDate)
+			.not('customer_phone', 'is', null)
+			.order('id', { ascending: true })
+	)
 
 	const customerMap = new Map<string, CustomerReportRow>()
 
@@ -277,15 +303,19 @@ export async function getPaymentMethodReport(
 	const { data: { user } } = await supabase.auth.getUser()
 	if (!user) throw new Error('Unauthorized')
 
-	const { data: orders, error } = await supabase
-		.from('orders')
-		.select('payment_method, total')
-		.eq('tenant_id', tenantId)
-		.eq('status', 'completed')
-		.gte('created_at', dateRange.startDate)
-		.lte('created_at', dateRange.endDate)
-
-	if (error) throw new Error(error.message)
+	const orders = await fetchAllRows<{
+		payment_method: string | null
+		total: number | null
+	}>(() =>
+		supabase
+			.from('orders')
+			.select('payment_method, total')
+			.eq('tenant_id', tenantId)
+			.eq('status', 'completed')
+			.gte('created_at', dateRange.startDate)
+			.lte('created_at', dateRange.endDate)
+			.order('id', { ascending: true })
+	)
 
 	const methodMap = new Map<string, { orderCount: number; total: number }>()
 
@@ -315,17 +345,22 @@ export async function getPurchaseReport(
 	const startDate = new Date(dateRange.startDate).toISOString().split('T')[0]!
 	const endDate = new Date(dateRange.endDate).toISOString().split('T')[0]!
 
-	const { data: purchases, error } = await supabase
-		.from('purchases')
-		.select('purchase_date, notes, total_amount')
-		.eq('tenant_id', tenantId)
-		.gte('purchase_date', startDate)
-		.lte('purchase_date', endDate)
-		.order('purchase_date', { ascending: true })
+	const purchases = await fetchAllRows<{
+		purchase_date: string
+		notes: string | null
+		total_amount: number | null
+	}>(() =>
+		supabase
+			.from('purchases')
+			.select('purchase_date, notes, total_amount')
+			.eq('tenant_id', tenantId)
+			.gte('purchase_date', startDate)
+			.lte('purchase_date', endDate)
+			.order('purchase_date', { ascending: true })
+			.order('id', { ascending: true })
+	)
 
-	if (error) throw new Error(error.message)
-
-	return (purchases || []).map((p) => ({
+	return purchases.map((p) => ({
 		date: p.purchase_date,
 		description: p.notes || 'No description',
 		amount: p.total_amount || 0
@@ -379,16 +414,21 @@ export async function getTaxReport(
 	const { data: { user } } = await supabase.auth.getUser()
 	if (!user) throw new Error('Unauthorized')
 
-	const { data: orders, error } = await supabase
-		.from('orders')
-		.select('created_at, subtotal, tax')
-		.eq('tenant_id', tenantId)
-		.eq('status', 'completed')
-		.gte('created_at', dateRange.startDate)
-		.lte('created_at', dateRange.endDate)
-		.order('created_at', { ascending: true })
-
-	if (error) throw new Error(error.message)
+	const orders = await fetchAllRows<{
+		created_at: string | null
+		subtotal: number | null
+		tax: number | null
+	}>(() =>
+		supabase
+			.from('orders')
+			.select('created_at, subtotal, tax')
+			.eq('tenant_id', tenantId)
+			.eq('status', 'completed')
+			.gte('created_at', dateRange.startDate)
+			.lte('created_at', dateRange.endDate)
+			.order('created_at', { ascending: true })
+			.order('id', { ascending: true })
+	)
 
 	const dailyMap = new Map<string, TaxReportRow>()
 

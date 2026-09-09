@@ -1,6 +1,17 @@
 'use server'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
+
+// PostgREST returns an embedded to-one relation as an object, but the generated
+// types widen it to an array, so both shapes are handled at the call sites.
+type PurchaseWithSupplierRow = {
+	id: string
+	purchase_date: string
+	notes: string | null
+	total_amount: number | null
+	supplier: { name: string } | Array<{ name: string }> | null
+}
 
 export type MarketingSEOChecklist = {
 	googleMyBusiness: string[]
@@ -168,15 +179,21 @@ export async function getAIAdvisorInsights(
 	const fyEnd = `${yearStart + 1}-03-31`
 
 	// ── 1. Fetch all orders ───────────────────────────────────────────
-	const { data: ordersRaw } = await supabase
-		.from('orders')
-		.select('total, payment_method, created_at')
-		.eq('tenant_id', tenantId)
-		.eq('status', 'completed')
-		.gte('created_at', `${fyStart}T00:00:00Z`)
-		.lte('created_at', `${fyEnd}T23:59:59Z`)
-
-	const orders = ordersRaw ?? []
+	const orders = await fetchAllRows<{
+		total: number | null
+		payment_method: string | null
+		created_at: string | null
+	}>(() =>
+		supabase
+			.from('orders')
+			.select('total, payment_method, created_at')
+			.eq('tenant_id', tenantId)
+			.eq('status', 'completed')
+			.gte('created_at', `${fyStart}T00:00:00Z`)
+			.lte('created_at', `${fyEnd}T23:59:59Z`)
+			.order('created_at', { ascending: true })
+			.order('id', { ascending: true })
+	)
 	const totalSales = orders.reduce((s, o) => s + (o.total ?? 0), 0)
 	const orderCount = orders.length
 	const avgOrderValue = orderCount > 0 ? totalSales / orderCount : 0
@@ -200,21 +217,22 @@ export async function getAIAdvisorInsights(
 	const avgMonthlySales = totalSales / activeMonths
 
 	// ── 2. Fetch all purchases with supplier ─────────────────────────
-	const { data: purchasesRaw } = await supabase
-		.from('purchases')
-		.select(`
-			id,
-			purchase_date,
-			notes,
-			total_amount,
-			supplier:supplier_id (name)
-		`)
-		.eq('tenant_id', tenantId)
-		.gte('purchase_date', fyStart)
-		.lte('purchase_date', fyEnd)
-		.order('purchase_date', { ascending: true })
-
-	const purchases = purchasesRaw ?? []
+	const purchases = await fetchAllRows<PurchaseWithSupplierRow>(() =>
+		supabase
+			.from('purchases')
+			.select(`
+				id,
+				purchase_date,
+				notes,
+				total_amount,
+				supplier:supplier_id (name)
+			`)
+			.eq('tenant_id', tenantId)
+			.gte('purchase_date', fyStart)
+			.lte('purchase_date', fyEnd)
+			.order('purchase_date', { ascending: true })
+			.order('id', { ascending: true })
+	)
 
 	// ── 3. Classify every expense from real data ─────────────────────
 	const buckets: Record<string, number> = {

@@ -51,6 +51,19 @@ ENV NODE_ENV=production
 # Uncomment the following line in case you want to disable telemetry during the build.
 # ENV NEXT_TELEMETRY_DISABLED=1
 
+# Cap V8's heap so the build cannot outgrow the container.
+#
+# Without this, Node sizes its heap from the HOST's total memory, not the
+# container's limit — so on a constrained build box it happily grows past the
+# cgroup ceiling and the kernel kills it (exit 137, "Killed", no error output).
+# A ceiling below the container limit makes V8 collect garbage instead of
+# ballooning. Raise this if the builder has more memory to spare.
+ENV NODE_OPTIONS="--max-old-space-size=3072"
+
+# Turbopack keeps more of the module graph resident than the webpack builder
+# did. Telemetry off trims a little more work from a memory-tight build.
+ENV NEXT_TELEMETRY_DISABLED=1
+
 # Build Next.js application
 # If you want to speed up Docker rebuilds, you can cache the build artifacts
 # by adding: --mount=type=cache,target=/app/.next/cache

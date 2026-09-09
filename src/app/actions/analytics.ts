@@ -1,7 +1,34 @@
 'use server'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import type { DateRange } from '@/lib/date-utils'
+
+type OrderItemRow = {
+	name: string
+	quantity: number
+	unit_price: number
+	total_price: number
+}
+
+type OrderRow = {
+	id: string
+	total: number | null
+	subtotal: number | null
+	tax: number | null
+	discount_amount: number | null
+	space_rental_amount: number | null
+	created_at: string | null
+	completed_at?: string | null
+	order_items: OrderItemRow[] | null
+}
+
+type PurchaseRow = {
+	id: string
+	total_amount: number | null
+	purchase_date: string | null
+	notes: string | null
+}
 
 type AnalyticsData = {
 	sales: number
@@ -71,34 +98,45 @@ export async function getAnalytics(
 	const startDateOnly = formatLocalDate(startDateLocal)
 	const endDateOnly = formatLocalDate(endDateLocal)
 
-	// Get completed orders (sales) within date range
-	const { data: orders, error: ordersError } = await supabase
-		.from('orders')
-		.select(
-			'id, total, subtotal, tax, discount_amount, space_rental_amount, created_at, completed_at, order_items(name, quantity, unit_price, total_price)'
+	// Get completed orders (sales) within date range.
+	// Paged: a wide range (a full year, say) matches far more than PostgREST's
+	// 1000-row cap, which it applies silently — a single request would drop the
+	// tail of the period and under-report every figure below.
+	let orders: OrderRow[]
+	try {
+		orders = await fetchAllRows<OrderRow>(() =>
+			supabase
+				.from('orders')
+				.select(
+					'id, total, subtotal, tax, discount_amount, space_rental_amount, created_at, completed_at, order_items(name, quantity, unit_price, total_price)'
+				)
+				.eq('tenant_id', tenantId)
+				.eq('status', 'completed')
+				.gte('created_at', dateRange.startDate)
+				.lte('created_at', dateRange.endDate)
+				.order('created_at', { ascending: true })
+				.order('id', { ascending: true })
 		)
-		.eq('tenant_id', tenantId)
-		.eq('status', 'completed')
-		.gte('created_at', dateRange.startDate)
-		.lte('created_at', dateRange.endDate)
-		.order('created_at', { ascending: true })
-
-	if (ordersError) {
-		throw new Error(`Error fetching orders: ${ordersError.message}`)
+	} catch (error) {
+		throw new Error(`Error fetching orders: ${(error as Error).message}`)
 	}
 
 	// Get purchases (spendings) within date range
 	// Use date-only strings to avoid timezone issues
-	const { data: purchases, error: purchasesError } = await supabase
-		.from('purchases')
-		.select('id, total_amount, purchase_date, notes')
-		.eq('tenant_id', tenantId)
-		.gte('purchase_date', startDateOnly)
-		.lte('purchase_date', endDateOnly)
-		.order('purchase_date', { ascending: true })
-
-	if (purchasesError) {
-		throw new Error(`Error fetching purchases: ${purchasesError.message}`)
+	let purchases: PurchaseRow[]
+	try {
+		purchases = await fetchAllRows<PurchaseRow>(() =>
+			supabase
+				.from('purchases')
+				.select('id, total_amount, purchase_date, notes')
+				.eq('tenant_id', tenantId)
+				.gte('purchase_date', startDateOnly)
+				.lte('purchase_date', endDateOnly)
+				.order('purchase_date', { ascending: true })
+				.order('id', { ascending: true })
+		)
+	} catch (error) {
+		throw new Error(`Error fetching purchases: ${(error as Error).message}`)
 	}
 
 	// Calculate earnings including discounts (total after discounts)
@@ -335,15 +373,19 @@ export async function getAnalytics(
 	if (previousDateRange) {
 		// Fetch previous period data without recursion
 		const prevSupabase = await createSupabaseServerClient()
-		const { data: prevOrders } = await prevSupabase
-			.from('orders')
-			.select(
-				'id, total, subtotal, tax, discount_amount, space_rental_amount, created_at, order_items(name, quantity, unit_price, total_price)'
-			)
-			.eq('tenant_id', tenantId)
-			.eq('status', 'completed')
-			.gte('created_at', previousDateRange.startDate)
-			.lte('created_at', previousDateRange.endDate)
+		const prevOrders = await fetchAllRows<OrderRow>(() =>
+			prevSupabase
+				.from('orders')
+				.select(
+					'id, total, subtotal, tax, discount_amount, space_rental_amount, created_at, order_items(name, quantity, unit_price, total_price)'
+				)
+				.eq('tenant_id', tenantId)
+				.eq('status', 'completed')
+				.gte('created_at', previousDateRange.startDate)
+				.lte('created_at', previousDateRange.endDate)
+				.order('created_at', { ascending: true })
+				.order('id', { ascending: true })
+		)
 
 		// Extract date-only strings for previous period using local dates
 		const prevStartDateLocal = new Date(previousDateRange.startDate)
@@ -351,12 +393,16 @@ export async function getAnalytics(
 		const prevStartDateOnly = formatLocalDate(prevStartDateLocal)
 		const prevEndDateOnly = formatLocalDate(prevEndDateLocal)
 
-		const { data: prevPurchases } = await prevSupabase
-			.from('purchases')
-			.select('id, total_amount, purchase_date, notes')
-			.eq('tenant_id', tenantId)
-			.gte('purchase_date', prevStartDateOnly)
-			.lte('purchase_date', prevEndDateOnly)
+		const prevPurchases = await fetchAllRows<PurchaseRow>(() =>
+			prevSupabase
+				.from('purchases')
+				.select('id, total_amount, purchase_date, notes')
+				.eq('tenant_id', tenantId)
+				.gte('purchase_date', prevStartDateOnly)
+				.lte('purchase_date', prevEndDateOnly)
+				.order('purchase_date', { ascending: true })
+				.order('id', { ascending: true })
+		)
 
 		// Recalculate previous period earnings including discounts
 		const prevEarningsIncludingDiscounts =
