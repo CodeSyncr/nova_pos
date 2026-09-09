@@ -1,6 +1,7 @@
 'use server'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 
 // ────────────────────────────────────────────────────────────────────────────
 // MARKETING CONFIG: Facebook, Instagram, Review Links
@@ -285,16 +286,23 @@ export async function getMarketingAnalytics(tenantId: string): Promise<Marketing
 	const thirtyDaysAgo = new Date()
 	thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-	const { data: orders } = await supabase
-		.from('orders')
-		.select('order_type, total, status')
-		.eq('tenant_id', tenantId)
-		.gte('created_at', thirtyDaysAgo.toISOString())
-		.in('status', ['completed', 'ready', 'preparing', 'confirmed'])
+	const orders = await fetchAllRows<{
+		order_type: string | null
+		total: number | null
+		status: string | null
+	}>(() =>
+		supabase
+			.from('orders')
+			.select('order_type, total, status')
+			.eq('tenant_id', tenantId)
+			.gte('created_at', thirtyDaysAgo.toISOString())
+			.in('status', ['completed', 'ready', 'preparing', 'confirmed'])
+			.order('id', { ascending: true })
+	)
 
 	const channelMap: Record<string, { count: number; revenue: number }> = {}
 
-	for (const order of orders || []) {
+	for (const order of orders) {
 		const type = order.order_type || 'dine_in'
 		if (!channelMap[type]) channelMap[type] = { count: 0, revenue: 0 }
 		channelMap[type].count++

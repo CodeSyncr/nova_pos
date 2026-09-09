@@ -1,6 +1,7 @@
 'use server'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import {
 	type MonthlySalesRow,
 	type TaxRegimeComparison,
@@ -10,6 +11,16 @@ import {
 } from '@/lib/tax-calculations'
 
 export type { MonthlySalesRow, TaxRegimeComparison }
+
+// PostgREST returns an embedded to-one relation as an object, but the generated
+// types widen it to an array, so both shapes are handled at the call sites.
+type PurchaseWithSupplierRow = {
+	id: string
+	purchase_date: string
+	notes: string | null
+	total_amount: number | null
+	supplier: { name: string } | Array<{ name: string }> | null
+}
 export { calculateNewRegimeTax, calculateOldRegimeTax, compareTaxRegimes }
 
 export type TaxModuleData = {
@@ -60,15 +71,25 @@ export async function getTaxModuleData(tenantId: string, yearStart: number): Pro
 	const endDate = `${yearStart + 1}-03-31T23:59:59Z`
 
 	// 1. Fetch Orders for the financial year
-	const { data: orders, error: ordersError } = await supabase
-		.from('orders')
-		.select('total, subtotal, tax, discount_amount, payment_method, status, created_at')
-		.eq('tenant_id', tenantId)
-		.eq('status', 'completed')
-		.gte('created_at', startDate)
-		.lte('created_at', endDate)
-
-	if (ordersError) throw new Error(ordersError.message)
+	const orders = await fetchAllRows<{
+		total: number | null
+		subtotal: number | null
+		tax: number | null
+		discount_amount: number | null
+		payment_method: string | null
+		status: string | null
+		created_at: string | null
+	}>(() =>
+		supabase
+			.from('orders')
+			.select('total, subtotal, tax, discount_amount, payment_method, status, created_at')
+			.eq('tenant_id', tenantId)
+			.eq('status', 'completed')
+			.gte('created_at', startDate)
+			.lte('created_at', endDate)
+			.order('created_at', { ascending: true })
+			.order('id', { ascending: true })
+	)
 
 	// Process Sales Summary
 	let totalSales = 0
@@ -138,29 +159,30 @@ export async function getTaxModuleData(tenantId: string, yearStart: number): Pro
 	})).sort((a, b) => a.month.localeCompare(b.month))
 
 	// 2. Fetch Purchases/Expenses for the financial year
-	const { data: purchases, error: purchasesError } = await supabase
-		.from('purchases')
-		.select(`
-			id,
-			purchase_date,
-			notes,
-			total_amount,
-			supplier:supplier_id (name)
-		`)
-		.eq('tenant_id', tenantId)
-		.gte('purchase_date', `${yearStart}-04-01`)
-		.lte('purchase_date', `${yearStart + 1}-03-31`)
-		.order('purchase_date', { ascending: true })
+	const purchases = await fetchAllRows<PurchaseWithSupplierRow>(() =>
+		supabase
+			.from('purchases')
+			.select(`
+				id,
+				purchase_date,
+				notes,
+				total_amount,
+				supplier:supplier_id (name)
+			`)
+			.eq('tenant_id', tenantId)
+			.gte('purchase_date', `${yearStart}-04-01`)
+			.lte('purchase_date', `${yearStart + 1}-03-31`)
+			.order('purchase_date', { ascending: true })
+			.order('id', { ascending: true })
+	)
 
-	if (purchasesError) throw new Error(purchasesError.message)
-
-	const processedPurchases = (purchases || []).map((p) => {
+	const processedPurchases = purchases.map((p) => {
 		const supName = Array.isArray(p.supplier) ? p.supplier[0]?.name : (p.supplier as { name: string } | null)?.name
 		return {
 			id: p.id,
 			purchaseDate: p.purchase_date,
 			notes: p.notes,
-			totalAmount: p.total_amount,
+			totalAmount: p.total_amount ?? 0,
 			supplierName: supName || null
 		}
 	})
